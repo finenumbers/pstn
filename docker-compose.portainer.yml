@@ -63,10 +63,14 @@ services:
       start_period: 120s
     networks:
       - pstn_internal
+      - proxy
 
 networks:
   pstn_internal:
     name: pstn_internal
+  proxy:
+    external: true
+    name: proxy
 
 volumes:
   pstn_pg_data:

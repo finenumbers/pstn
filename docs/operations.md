@@ -210,9 +210,15 @@ npm run db:rebuild-dicts
 
 ### NPM → 502 Bad Gateway
 
-- App running? `curl http://127.0.0.1:5555/api/health`
-- Forward target: `127.0.0.1:5555` (вариант A) или `pstn_app:5555` (вариант B + Join network)
-- `start_period` 120s — подождите после первого deploy
+**Частая причина:** NPM в Docker, а Forward = `127.0.0.1:5555`. Из контейнера NPM это **не** хост — backend недоступен.
+
+**Исправление:**
+
+1. NPM → Proxy Host → Forward Hostname: **`pstn_app`**, Port: **5555**
+2. Portainer → Stacks → `pstn` → **Pull and redeploy** (compose подключает `pstn_app` к сети `proxy`)
+3. Проверка на сервере: `curl http://127.0.0.1:5555/api/health` — app должен отвечать локально
+
+Если 502 остаётся: Portainer → Containers → `pstn_app` → **Networks** — должны быть `pstn_internal` и **`proxy`**.
 
 ### UI import не работает при `IMPORT_SECRET`
 

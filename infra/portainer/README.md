@@ -6,7 +6,7 @@
 docker-compose.portainer.yml
 ```
 
-**Только** `docker-compose.portainer.yml` — без `build:`, без bind mounts, образы с GHCR (`ghcr.io/finenumbers/pstn:latest`). После push в `main`: **Pull and redeploy** (работает только при **Control: Total**).
+**Только** `docker-compose.portainer.yml` — без `build:`, без bind mounts, образ `ghcr.io/finenumbers/pstn:latest`. Контейнер `pstn_app` подключается к сети **`proxy`** для NPM.
 
 > **Control: Limited?** Stack создан через SSH `docker compose up` — Portainer не управляет образами, индикатор «Images up to date» не работает. [Пересоздание stack](../../docs/deployment.md#stack-limited-created-outside-of-portainer)
 
