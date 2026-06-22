@@ -162,6 +162,10 @@ export interface SummaryResponse {
     uniqueRegions: number;
     uniqueOperators: number;
   };
+  uvrBinding: {
+    registryOperators: number;
+    matchedDistinctInns: number;
+  };
 }
 
 export interface ImportProgress {

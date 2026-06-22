@@ -1,9 +1,10 @@
 import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
-import { asc, eq } from "drizzle-orm";
+import { asc } from "drizzle-orm";
 import { db } from "../index";
 import { numberRanges, operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 
 export async function lookupByPhone(phone: string) {
   const parts = parsePhoneNumberMask(phone);
@@ -32,7 +33,7 @@ export async function lookupByPhone(phone: string) {
       abcRangeGapAfter: numberRanges.abcGapAfter,
     })
     .from(numberRanges)
-    .leftJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
+    .leftJoin(operatorsRegister, innRegisterMatchSql())
     .where(where)
     .orderBy(asc(numberRanges.id))
     .limit(2);

@@ -42,6 +42,7 @@ describeWithDb("summaryRanges fast path", () => {
     expect(summary.filtered.uniqueOperators).toBe(summary.global.uniqueOperators);
     expect(summary.global.rangeCount).toBe(10);
     expect(summary.global.uniqueRegions).toBe(2);
+    expect(summary.uvrBinding.registryOperators).toBeGreaterThanOrEqual(0);
   });
 
   it("returns different filtered stats when operator filter is set", async () => {

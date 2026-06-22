@@ -155,6 +155,12 @@ export function RangesPageContent() {
             filtersActive && filteredSummaryQuery.data
               ? filteredSummaryQuery.data.filtered
               : globalSummaryQuery.data.global,
+          uvrBinding:
+            globalSummaryQuery.data.uvrBinding ??
+            filteredSummaryQuery.data?.uvrBinding ?? {
+              registryOperators: 0,
+              matchedDistinctInns: 0,
+            },
         }
       : filteredSummaryQuery.data;
 

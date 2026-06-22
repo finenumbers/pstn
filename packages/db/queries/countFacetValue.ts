@@ -3,12 +3,13 @@ import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { numberRanges, operatorsRegister } from "../schema";
 import { buildWhere, FACET_COLUMN_MAP } from "./buildWhere";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 
 function uvrAntifraudValueWhere(value: string): SQL {
   return sql`EXISTS (
     SELECT 1
     FROM ${operatorsRegister}
-    WHERE ${operatorsRegister.inn} = ${numberRanges.inn}
+    WHERE ${innRegisterMatchSql()}
       AND ${operatorsRegister.idSrc}::text = ${value}
   )`;
 }

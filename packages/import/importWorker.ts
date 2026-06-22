@@ -4,6 +4,7 @@ import { RANGES_STAGING_TABLE } from "@/packages/db/importTables";
 import { datasetMeta, importJobs } from "@/packages/db/schema";
 import { refreshAbcRangeGaps } from "@/packages/db/queries/refreshAbcRangeGaps";
 import { refreshUvrAntifraudBinding } from "@/packages/db/queries/refreshUvrAntifraudBinding";
+import { tryImportOprFromEnvPath } from "@/packages/import/importOprRegister";
 import { buildImportProgressDisplay } from "@/lib/import/importProgressView";
 import {
   BATCH_SIZE,
@@ -249,6 +250,7 @@ async function runImportJob(jobId: string): Promise<void> {
       .set({ progressPhase: "binding_uvr_antifraud" })
       .where(eq(importJobs.id, jobId));
 
+    await tryImportOprFromEnvPath();
     await refreshUvrAntifraudBinding();
 
     const stats = await refreshDatasetGlobalStats();

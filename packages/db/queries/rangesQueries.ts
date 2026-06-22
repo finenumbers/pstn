@@ -15,8 +15,10 @@ import {
 } from "drizzle-orm";
 import { db } from "../index";
 import { datasetMeta, numberRanges, operatorsRegister } from "../schema";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 import { buildWhere } from "./buildWhere";
 import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
+import { refreshUvrAntifraudBinding } from "./refreshUvrAntifraudBinding";
 import { phoneNumberPartialMatchCountExpr } from "./phoneNumberMatchCount";
 import {
   buildKeysetWhere,
@@ -89,7 +91,7 @@ export async function listRanges(params: {
       abcRangeGapAfter: numberRanges.abcGapAfter,
     })
     .from(numberRanges)
-    .leftJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
+    .leftJoin(operatorsRegister, innRegisterMatchSql())
     .where(where)
     .orderBy(...orderBy, ...tailOrder)
     .limit(params.pageSize)
@@ -181,6 +183,7 @@ export async function summaryRanges(filters: FiltersDTO) {
     .from(datasetMeta)
     .where(eq(datasetMeta.id, 1));
   const metaRow = metaRows[0];
+  const uvrBinding = await refreshUvrAntifraudBinding();
 
   if (!hasActiveFilters(filters)) {
     const globalFromMeta = globalSummaryFromMeta(metaRow);
@@ -195,6 +198,7 @@ export async function summaryRanges(filters: FiltersDTO) {
         uniqueOperators: global.uniqueOperators,
       },
       global,
+      uvrBinding,
     };
   }
 
@@ -236,6 +240,7 @@ export async function summaryRanges(filters: FiltersDTO) {
       uniqueRegions: global.uniqueRegions,
       uniqueOperators: global.uniqueOperators,
     },
+    uvrBinding,
   };
 }
 
@@ -272,7 +277,7 @@ export async function listRangesForExport(
       abcRangeGapAfter: numberRanges.abcGapAfter,
     })
     .from(numberRanges)
-    .leftJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
+    .leftJoin(operatorsRegister, innRegisterMatchSql())
     .where(where)
     .orderBy(
       asc(numberRanges.abc),

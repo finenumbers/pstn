@@ -9,6 +9,7 @@ import {
   type AnyColumn,
 } from "drizzle-orm";
 import { numberRanges, operatorsRegister } from "../schema";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 import { phoneNumberOverlapSql } from "./phoneNumberMatchCount";
 
 export const COVERAGE_AND_COLUMNS = [
@@ -70,7 +71,7 @@ function uvrAntifraudFilter(values: string[]): SQL | undefined {
   return sql`EXISTS (
     SELECT 1
     FROM ${operatorsRegister}
-    WHERE ${operatorsRegister.inn} = ${numberRanges.inn}
+    WHERE ${innRegisterMatchSql()}
       AND ${operatorsRegister.idSrc}::text IN (${sql.join(
         values.map((value) => sql`${value}`),
         sql`, `

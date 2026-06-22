@@ -38,19 +38,39 @@ git push -u origin main
 
 ### Загрузка реестра OPR (УВр Антифraud)
 
-Колонка «УВр Антифрод» требует отдельного CSV реестра операторов:
+Колонка **«УВр Антифraud»** заполняется **не** из CSV Минцифры. Это JOIN `number_ranges` с таблицей `operators_register` по **ИНН**.
+
+После **деплоя / Pull and redeploy** диапазоны Минцифры сохраняются (volume `pstn_pg_data`), но **`operators_register` может быть пустой** — в UI колонка «УВр Антифraud» покажет «—».
+
+#### Вариант 1 — автоматически (Portainer)
+
+```bash
+docker cp /path/to/opr.csv pstn_app:/app/.secrets/opr.csv
+```
+
+В stack `pstn`:
+
+```env
+OPR_CSV_PATH=/app/.secrets/opr.csv
+```
+
+**Pull and redeploy** или restart `pstn_app`. OPR импортируется при старте и после «Загрузить данные».
+
+#### Вариант 2 — вручную
 
 ```bash
 tsx scripts/import-opr-csv.ts /path/to/opr.csv
 ```
 
-Скрипт [`scripts/import-opr-csv.ts`](../scripts/import-opr-csv.ts):
+#### Проверка
 
-- Загружает строки в `operators_register`
-- Удаляет предыдущие записи с тем же `source_file`
-- После import CSV Минцифры binding обновляется автоматически (`refreshUvrAntifraudBinding`)
+```bash
+docker exec pstn_postgres psql -U pstn -d pstn -c "SELECT COUNT(*) FROM operators_register;"
+```
 
-Без OPR колонка `uvrAntifraud` будет `null`.
+Должно быть **> 0**.
+
+Скрипт [`scripts/import-opr-csv.ts`](../scripts/import-opr-csv.ts): нормализует ИНН (только цифры), обновляет `operators_register`, совместим с CSV Минцифры.
 
 ---
 

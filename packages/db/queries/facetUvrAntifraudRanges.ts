@@ -1,8 +1,9 @@
 import type { FiltersDTO } from "@/packages/shared/contracts/filters.schema";
-import { and, asc, count, countDistinct, desc, eq, ilike, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, countDistinct, desc, ilike, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { numberRanges, operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 
 export async function facetUvrAntifraudRanges(params: {
   filters: FiltersDTO;
@@ -29,10 +30,7 @@ export async function facetUvrAntifraudRanges(params: {
         count: count(numberRanges.id),
       })
       .from(numberRanges)
-      .innerJoin(
-        operatorsRegister,
-        eq(numberRanges.inn, operatorsRegister.inn)
-      )
+      .innerJoin(operatorsRegister, innRegisterMatchSql())
       .where(where)
       .groupBy(operatorsRegister.idSrc)
       .orderBy(desc(count(numberRanges.id)), asc(operatorsRegister.idSrc))
@@ -42,10 +40,7 @@ export async function facetUvrAntifraudRanges(params: {
         total: countDistinct(operatorsRegister.idSrc),
       })
       .from(numberRanges)
-      .innerJoin(
-        operatorsRegister,
-        eq(numberRanges.inn, operatorsRegister.inn)
-      )
+      .innerJoin(operatorsRegister, innRegisterMatchSql())
       .where(where),
   ]);
 

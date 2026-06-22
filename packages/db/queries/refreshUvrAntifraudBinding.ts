@@ -1,6 +1,7 @@
-import { count, eq, sql } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { db } from "../index";
 import { numberRanges, operatorsRegister } from "../schema";
+import { innRegisterMatchSql } from "./innRegisterMatch";
 
 /** Ensures OPR registry is reachable and counts INN matches after production swap. */
 export async function refreshUvrAntifraudBinding(): Promise<{
@@ -18,7 +19,7 @@ export async function refreshUvrAntifraudBinding(): Promise<{
       ),
     })
     .from(numberRanges)
-    .innerJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
+    .innerJoin(operatorsRegister, innRegisterMatchSql())
     .where(sql`${numberRanges.inn} <> ''`);
 
   return {
