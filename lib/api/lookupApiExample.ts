@@ -8,8 +8,6 @@ import {
 
 export const LOOKUP_DEFAULT_PHONE = "4996660000";
 export const LOOKUP_DEFAULT_MASK = "499X66XXXX";
-/** Placeholder in public curl examples — do not expose the live API key. */
-export const LOOKUP_CURL_API_KEY_PLACEHOLDER = "<YOUR_API_KEY>";
 
 export function phoneQueryFromMask(maskValue: string): string {
   const slots = normalizePhoneMask(maskValue);

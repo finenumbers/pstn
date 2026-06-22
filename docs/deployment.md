@@ -319,6 +319,8 @@ location /api/import {
 docker compose exec app cat /app/.secrets/external_api_key
 ```
 
+В UI (диалог **API** на `/ranges`) curl-примеры уже содержат этот ключ.
+
 Для production рекомендуется задать фиксированный `EXTERNAL_API_KEY` в env.
 
 ---

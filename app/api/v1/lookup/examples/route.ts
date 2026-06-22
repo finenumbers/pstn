@@ -3,7 +3,6 @@ import { getExternalApiBaseUrl } from "@/lib/api/externalApiBaseUrl";
 import { getExternalApiKey } from "@/lib/api/externalApiAuth";
 import {
   buildLookupCurlExamples,
-  LOOKUP_CURL_API_KEY_PLACEHOLDER,
   resolveLookupExampleOrigin,
 } from "@/lib/api/lookupApiExample";
 
@@ -38,7 +37,7 @@ export async function GET(request: NextRequest) {
 
   const { exactCurl, searchCurl } = buildLookupCurlExamples(
     origin,
-    LOOKUP_CURL_API_KEY_PLACEHOLDER,
+    apiKey,
     phoneMask
   );
 

@@ -232,7 +232,7 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 ### External lookup 401
 
-- Проверьте ключ: `docker compose exec app cat /app/.secrets/external_api_key`
+- Проверьте ключ: диалог **API** на `/ranges` (готовые curl) или `docker compose exec app cat /app/.secrets/external_api_key`
 - Header: `Authorization: Bearer <key>` или `X-Api-Key`
 
 ### Export EXPORT_TOO_LARGE

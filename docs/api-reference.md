@@ -338,12 +338,12 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 {
   "configured": true,
   "baseUrl": "https://pstn.example.com",
-  "exactCurl": "curl -s \"...\" -H \"Authorization: Bearer <YOUR_API_KEY>\"",
-  "searchCurl": "curl -s \"...\" -H \"Authorization: Bearer <YOUR_API_KEY>\""
+  "exactCurl": "curl -s \"...\" -H \"Authorization: Bearer <EXTERNAL_API_KEY>\"",
+  "searchCurl": "curl -s \"...\" -H \"Authorization: Bearer <EXTERNAL_API_KEY>\""
 }
 ```
 
-Поле `apiKey` **отсутствует** — в curl-строках placeholder `<YOUR_API_KEY>`. Подставьте ключ из volume или env перед вызовом.
+Поле `apiKey` **отсутствует** — ключ встроен в готовые curl-строки (`exactCurl`, `searchCurl`) для copy-paste из UI.
 
 **Response 503:** lookup API не настроен.
 

@@ -93,12 +93,12 @@ X-Api-Key: <EXTERNAL_API_KEY>
 
 Ключ **не** выводится в логи entrypoint (только путь к файлу).
 
-### UI: curl-примеры без утечки ключа в JSON
+### UI: curl-примеры
 
-- `GET /api/v1/lookup/config` → `{ configured, baseUrl }` — **без** поля `apiKey`
-- `GET /api/v1/lookup/examples?phoneMask=...` → `{ exactCurl, searchCurl, baseUrl }` — в curl-строках placeholder `<YOUR_API_KEY>`, не реальный ключ
+- `GET /api/v1/lookup/config` → `{ configured, baseUrl }` — **без** ключа
+- `GET /api/v1/lookup/examples?phoneMask=...` → `{ exactCurl, searchCurl, baseUrl }` — ключ встроен в готовые curl-строки (отдельного поля `apiKey` нет)
 
-Доступ к `/examples` не защищён на уровне app — полагайтесь на NPM. Ключ получайте из volume или задайте `EXTERNAL_API_KEY` в env (CLI prod).
+Доступ к `/examples` не защищён на уровне app — полагайтесь на NPM (внутренний периметр).
 
 ---
 
@@ -182,7 +182,7 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 |--------|------|------------|
 | Несанкционированный доступ к UI/API | Высокий | NPM Access List, VPN, localhost bind |
 | Scraping lookup/export | Средний | Rate limits на NPM |
-| Утечка EXTERNAL_API_KEY | Средний | Не в JSON config; volume; не в logs |
+| Утечка EXTERNAL_API_KEY | Средний | Ключ в curl `/examples` только за NPM; `/config` без ключа; не в logs |
 | DoS через import reload | Средний | Rate limit `/api/import`, один job за раз (advisory lock) |
 | SQL injection | Низкий | Drizzle parameterization, контролируемый `sql.raw` |
 | Утечка stack trace в prod | Низкий | `internalServerError()` sanitization |

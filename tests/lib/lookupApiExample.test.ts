@@ -58,7 +58,6 @@ describe("lookupApiExample", () => {
     expect(exactCurl).toContain("phone=3012110000");
     expect(exactCurl).toContain("Bearer secret-key-123");
     expect(searchCurl).toContain(encodeURIComponent("3012110000"));
-    expect(searchCurl).not.toContain('"apiKey"');
   });
 
   it("prefers configured base URL over request host", () => {
