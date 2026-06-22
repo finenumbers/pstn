@@ -102,16 +102,11 @@ export function ImportProgressCard({
           </div>
         )}
 
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Файлы Минцифры
-          </p>
-          <ul className="grid grid-cols-4 gap-2">
-            {progress.files.map((file) => (
-              <FileProgressRow key={file.key} file={file} />
-            ))}
-          </ul>
-        </div>
+        <ul className="grid grid-cols-4 gap-2">
+          {progress.files.map((file) => (
+            <FileProgressRow key={file.key} file={file} />
+          ))}
+        </ul>
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <p className="tabular-nums text-muted-foreground">
@@ -182,7 +177,9 @@ function FileProgressRow({ file }: { file: ImportFileProgress }) {
           file.status === "pending" && "text-muted-foreground"
         )}
       />
-      <span className="min-w-0 flex-1 font-medium">{file.key}</span>
+      <span className="min-w-0 flex-1 font-medium">
+        {file.key} (МинЦифры)
+      </span>
       <span className="tabular-nums text-muted-foreground">
         {file.status === "loading"
           ? "загрузка…"
