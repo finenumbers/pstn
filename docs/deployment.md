@@ -165,7 +165,7 @@ docker compose -f docker-compose.prod.yml up -d --build
    - **Repository reference:** `main`
    - **Compose path:** `docker-compose.portainer.yml`
    
-   > **Web editor / Upload** не подходят для сборки образа: Portainer сохраняет только compose-файл на хосте (`/data/compose/<id>/`), без исходников. В `docker-compose.portainer.yml` сборка идёт напрямую из GitHub (`build.context` — URL репозитория), поэтому stack можно развернуть и через Web editor, если вставить **актуальное** содержимое файла из репозитория.
+   > **Web editor / Upload** — можно, если вставить актуальный `docker-compose.portainer.yml` из репозитория. Образ **не собирается** на сервере: stack тянет готовый образ `ghcr.io/finenumbers/pstn` (сборка в GitHub Actions).
 3. **Environment variables** — из [`portainer.env.example`](../portainer.env.example):
 
 | Переменная | Пример | Обязательна |
@@ -178,14 +178,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `LOG_LEVEL` | `info` | нет |
 | `DB_POOL_MAX` | `10` | нет |
 | `DB_IMPORT_POOL_MAX` | `4` | нет |
-| `IMAGE_TAG` | `latest` | нет |
-| `GIT_REF` | `main` | нет (ветка/тег для сборки образа из GitHub) |
+| `IMAGE_TAG` | `latest` | нет (тег образа на GHCR) |
 | `EXTERNAL_API_BASE_URL` | `https://pstn.example.com` | рекомендуется |
 | `EXTERNAL_API_KEY` | фиксированный ключ | нет (auto) |
 | `IMPORT_SECRET` | секрет import API | нет |
 
-4. **Deploy the stack**
-5. Дождитесь статуса **healthy** у контейнера `pstn_app` (~2–3 мин при первой сборке)
+4. Если пакет GHCR **приватный**: Portainer → **Registries** → **Add registry** → `ghcr.io`, логин GitHub, Personal Access Token с `read:packages`.
+5. **Deploy the stack**
+6. Дождитесь статуса **healthy** у контейнера `pstn_app` (~1–2 мин при первом pull образа)
 
 ### Шаг 2 — Проверка
 
@@ -202,6 +202,21 @@ Portainer → Stacks → `pstn` → **Pull and redeploy** (или **Update the s
 ## NGINX Proxy Manager
 
 NPM устанавливается и обновляется **независимо** от compose проекта PSTN.
+
+### Таймауты NPM (Portainer и длинные операции)
+
+Если Portainer открыт через NPM и при **Deploy the stack** появляется **504 Gateway Time-out** (`openresty`) — прокси оборвал ожидание (обычно 60 с), пока Docker собирал образ.
+
+Stack PSTN использует **готовый образ** `ghcr.io/finenumbers/pstn` (без сборки на сервере). Если 504 всё ещё появляется на других операциях Portainer, в NPM → Proxy Host **Portainer** → **Advanced** добавьте:
+
+```nginx
+proxy_connect_timeout 600;
+proxy_send_timeout 600;
+proxy_read_timeout 600;
+send_timeout 600;
+```
+
+Либо открывайте Portainer напрямую: `https://<server-ip>:9443` (минуя NPM) — для первого деплоя и обновлений stack.
 
 ### Вариант A — NPM на хосте, app на localhost
 
@@ -301,8 +316,7 @@ location /api/import {
 | `EXTERNAL_API_KEY` | нет | auto | Ключ external lookup API |
 | `EXTERNAL_API_BASE_URL` | рекомендуется | — | Публичный URL для curl-примеров в UI |
 | `IMPORT_SECRET` | нет | — | Заголовок `X-Import-Secret` для import API |
-| `IMAGE_TAG` | Portainer | `latest` | Тег образа `pstn-app` |
-| `GIT_REF` | Portainer | `main` | Ветка/тег GitHub для сборки образа |
+| `IMAGE_TAG` | Portainer | `latest` | Тег образа `ghcr.io/finenumbers/pstn` |
 | `NODE_ENV` | в образе | `production` | Режим Next.js |
 
 ### Пул соединений PostgreSQL

@@ -234,21 +234,20 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 > 100k строк — ожидайте несколько минут. UI показывает confirm.
 
+### Portainer: `504 Gateway Time-out` (openresty)
+
+**Причина:** UI Portainer открыт через NGINX Proxy Manager. Кнопка **Deploy the stack** ждёт завершения операции Docker; при **сборке образа** на сервере это 5–15 минут, NPM по умолчанию обрывает запрос через ~60 с.
+
+**Что делать:**
+
+1. Обновите stack compose до актуального `docker-compose.portainer.yml` — образ тянется с GHCR (`ghcr.io/finenumbers/pstn`), без локальной сборки; деплой занимает 1–2 минуты.
+2. Убедитесь, что образ опубликован: GitHub → **Actions** → workflow **Publish Docker image** (зелёный статус на `main`).
+3. Если пакет GHCR приватный — добавьте registry `ghcr.io` в Portainer (**Registries**).
+4. Если 504 на других действиях Portainer — увеличьте таймауты NPM для proxy host Portainer (см. [deployment.md](deployment.md#таймауты-npm-portainer-и-длинные-операции)) или зайдите на `:9443` напрямую.
+
 ### Portainer: `open Dockerfile: no such file or directory`
 
-Portainer проксирует `docker compose build` на Docker-хост. В каталоге stack (`/data/compose/<id>/`) лежит только compose-файл, без репозитория — `build.context: .` не находит `Dockerfile`.
-
-**Решение:** используйте актуальный `docker-compose.portainer.yml` из репозитория — в нём `build.context` указывает на GitHub:
-
-```yaml
-build:
-  context: https://github.com/finenumbers/pstn.git#${GIT_REF:-main}
-  dockerfile: Dockerfile
-```
-
-1. Stacks → `pstn` → **Editor** → замените compose содержимым из GitHub (или пересоздайте stack через **Git repository**).
-2. Убедитесь, что хост имеет доступ к `github.com` (сборка клонирует репозиторий).
-3. При необходимости задайте `GIT_REF=main` (или тег релиза) в переменных stack.
+Устаревший compose с `build.context: .` или локальной сборкой. Используйте актуальный `docker-compose.portainer.yml` — образ `ghcr.io/finenumbers/pstn`, без сборки на сервере.
 
 ### Изменения кода не видны после restart
 
