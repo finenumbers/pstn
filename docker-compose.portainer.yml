@@ -1,4 +1,5 @@
-# See docs/deployment.md
+# Portainer production stack — pull-only, no local build (like finenumbers/geoip).
+# Image: ghcr.io/finenumbers/pstn (public). Required for Portainer "Images up to date" indicator.
 
 name: pstn
 
@@ -27,9 +28,7 @@ services:
       - pstn_internal
 
   app:
-    # Pre-built in GitHub Actions (ghcr.io). Avoids long docker build during Portainer deploy (504 via NPM).
     image: ghcr.io/finenumbers/pstn:${IMAGE_TAG:-latest}
-    pull_policy: always
     container_name: pstn_app
     restart: unless-stopped
     ports:

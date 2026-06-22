@@ -182,9 +182,34 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `EXTERNAL_API_KEY` | фиксированный ключ | нет (auto) |
 | `IMPORT_SECRET` | секрет import API | нет |
 
-4. Если пакет GHCR **приватный**: Portainer → **Registries** → **Add registry** → `ghcr.io`, логин GitHub, Personal Access Token с `read:packages`.
+4. **Registries** (один раз на environment) — чтобы Portainer сравнивал digest с GHCR (индикатор **Images up to date**, как у `geoip`):
+   - **Registries** → **Add registry**
+   - **Registry provider:** Custom
+   - **Name:** `ghcr.io`
+   - **Registry URL:** `ghcr.io`
+   - **Username:** `finenumbers`
+   - **Password:** GitHub PAT с `read:packages` (для публичного пакета можно оставить пустым, если pull уже работает)
 5. **Deploy the stack**
 6. Дождитесь статуса **healthy** у контейнера `pstn_app` (~1–2 мин при первом pull образа)
+
+### Индикатор «Images up to date»
+
+Прочерк (`−`) означает, что Portainer не смог сравнить локальный образ с registry. Для `pstn` чаще всего контейнер всё ещё на старом локальном образе `pstn-app:latest` (до перехода на GHCR).
+
+**Проверка на сервере:**
+
+```bash
+docker inspect pstn_app --format '{{.Config.Image}}'
+# Ожидается: ghcr.io/finenumbers/pstn:latest
+```
+
+**Если видите `pstn-app` или `sha256:...` без `ghcr.io`:**
+
+1. Stacks → `pstn` → **Pull and redeploy** (compose из Git, без `build:`)
+2. Удалите старые локальные образы: `docker rmi pstn-app:latest 2>/dev/null || true`
+3. Stacks → **Reload image indicators**
+
+Host → **Setup** → **Other** → включите **Show an image(s) up to date indicator for Stacks**.
 
 ### Шаг 2 — Проверка
 

@@ -20,6 +20,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=5555
 
+LABEL org.opencontainers.image.source="https://github.com/finenumbers/pstn"
+LABEL org.opencontainers.image.title="PSTN Analytics"
+LABEL org.opencontainers.image.vendor="Finenumbers"
+
 RUN apk add --no-cache postgresql-client su-exec && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \

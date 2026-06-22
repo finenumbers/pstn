@@ -234,6 +234,16 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 > 100k строк — ожидайте несколько минут. UI показывает confirm.
 
+### Portainer: прочерк в «Images up to date»
+
+Portainer не смог сравнить локальный образ с GHCR. Пакет `ghcr.io/finenumbers/pstn` **публичный** — проблема обычно в том, что контейнер `pstn_app` всё ещё на старом образе `pstn-app:latest`.
+
+```bash
+docker inspect pstn_app --format '{{.Config.Image}}'
+```
+
+Должно быть `ghcr.io/finenumbers/pstn:latest`. Если нет — **Pull and redeploy** stack, добавьте registry `ghcr.io` в Portainer (см. [deployment.md](deployment.md#индикатор-images-up-to-date)), затем **Reload image indicators**.
+
 ### Portainer: `ERR_INVALID_URL` / `Invalid URL` / `base: 'postgres://base'`
 
 **Причина:** неверный `DATABASE_URL` в переменных stack — частые случаи:
