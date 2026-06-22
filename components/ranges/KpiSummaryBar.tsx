@@ -105,7 +105,7 @@ export function KpiSummaryBar({
 
       {isUvrUnbound && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Колонка «УВр Антифraud» пустая: реестр OPR не загружен. После{" "}
+          Колонка «УВр Антифрод» пустая: реестр OPR не загружен. После{" "}
           <strong>Pull and redeploy</strong> образ с{" "}
           <code className="rounded bg-amber-100 px-1">data/opr/</code> должен
           подтянуться автоматически при старте. Проверьте логи{" "}

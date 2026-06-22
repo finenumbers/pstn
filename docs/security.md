@@ -96,9 +96,9 @@ X-Api-Key: <EXTERNAL_API_KEY>
 ### UI: curl-примеры без утечки ключа в JSON
 
 - `GET /api/v1/lookup/config` → `{ configured, baseUrl }` — **без** поля `apiKey`
-- `GET /api/v1/lookup/examples?phoneMask=...` → `{ exactCurl, searchCurl, baseUrl }` — ключ только внутри готовых curl-строк
+- `GET /api/v1/lookup/examples?phoneMask=...` → `{ exactCurl, searchCurl, baseUrl }` — в curl-строках placeholder `<YOUR_API_KEY>`, не реальный ключ
 
-Доступ к `/examples` не защищён на уровне app — полагайтесь на NPM.
+Доступ к `/examples` не защищён на уровне app — полагайтесь на NPM. Ключ получайте из volume или задайте `EXTERNAL_API_KEY` в env (CLI prod).
 
 ---
 

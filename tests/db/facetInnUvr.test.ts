@@ -9,7 +9,9 @@ import {
 import { pool } from "@/packages/db";
 import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 
-describe("facet inn and uvrAntifraud", () => {
+const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeWithDb("facet inn and uvrAntifraud", () => {
   beforeAll(async () => {
     await truncateRangeTables();
     await pool().query(`

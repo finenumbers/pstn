@@ -18,7 +18,7 @@ import { datasetMeta, numberRanges, operatorsRegister } from "../schema";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 import { buildWhere } from "./buildWhere";
 import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
-import { refreshUvrAntifraudBinding } from "./refreshUvrAntifraudBinding";
+import { getUvrAntifraudBindingCached } from "./refreshUvrAntifraudBinding";
 import { phoneNumberPartialMatchCountExpr } from "./phoneNumberMatchCount";
 import {
   buildKeysetWhere,
@@ -189,7 +189,7 @@ export async function summaryRanges(filters: FiltersDTO) {
     .from(datasetMeta)
     .where(eq(datasetMeta.id, 1));
   const metaRow = metaRows[0];
-  const uvrBinding = await refreshUvrAntifraudBinding();
+  const uvrBinding = await getUvrAntifraudBindingCached();
 
   if (!hasActiveFilters(filters)) {
     const globalFromMeta = globalSummaryFromMeta(metaRow);
@@ -295,8 +295,4 @@ export async function listRangesForExport(
       asc(numberRanges.id)
     )
     .limit(limit);
-}
-
-export async function countRangesForExport(filters: FiltersDTO): Promise<number> {
-  return countRanges(filters);
 }

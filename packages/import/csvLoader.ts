@@ -106,19 +106,6 @@ export async function rebuildDictionaries(): Promise<void> {
   }
 }
 
-/** @deprecated Use clearStaging — production data is preserved until swap. */
-export async function clearImportedData(): Promise<void> {
-  const p = pool();
-  await p.query("TRUNCATE TABLE number_ranges RESTART IDENTITY");
-  await clearStaging();
-  await p.query(
-    `TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY`
-  );
-  await p.query(
-    `UPDATE dataset_meta SET last_success_at = NULL, last_job_id = NULL, total_rows = NULL, total_capacity = NULL, unique_operators = NULL, unique_regions = NULL, unique_gar_territories = NULL WHERE id = 1`
-  );
-}
-
 export async function refreshDatasetGlobalStats(): Promise<{
   totalRows: number;
   totalCapacity: number;

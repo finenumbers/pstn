@@ -146,7 +146,7 @@ Invalid filters → **400** `VALIDATION_ERROR`.
 
 | Param | Описание |
 |-------|----------|
-| `columns` | Список колонок через запятую |
+| `columns` | Список колонок через запятую: `abc`, `operator`, `region`, `garTerritory`, `inn`, `uvrAntifraud` |
 | `search.<column>` | Поиск внутри фасета |
 | `filters.*` | Контекстные фильтры |
 
@@ -185,9 +185,21 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
     "uniqueGarTerritories": 210,
     "uniqueOperators": 1200
   },
-  "filtered": {}
+  "filtered": {
+    "rangeCount": 446000,
+    "totalCapacity": 1234567890,
+    "uniqueRegions": 85,
+    "uniqueGarTerritories": 210,
+    "uniqueOperators": 1200
+  },
+  "uvrBinding": {
+    "registryOperators": 2848,
+    "matchedDistinctInns": 1200
+  }
 }
 ```
+
+Без активных фильтров `filtered` совпадает с `global`.
 
 ---
 
@@ -326,12 +338,12 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 {
   "configured": true,
   "baseUrl": "https://pstn.example.com",
-  "exactCurl": "curl -s \"...\" -H \"Authorization: Bearer ...\"",
-  "searchCurl": "curl -s \"...\" -H \"Authorization: Bearer ...\""
+  "exactCurl": "curl -s \"...\" -H \"Authorization: Bearer <YOUR_API_KEY>\"",
+  "searchCurl": "curl -s \"...\" -H \"Authorization: Bearer <YOUR_API_KEY>\""
 }
 ```
 
-Поле `apiKey` **отсутствует** — ключ только внутри curl-строк.
+Поле `apiKey` **отсутствует** — в curl-строках placeholder `<YOUR_API_KEY>`. Подставьте ключ из volume или env перед вызовом.
 
 **Response 503:** lookup API не настроен.
 

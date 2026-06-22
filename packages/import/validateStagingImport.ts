@@ -31,7 +31,7 @@ export class ImportValidationError extends Error {
   }
 }
 
-export async function countStagingRowsBySource(): Promise<
+async function countStagingRowsBySource(): Promise<
   Map<SourceFileKey, number>
 > {
   const result = await importPool().query<{
@@ -114,16 +114,4 @@ export async function assertStagingImportComplete(
   const stagingCounts = await countStagingRowsBySource();
   validateFullStagingLoad(stagingCounts, loadedByFile);
   return stagingCounts;
-}
-
-/** @deprecated Use validateFullStagingLoad */
-export function validateStagingCounts(
-  counts: Map<SourceFileKey, number>
-): void {
-  validateFullStagingLoad(counts, {
-    "ABC-3xx": counts.get("ABC-3xx") ?? 0,
-    "ABC-4xx": counts.get("ABC-4xx") ?? 0,
-    "ABC-8xx": counts.get("ABC-8xx") ?? 0,
-    "DEF-9xx": counts.get("DEF-9xx") ?? 0,
-  });
 }

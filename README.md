@@ -36,7 +36,7 @@ Compose-стек проекта содержит **только** PostgreSQL и 
 | [docker-compose.dev.yml](docker-compose.dev.yml) | Локально: только PostgreSQL; Next.js на хосте |
 | [docker-compose.yml](docker-compose.yml) | Локально: полный стек (PG + app) |
 | [docker-compose.prod.yml](docker-compose.prod.yml) | Production через CLI и `.env` |
-| [docker-compose.portainer.yml](docker-compose.portainer.yml) | Production через Portainer |
+| [docker-compose.portainer.yml](docker-compose.portainer.yml) | Production через Portainer (образ GHCR, Pull and redeploy) |
 
 ---
 
@@ -85,7 +85,7 @@ cp .env.production.example .env   # задайте пароли
 curl http://127.0.0.1:5555/api/health
 ```
 
-Далее: NPM → SSL → Access List → первая загрузка данных. Пошагово: [docs/deployment.md](docs/deployment.md).
+Далее: NPM → SSL → Access List → первая загрузка данных. Portainer: stack из Git, compose `docker-compose.portainer.yml`, обновление — **Pull and redeploy** после CI/GHCR. Пошагово: [docs/deployment.md](docs/deployment.md), [infra/portainer/README.md](infra/portainer/README.md).
 
 ---
 
@@ -103,4 +103,4 @@ npm run audit              # npm audit --audit-level=high
 
 ## Данные
 
-Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Реестр OPR для колонки «УВр Антифрод» встроен в образ (`data/opr/OPR_2026_06_18_00_00_00.csv`) и загружается автоматически — см. [docs/operations.md](docs/operations.md).
+Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Колонки **«Регион»** и **«Территория ГАР»** хранятся 1:1 из CSV; KPI **«Регионы / Территории ГАР»** показывает `N(M) / N(M)` (уникальные регионы и территории ГАР). Реестр OPR для колонки «УВр Антифрод» встроен в образ (`data/opr/OPR_2026_06_18_00_00_00.csv`) и загружается автоматически — см. [docs/operations.md](docs/operations.md).

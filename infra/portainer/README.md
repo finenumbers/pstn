@@ -19,6 +19,8 @@ docker-compose.portainer.yml
 | **Compose path** | **`docker-compose.portainer.yml`** |
 | Environment | [`portainer.env.example`](../../portainer.env.example) — достаточно `POSTGRES_PASSWORD` |
 
+Обновление после push в `main`: дождитесь CI + GHCR, затем **Pull and redeploy** (не rebuild на сервере).
+
 Полная инструкция: **[docs/deployment.md](../../docs/deployment.md)** · NPM: **[docs/npm.md](../../docs/npm.md)**
 
 ---

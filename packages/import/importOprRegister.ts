@@ -124,8 +124,3 @@ export async function ensureOprRegisterLoaded(): Promise<number | null> {
     return null;
   }
 }
-
-/** @deprecated Use ensureOprRegisterLoaded */
-export async function tryImportOprFromEnvPath(): Promise<number | null> {
-  return ensureOprRegisterLoaded();
-}

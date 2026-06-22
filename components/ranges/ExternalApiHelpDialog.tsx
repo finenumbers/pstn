@@ -173,8 +173,11 @@ export function ExternalApiHelpDialog({
 
           <section className="space-y-3 border-t pt-4">
             <p className="text-xs text-muted-foreground">
-              Примеры ниже — готовые curl с ключом и адресом внешнего API
-              {apiBaseUrl ? "" : " (задайте EXTERNAL_API_BASE_URL для публичного IP или домена)"}.
+              Примеры ниже — готовые curl с placeholder{" "}
+              <code className="text-xs">&lt;YOUR_API_KEY&gt;</code> — замените на ключ
+              из{" "}
+              <code className="text-xs">/app/.secrets/external_api_key</code> или env.
+              {apiBaseUrl ? "" : " Задайте EXTERNAL_API_BASE_URL для публичного домена."}
               Маска в примере search подставляется из поля «Найти номер», если там
               есть цифры.
             </p>

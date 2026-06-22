@@ -6,9 +6,9 @@ describe("lookup examples API contract", () => {
       configured: true as const,
       baseUrl: "https://api.pstn.example.com",
       exactCurl:
-        'curl -s "https://api.pstn.example.com/api/v1/lookup?phone=4996660000" -H "Authorization: Bearer secret"',
+        'curl -s "https://api.pstn.example.com/api/v1/lookup?phone=4996660000" -H "Authorization: Bearer <YOUR_API_KEY>"',
       searchCurl:
-        'curl -s "https://api.pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&pageSize=50" -H "Authorization: Bearer secret"',
+        'curl -s "https://api.pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&pageSize=50" -H "Authorization: Bearer <YOUR_API_KEY>"',
     };
 
     expect(configuredResponse).not.toHaveProperty("apiKey");

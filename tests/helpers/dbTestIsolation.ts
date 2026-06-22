@@ -26,12 +26,13 @@ export async function truncateRangeTables(client?: pg.Pool | pg.PoolClient) {
     RESTART IDENTITY
   `);
   await runner.query(`
-    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_operators)
-    VALUES (1, 0, 0, 0, 0)
+    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_gar_territories, unique_operators)
+    VALUES (1, 0, 0, 0, 0, 0)
     ON CONFLICT (id) DO UPDATE SET
       total_rows = 0,
       total_capacity = 0,
       unique_regions = 0,
+      unique_gar_territories = 0,
       unique_operators = 0,
       last_success_at = NULL,
       last_job_id = NULL
@@ -69,17 +70,19 @@ export async function insertTestRangeRows(
 export async function refreshTestDatasetMeta(client?: pg.Pool | pg.PoolClient) {
   const runner = client ?? pool();
   await runner.query(`
-    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_operators)
+    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_gar_territories, unique_operators)
     SELECT 1,
       COUNT(*)::int,
       COALESCE(SUM(capacity), 0)::bigint,
       COUNT(DISTINCT region)::int,
+      COUNT(DISTINCT gar_territory)::int,
       COUNT(DISTINCT operator)::int
     FROM number_ranges
     ON CONFLICT (id) DO UPDATE SET
       total_rows = EXCLUDED.total_rows,
       total_capacity = EXCLUDED.total_capacity,
       unique_regions = EXCLUDED.unique_regions,
+      unique_gar_territories = EXCLUDED.unique_gar_territories,
       unique_operators = EXCLUDED.unique_operators
   `);
 }

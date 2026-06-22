@@ -3,7 +3,10 @@ import { db, importPool } from "@/packages/db";
 import { RANGES_STAGING_TABLE } from "@/packages/db/importTables";
 import { datasetMeta, importJobs } from "@/packages/db/schema";
 import { refreshAbcRangeGaps } from "@/packages/db/queries/refreshAbcRangeGaps";
-import { refreshUvrAntifraudBinding } from "@/packages/db/queries/refreshUvrAntifraudBinding";
+import {
+  invalidateUvrAntifraudBindingCache,
+  refreshUvrAntifraudBinding,
+} from "@/packages/db/queries/refreshUvrAntifraudBinding";
 import { ensureOprRegisterLoaded } from "@/packages/import/importOprRegister";
 import { buildImportProgressDisplay } from "@/lib/import/importProgressView";
 import {
@@ -31,6 +34,22 @@ import {
 import { getDownloadStream } from "./sourceFileHttp";
 
 const IMPORT_JOB_ADVISORY_LOCK_KEY = 7123456789;
+
+async function touchImportJobHeartbeat(jobId: string): Promise<boolean> {
+  const rows = await db
+    .update(importJobs)
+    .set({ updatedAt: new Date() })
+    .where(and(eq(importJobs.id, jobId), eq(importJobs.status, "running")))
+    .returning({ id: importJobs.id });
+  return rows.length > 0;
+}
+
+async function assertImportJobStillRunning(jobId: string): Promise<void> {
+  const stillRunning = await touchImportJobHeartbeat(jobId);
+  if (!stillRunning) {
+    throw new Error("Import job was interrupted (stale recovery)");
+  }
+}
 
 function normalizeFileRows(
   value: Record<string, number> | null | undefined
@@ -235,23 +254,31 @@ async function runImportJob(jobId: string): Promise<void> {
       .set({ progressPhase: "computing_gaps" })
       .where(eq(importJobs.id, jobId));
 
+    await assertImportJobStillRunning(jobId);
     await refreshAbcRangeGaps(RANGES_STAGING_TABLE);
+    await touchImportJobHeartbeat(jobId);
 
     await db
       .update(importJobs)
       .set({ progressPhase: "swapping" })
       .where(eq(importJobs.id, jobId));
 
+    await assertImportJobStillRunning(jobId);
     await swapStagingToProduction();
+    await touchImportJobHeartbeat(jobId);
     await analyzeRanges();
+    await touchImportJobHeartbeat(jobId);
 
     await db
       .update(importJobs)
       .set({ progressPhase: "binding_uvr_antifraud" })
       .where(eq(importJobs.id, jobId));
 
+    await assertImportJobStillRunning(jobId);
     await ensureOprRegisterLoaded();
     await refreshUvrAntifraudBinding();
+    invalidateUvrAntifraudBindingCache();
+    await touchImportJobHeartbeat(jobId);
 
     const stats = await refreshDatasetGlobalStats();
     const finishedAt = new Date();
@@ -357,5 +384,3 @@ export async function getImportStatus(jobId?: string) {
     rowsLoaded,
   };
 }
-
-export { recoverStaleImportJobs };

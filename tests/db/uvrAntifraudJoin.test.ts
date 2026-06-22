@@ -7,7 +7,9 @@ import {
 } from "@/tests/helpers/dbTestIsolation";
 import { pool } from "@/packages/db";
 
-describe("uvrAntifraud join", () => {
+const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeWithDb("uvrAntifraud join", () => {
   beforeAll(async () => {
     await truncateRangeTables();
     await pool().query(`

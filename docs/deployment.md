@@ -207,7 +207,9 @@ curl http://127.0.0.1:5555/api/health
 
 ### Шаг 3 — Обновление
 
-Portainer → Stacks → `pstn` → **Pull and redeploy** (или **Update the stack** с rebuild).
+Portainer → Stacks → `pstn` → **Pull and redeploy** — подтягивает `ghcr.io/finenumbers/pstn:latest` с GHCR.
+
+Образ публикуется workflow **Publish Docker image** после успешного CI на `main`. Registries в Portainer не нужны (публичный GHCR).
 
 ---
 
@@ -278,7 +280,7 @@ location /api/import {
 | `POSTGRES_USER` | нет | `pstn` | Пользователь PostgreSQL |
 | `POSTGRES_PASSWORD` | **да** | — | Пароль PostgreSQL |
 | `POSTGRES_DB` | нет | `pstn` | Имя базы |
-| `DATABASE_URL` | **да** | — | Connection string; хост `postgres` в Docker |
+| `DATABASE_URL` | **да** (CLI prod) | — | Connection string; хост `postgres` в Docker. В Portainer **не задавайте** — собирается entrypoint из `POSTGRES_*` / `DB_*` |
 | `APP_PORT` | нет | `5555` | Порт приложения |
 | `PORT` | в контейнере | `5555` | То же (передаётся в Next.js) |
 | `DB_HOST` | в контейнере | `postgres` | Хост PG для entrypoint |
@@ -289,7 +291,10 @@ location /api/import {
 | `EXTERNAL_API_KEY` | нет | auto | Ключ external lookup API |
 | `EXTERNAL_API_BASE_URL` | рекомендуется | — | Публичный URL для curl-примеров в UI |
 | `IMPORT_SECRET` | нет | — | Заголовок `X-Import-Secret` для import API |
+| `OPR_CSV_PATH` | нет | bundled | Путь к CSV реестра OPR (см. ниже) |
 | `NODE_ENV` | в образе | `production` | Режим Next.js |
+
+> **Portainer:** в [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) проброшены только `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`. Переменные `EXTERNAL_API_KEY`, `IMPORT_SECRET`, `OPR_CSV_PATH` из [`portainer.env.example`](../portainer.env.example) **не попадают в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
 
 ### Пул соединений PostgreSQL
 
@@ -338,7 +343,18 @@ User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/fi
 
 Файл **`data/opr/OPR_2026_06_18_00_00_00.csv`** входит в Docker-образ и загружается в `operators_register` **автоматически** при старте приложения и после import CSV Минцифры. Дополнительных действий после деплоя не требуется.
 
-Переопределить путь (опционально): env `OPR_CSV_PATH`. Ручной import: [`scripts/import-opr-csv.ts`](../scripts/import-opr-csv.ts).
+Переопределить путь (опционально): env `OPR_CSV_PATH` — в Portainer потребуется добавить переменную в compose. Ручной import: [`scripts/import-opr-csv.ts`](../scripts/import-opr-csv.ts).
+
+---
+
+## CI и публикация образа (GHCR)
+
+Push в `main` запускает [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (тесты, lint). После **успешного** CI workflow [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) публикует образ:
+
+- `ghcr.io/finenumbers/pstn:latest`
+- `ghcr.io/finenumbers/pstn:<commit-sha>`
+
+Portainer stack использует `:latest`. Обновление на сервере: **Pull and redeploy** (не локальная сборка).
 
 ---
 

@@ -22,7 +22,7 @@ export async function register() {
 
     if (binding.registryOperators === 0) {
       console.warn(
-        "operators_register is empty — column «УВр Антифraud» will stay blank (bundled OPR file missing?)"
+        "operators_register is empty — column «УВр Антифрод» will stay blank (bundled OPR file missing?)"
       );
     } else {
       console.warn(

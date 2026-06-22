@@ -40,24 +40,7 @@ git push -u origin main
 
 Если после деплоя колонки «Регион» / «Территория ГАР» выглядят некорректно — выполните **«Загрузить данные»** (полный import 4 CSV). Схема хранит значения 1:1 из CSV; старые распарсенные данные не мигрируются автоматически.
 
-### Загрузка реестра OPR (УВр Антифraud)
-
-Реестр OPR **встроен в проект**: [`data/opr/OPR_2026_06_18_00_00_00.csv`](../data/opr/OPR_2026_06_18_00_00_00.csv) (2848 операторов). В Docker-образе путь `/app/data/opr/…`.
-
-**После Pull and redeploy** приложение само загружает OPR при старте — колонка «УВр Антифraud» заполняется по JOIN с `number_ranges` по ИНН.
-
-Проверка:
-
-```bash
-docker exec pstn_postgres psql -U pstn -d pstn -c "SELECT COUNT(*) FROM operators_register;"
-docker logs pstn_app 2>&1 | grep "OPR operators"
-```
-
-Переопределить файл (редко): env `OPR_CSV_PATH` в stack. Ручной import:
-
-```bash
-tsx scripts/import-opr-csv.ts data/opr/OPR_2026_06_18_00_00_00.csv
-```
+Реестр OPR (колонка «УВр Антифрод») встроен в Docker-образ и загружается автоматически при старте — см. [troubleshooting](#реестр-opr-увр-антифрод).
 
 ---
 
@@ -77,7 +60,9 @@ cd /opt/pstn
 
 ### Portainer
 
-Stacks → `pstn` → **Pull and redeploy** (с rebuild образа).
+Stacks → `pstn` → **Pull and redeploy** — подтягивает новый образ `ghcr.io/finenumbers/pstn:latest` с GHCR (сборка на сервере не выполняется).
+
+После push в `main` дождитесь успешного CI и workflow **Publish Docker image**, затем redeploy.
 
 ### Критично: rebuild vs restart
 
@@ -221,6 +206,23 @@ npm run db:rebuild-dicts
 
 Кратко: NPM в Docker → Forward **`pstn_app:5555`**, не `127.0.0.1`. NPM на хосте → Forward **`127.0.0.1:5555`**. Stack `pstn` — **Pull and redeploy** (сеть `proxy`).
 
+### Реестр OPR (УВр Антифрод)
+
+По умолчанию реестр **встроен в образ** ([`data/opr/OPR_2026_06_18_00_00_00.csv`](../data/opr/OPR_2026_06_18_00_00_00.csv)) и загружается при старте и после import CSV Минцифры. Колонка «УВр Антифрод» заполняется JOIN по ИНН.
+
+Проверка:
+
+```bash
+docker exec pstn_postgres psql -U pstn -d pstn -c "SELECT COUNT(*) FROM operators_register;"
+docker logs pstn_app 2>&1 | grep "OPR operators"
+```
+
+**Переопределение (редко):** в Portainer `OPR_CSV_PATH` **не проброшен** в [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) — потребуется правка compose или ручной import:
+
+```bash
+tsx scripts/import-opr-csv.ts data/opr/OPR_2026_06_18_00_00_00.csv
+```
+
 ### UI import не работает при `IMPORT_SECRET`
 
 UI не отправляет `X-Import-Secret`. Варианты:
@@ -287,7 +289,7 @@ DATABASE_URL=postgresql://pstn:ВАШ_ПАРОЛЬ_URL_ENCODED@postgres:5432/pst
 
 ### Изменения кода не видны после restart
 
-Нужен `docker compose build app`, не restart.
+Portainer: **Pull and redeploy** (новый образ с GHCR). CLI: `docker compose build app`, не restart.
 
 ### IDE: «Npm task detection: failed to parse package.json»
 
