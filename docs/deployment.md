@@ -2,6 +2,11 @@
 
 Руководство по развёртыванию приложения во всех поддерживаемых сценариях: локальная разработка, Docker Desktop, production на VPS через CLI или Portainer, интеграция с NGINX Proxy Manager.
 
+Разработано оператором телефонной связи для бизнеса [Finenumbers](https://finenumbers.com).  
+По всем вопросам: [apps@finenumbers.com](mailto:apps@finenumbers.com)
+
+**Репозиторий:** https://github.com/finenumbers/pstn
+
 ---
 
 ## Требования
@@ -115,7 +120,7 @@ docker compose ps
 ### Подготовка
 
 ```bash
-git clone <repo-url> /opt/pstn
+git clone https://github.com/finenumbers/pstn.git /opt/pstn
 cd /opt/pstn
 cp .env.production.example .env
 ```
@@ -156,7 +161,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 1. Portainer → **Stacks** → **Add stack**
 2. Источник:
-   - **Git repository:** URL репозитория, Compose path: `docker-compose.portainer.yml`
+   - **Git repository:** `https://github.com/finenumbers/pstn`, Compose path: `docker-compose.portainer.yml`
    - или **Web editor:** вставьте содержимое `docker-compose.portainer.yml`
 3. **Environment variables** — из [`portainer.env.example`](../portainer.env.example):
 
@@ -336,7 +341,7 @@ docker compose exec app cat /app/.secrets/external_api_key
 - `https://opendata.digital.gov.ru/downloads/ABC-8xx.csv`
 - `https://opendata.digital.gov.ru/downloads/DEF-9xx.csv`
 
-User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; ...)`.
+User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/finenumbers/pstn)`.
 
 ### Реестр OPR (УВр Антифрод)
 

@@ -4,7 +4,7 @@
  * are skipped during parse, the import MUST fail before touching production data.
  */
 export const USER_AGENT =
-  "Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/pstn-analytics)";
+  "Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/finenumbers/pstn)";
 
 /** All four open-data files — every import must load each file in full. */
 export const SOURCE_FILES = [

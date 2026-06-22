@@ -2,6 +2,16 @@
   "name": "pstn-analytics",
   "version": "0.1.0",
   "private": true,
+  "author": "Finenumbers <apps@finenumbers.com>",
+  "homepage": "https://github.com/finenumbers/pstn#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/finenumbers/pstn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/finenumbers/pstn/issues",
+    "email": "apps@finenumbers.com"
+  },
   "scripts": {
     "dev": "next dev --turbopack -p 5555",
     "build": "next build",

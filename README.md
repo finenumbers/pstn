@@ -2,6 +2,13 @@
 
 Веб-сервис аналитики телефонного плана нумерации Российской Федерации на основе открытых CSV Минцифры и реестра операторов OPR (УВр Антифрод).
 
+## О проекте
+
+Разработано оператором телефонной связи для бизнеса [Finenumbers](https://finenumbers.com).  
+По всем вопросам: [apps@finenumbers.com](mailto:apps@finenumbers.com)
+
+**Репозиторий:** https://github.com/finenumbers/pstn
+
 **Стек:** Next.js 15, React 19, TypeScript, PostgreSQL 16, Drizzle ORM, TanStack Table/Query, shadcn/ui, Tailwind CSS 4.
 
 ---
@@ -71,7 +78,7 @@ docker compose up -d --build
 Рекомендуемые ресурсы: **4 GB RAM**, **20–50 GB** диск, Ubuntu 22.04/24.04 или Debian 12.
 
 ```bash
-git clone <repo-url> /opt/pstn && cd /opt/pstn
+git clone https://github.com/finenumbers/pstn.git /opt/pstn && cd /opt/pstn
 cp .env.production.example .env   # задайте пароли
 ./scripts/deploy.sh
 curl http://127.0.0.1:5555/api/health

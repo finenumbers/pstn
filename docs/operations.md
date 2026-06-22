@@ -4,6 +4,28 @@
 
 ---
 
+## Публикация на GitHub
+
+Основной репозиторий: https://github.com/finenumbers/pstn
+
+Первый push с локальной машины (после создания пустого репозитория на GitHub):
+
+```bash
+git remote add origin https://github.com/finenumbers/pstn.git
+git push -u origin main
+```
+
+Если `origin` уже настроен на другой URL:
+
+```bash
+git remote set-url origin https://github.com/finenumbers/pstn.git
+git push -u origin main
+```
+
+Не используйте `git push --force` на `main`, если в удалённом репозитории уже есть коммиты.
+
+---
+
 ## Первая загрузка данных
 
 1. Убедитесь, что stack healthy: `curl http://127.0.0.1:5555/api/health`
