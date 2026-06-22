@@ -8,7 +8,7 @@ import {
 export const DICT_FACET_COLUMNS = [
   "abc",
   "operator",
-  "settlement",
+  "garTerritory",
   "region",
 ] as const;
 export type DictFacetColumn = (typeof DICT_FACET_COLUMNS)[number];
@@ -26,14 +26,14 @@ export const SORTABLE_COLUMNS = [
   "rangeEnd",
   "capacity",
   "operator",
-  "settlement",
+  "garTerritory",
   "region",
   "inn",
 ] as const;
 export type SortableColumn = (typeof SORTABLE_COLUMNS)[number];
 
 export const FILTER_LIMITS = {
-  /** Coverage AND columns (abc, operator, settlement, region). */
+  /** Coverage AND columns (abc, operator, garTerritory, region). */
   maxCoverageArrayLength: 20,
   maxArrayLength: 50,
   maxArrayItemLength: 200,
@@ -52,7 +52,7 @@ const orMultiArraySchema = z
 export const filtersSchema = z.object({
   abc: coverageArraySchema.default([]),
   operator: coverageArraySchema.default([]),
-  settlement: coverageArraySchema.default([]),
+  garTerritory: coverageArraySchema.default([]),
   region: coverageArraySchema.default([]),
   inn: orMultiArraySchema.default([]),
   uvrAntifraud: orMultiArraySchema.default([]),
@@ -98,7 +98,7 @@ export interface NumberRangeRow {
   rangeEnd: number;
   capacity: number;
   operator: string;
-  settlement: string;
+  garTerritory: string;
   region: string;
   inn: string;
   /** УВр Антифрод — id_src из реестра OPR, привязка по ИНН. */
@@ -117,7 +117,7 @@ export interface RangesCursor {
   rangeEnd: number;
   capacity: number;
   operator: string;
-  settlement: string;
+  garTerritory: string;
   region: string;
   inn: string;
 }
@@ -154,12 +154,14 @@ export interface SummaryResponse {
     rangeCount: number;
     totalCapacity: number;
     uniqueRegions: number;
+    uniqueGarTerritories: number;
     uniqueOperators: number;
   };
   global: {
     rangeCount: number;
     totalCapacity: number;
     uniqueRegions: number;
+    uniqueGarTerritories: number;
     uniqueOperators: number;
   };
   uvrBinding: {
@@ -207,7 +209,7 @@ export interface ImportStatusResponse {
 export const DEFAULT_FILTERS: FiltersDTO = {
   abc: [],
   operator: [],
-  settlement: [],
+  garTerritory: [],
   region: [],
   inn: [],
   uvrAntifraud: [],
@@ -226,7 +228,7 @@ export function normalizeFilters(filters: FiltersDTO): FiltersDTO {
   return {
     abc: [...filters.abc].sort(),
     operator: [...filters.operator].sort(),
-    settlement: [...filters.settlement].sort(),
+    garTerritory: [...filters.garTerritory].sort(),
     region: [...filters.region].sort(),
     inn: [...filters.inn].sort(),
     uvrAntifraud: [...filters.uvrAntifraud].sort(),
@@ -281,7 +283,7 @@ export function parseFiltersFromSearchParams(
   const raw = {
     abc: getArray("abc"),
     operator: getArray("operator"),
-    settlement: getArray("settlement"),
+    garTerritory: getArray("garTerritory"),
     region: getArray("region"),
     inn: getOrMultiArray("inn"),
     uvrAntifraud: getOrMultiArray("uvrAntifraud"),
@@ -311,8 +313,8 @@ export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
   if (filters.abc.length) params.set("filters.abc", filters.abc.join("|||"));
   if (filters.operator.length)
     params.set("filters.operator", filters.operator.join("|||"));
-  if (filters.settlement.length)
-    params.set("filters.settlement", filters.settlement.join("|||"));
+  if (filters.garTerritory.length)
+    params.set("filters.garTerritory", filters.garTerritory.join("|||"));
   if (filters.region.length)
     params.set("filters.region", filters.region.join("|||"));
   if (filters.inn.length) params.set("filters.inn", filters.inn.join("|||"));

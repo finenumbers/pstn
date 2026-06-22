@@ -265,6 +265,7 @@ async function runImportJob(jobId: string): Promise<void> {
         totalRows: stats.totalRows,
         totalCapacity: stats.totalCapacity,
         uniqueRegions: stats.uniqueRegions,
+        uniqueGarTerritories: stats.uniqueGarTerritories,
         uniqueOperators: stats.uniqueOperators,
       })
       .onConflictDoUpdate({
@@ -275,6 +276,7 @@ async function runImportJob(jobId: string): Promise<void> {
           totalRows: stats.totalRows,
           totalCapacity: stats.totalCapacity,
           uniqueRegions: stats.uniqueRegions,
+          uniqueGarTerritories: stats.uniqueGarTerritories,
           uniqueOperators: stats.uniqueOperators,
         },
       });

@@ -16,20 +16,22 @@ test.describe("PSTN ranges page", () => {
     expect(response.ok()).toBeTruthy();
   });
 
-  test("removes empty settlement filter chip", async ({ page }) => {
-    await page.goto("/ranges?filters.settlement=", { waitUntil: "networkidle" });
+  test("garTerritory filter chip can be removed", async ({ page }) => {
+    await page.goto(
+      "/ranges?filters.garTerritory=Город%20Москва",
+      { waitUntil: "networkidle" }
+    );
     await expect(
-      page.getByText("Населенный пункт:", { exact: false })
+      page.getByText("Территория ГАР:", { exact: false })
     ).toBeVisible();
 
-    const chipRemove = page.getByRole("button", {
-      name: "Убрать фильтр Населенный пункт",
-    });
-    await chipRemove.click();
+    await page
+      .getByRole("button", { name: "Убрать фильтр Территория ГАР" })
+      .click();
 
     await expect(
       page.getByText("Активные фильтры:", { exact: true })
     ).toHaveCount(0);
-    await expect(page).not.toHaveURL(/filters\.settlement/);
+    await expect(page).not.toHaveURL(/filters\.garTerritory/);
   });
 });

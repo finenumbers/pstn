@@ -31,7 +31,7 @@ const COLUMN_MAP = {
   rangeEnd: numberRanges.rangeEnd,
   capacity: numberRanges.capacity,
   operator: numberRanges.operator,
-  settlement: numberRanges.settlement,
+  garTerritory: numberRanges.garTerritory,
   region: numberRanges.region,
   inn: numberRanges.inn,
 } as const;
@@ -83,7 +83,7 @@ export async function listRanges(params: {
       rangeEnd: numberRanges.rangeEnd,
       capacity: numberRanges.capacity,
       operator: numberRanges.operator,
-      settlement: numberRanges.settlement,
+      garTerritory: numberRanges.garTerritory,
       region: numberRanges.region,
       inn: numberRanges.inn,
       uvrAntifraud: operatorsRegister.idSrc,
@@ -133,6 +133,7 @@ async function loadGlobalSummaryFromTable(): Promise<{
   rangeCount: number;
   totalCapacity: number;
   uniqueRegions: number;
+  uniqueGarTerritories: number;
   uniqueOperators: number;
 }> {
   const globalResult = await db
@@ -140,6 +141,7 @@ async function loadGlobalSummaryFromTable(): Promise<{
       rangeCount: count(),
       totalCapacity: sum(numberRanges.capacity),
       uniqueRegions: countDistinct(numberRanges.region),
+      uniqueGarTerritories: countDistinct(numberRanges.garTerritory),
       uniqueOperators: countDistinct(numberRanges.operator),
     })
     .from(numberRanges);
@@ -148,6 +150,7 @@ async function loadGlobalSummaryFromTable(): Promise<{
     rangeCount: Number(global?.rangeCount ?? 0),
     totalCapacity: Number(global?.totalCapacity ?? 0),
     uniqueRegions: Number(global?.uniqueRegions ?? 0),
+    uniqueGarTerritories: Number(global?.uniqueGarTerritories ?? 0),
     uniqueOperators: Number(global?.uniqueOperators ?? 0),
   };
 }
@@ -158,13 +161,15 @@ function globalSummaryFromMeta(
   rangeCount: number;
   totalCapacity: number;
   uniqueRegions: number;
+  uniqueGarTerritories: number;
   uniqueOperators: number;
 } | null {
   if (
     metaRow?.totalRows == null ||
     metaRow.totalCapacity == null ||
     metaRow.uniqueOperators == null ||
-    metaRow.uniqueRegions == null
+    metaRow.uniqueRegions == null ||
+    metaRow.uniqueGarTerritories == null
   ) {
     return null;
   }
@@ -173,6 +178,7 @@ function globalSummaryFromMeta(
     rangeCount: metaRow.totalRows,
     totalCapacity: Number(metaRow.totalCapacity),
     uniqueRegions: metaRow.uniqueRegions,
+    uniqueGarTerritories: metaRow.uniqueGarTerritories,
     uniqueOperators: metaRow.uniqueOperators,
   };
 }
@@ -195,6 +201,7 @@ export async function summaryRanges(filters: FiltersDTO) {
         rangeCount: global.rangeCount,
         totalCapacity: global.totalCapacity,
         uniqueRegions: global.uniqueRegions,
+        uniqueGarTerritories: global.uniqueGarTerritories,
         uniqueOperators: global.uniqueOperators,
       },
       global,
@@ -216,6 +223,7 @@ export async function summaryRanges(filters: FiltersDTO) {
       rangeCount: count(),
       totalCapacity: sum(filteredCapacityExpr),
       uniqueRegions: countDistinct(numberRanges.region),
+      uniqueGarTerritories: countDistinct(numberRanges.garTerritory),
       uniqueOperators: countDistinct(numberRanges.operator),
     })
     .from(numberRanges)
@@ -232,12 +240,14 @@ export async function summaryRanges(filters: FiltersDTO) {
       rangeCount: Number(filtered?.rangeCount ?? 0),
       totalCapacity: Number(filtered?.totalCapacity ?? 0),
       uniqueRegions: Number(filtered?.uniqueRegions ?? 0),
+      uniqueGarTerritories: Number(filtered?.uniqueGarTerritories ?? 0),
       uniqueOperators: Number(filtered?.uniqueOperators ?? 0),
     },
     global: {
       rangeCount: global.rangeCount,
       totalCapacity: global.totalCapacity,
       uniqueRegions: global.uniqueRegions,
+      uniqueGarTerritories: global.uniqueGarTerritories,
       uniqueOperators: global.uniqueOperators,
     },
     uvrBinding,
@@ -269,7 +279,7 @@ export async function listRangesForExport(
       rangeEnd: numberRanges.rangeEnd,
       capacity: numberRanges.capacity,
       operator: numberRanges.operator,
-      settlement: numberRanges.settlement,
+      garTerritory: numberRanges.garTerritory,
       region: numberRanges.region,
       inn: numberRanges.inn,
       uvrAntifraud: operatorsRegister.idSrc,

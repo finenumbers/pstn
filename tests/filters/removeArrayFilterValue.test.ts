@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { removeArrayFilterValue } from "@/lib/filters/removeArrayFilterValue";
 
 describe("removeArrayFilterValue", () => {
-  it("removes empty settlement value", () => {
+  it("removes empty gar_territory value", () => {
     expect(removeArrayFilterValue([""], "")).toEqual([]);
   });
 

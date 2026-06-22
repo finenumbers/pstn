@@ -7,33 +7,33 @@ import {
 } from "@/packages/shared/contracts/filters.schema";
 
 describe("parseFiltersFromSearchParams", () => {
-  it("preserves empty settlement facet value", () => {
+  it("preserves empty gar_territory facet value", () => {
     const params = new URLSearchParams();
-    params.set("filters.settlement", "");
-    expect(parseFiltersFromSearchParams(params).settlement).toEqual([""]);
+    params.set("filters.garTerritory", "");
+    expect(parseFiltersFromSearchParams(params).garTerritory).toEqual([""]);
   });
 
-  it("preserves empty settlement mixed with other values", () => {
+  it("preserves empty gar_territory mixed with other values", () => {
     const params = new URLSearchParams();
-    params.set("filters.settlement", "|||Москва");
-    expect(parseFiltersFromSearchParams(params).settlement).toEqual([
+    params.set("filters.garTerritory", "|||Москва");
+    expect(parseFiltersFromSearchParams(params).garTerritory).toEqual([
       "",
       "Москва",
     ]);
   });
 
-  it("clears empty settlement from URL when filter removed", () => {
+  it("clears empty gar_territory from URL when filter removed", () => {
     const cleared = filtersToSearchParams({
       ...DEFAULT_FILTERS,
-      settlement: [],
+      garTerritory: [],
     });
-    expect(cleared.has("filters.settlement")).toBe(false);
+    expect(cleared.has("filters.garTerritory")).toBe(false);
   });
 });
 
-describe("buildWhere empty settlement", () => {
-  it("filters rows with empty settlement", () => {
-    const where = buildWhere({ ...DEFAULT_FILTERS, settlement: [""] });
+describe("buildWhere garTerritory", () => {
+  it("builds condition for garTerritory filter", () => {
+    const where = buildWhere({ ...DEFAULT_FILTERS, garTerritory: [""] });
     expect(where).toBeDefined();
   });
 });

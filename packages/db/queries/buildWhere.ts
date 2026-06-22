@@ -15,7 +15,7 @@ import { phoneNumberOverlapSql } from "./phoneNumberMatchCount";
 export const COVERAGE_AND_COLUMNS = [
   "abc",
   "region",
-  "settlement",
+  "garTerritory",
   "operator",
 ] as const;
 
@@ -24,7 +24,7 @@ export type CoverageAndColumn = (typeof COVERAGE_AND_COLUMNS)[number];
 const COVERAGE_COLUMN_MAP = {
   abc: numberRanges.abc,
   region: numberRanges.region,
-  settlement: numberRanges.settlement,
+  garTerritory: numberRanges.garTerritory,
   operator: numberRanges.operator,
 } as const;
 
@@ -196,13 +196,13 @@ export const FACET_COLUMN_MAP: Record<
   Exclude<FacetColumn, "uvrAntifraud">,
   | typeof numberRanges.abc
   | typeof numberRanges.operator
-  | typeof numberRanges.settlement
+  | typeof numberRanges.garTerritory
   | typeof numberRanges.region
   | typeof numberRanges.inn
 > = {
   abc: numberRanges.abc,
   operator: numberRanges.operator,
-  settlement: numberRanges.settlement,
+  garTerritory: numberRanges.garTerritory,
   region: numberRanges.region,
   inn: numberRanges.inn,
 };

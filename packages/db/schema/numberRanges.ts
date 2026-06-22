@@ -23,8 +23,8 @@ export const numberRanges = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    settlement: text("settlement").notNull(),
     region: text("region").notNull(),
+    garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     abcGapBefore: boolean("abc_gap_before").notNull().default(false),
     abcGapAfter: boolean("abc_gap_after").notNull().default(false),
@@ -47,8 +47,8 @@ export const numberRangesStaging = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    settlement: text("settlement").notNull(),
     region: text("region").notNull(),
+    garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     abcGapBefore: boolean("abc_gap_before").notNull().default(false),
     abcGapAfter: boolean("abc_gap_after").notNull().default(false),
@@ -86,7 +86,7 @@ export const regionsDict = pgTable("regions_dict", {
   name: text("name").notNull().unique(),
 });
 
-export const settlementsDict = pgTable("settlements_dict", {
+export const garTerritoriesDict = pgTable("gar_territories_dict", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
 });
@@ -127,4 +127,5 @@ export const datasetMeta = pgTable("dataset_meta", {
   totalCapacity: bigint("total_capacity", { mode: "number" }),
   uniqueOperators: integer("unique_operators"),
   uniqueRegions: integer("unique_regions"),
+  uniqueGarTerritories: integer("unique_gar_territories"),
 });

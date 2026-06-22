@@ -11,7 +11,7 @@ export function rowToRangesCursor(row: NumberRangeRow): RangesCursor {
     rangeEnd: row.rangeEnd,
     capacity: row.capacity,
     operator: row.operator,
-    settlement: row.settlement,
+    garTerritory: row.garTerritory,
     region: row.region,
     inn: row.inn,
   };

@@ -15,7 +15,7 @@ const GUP_ROW: TestRangeRow = {
   rangeEnd: 100_999,
   capacity: 1_000,
   operator: GUP_OPERATOR,
-  settlement: "Байконур",
+  garTerritory: "Байконур",
   region: "Байконур",
   inn: "9901000027",
 };

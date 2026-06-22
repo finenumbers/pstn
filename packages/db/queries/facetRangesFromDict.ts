@@ -15,27 +15,27 @@ import {
   numberRanges,
   operatorsDict,
   regionsDict,
-  settlementsDict,
+  garTerritoriesDict,
 } from "../schema";
 import { buildWhere } from "./buildWhere";
 
 type FacetDictValue =
   | typeof abcDict.code
   | typeof operatorsDict.name
-  | typeof settlementsDict.name
+  | typeof garTerritoriesDict.name
   | typeof regionsDict.name;
 
 type FacetRangeColumn =
   | typeof numberRanges.abc
   | typeof numberRanges.operator
-  | typeof numberRanges.settlement
+  | typeof numberRanges.garTerritory
   | typeof numberRanges.region;
 
 type DictFacetConfig = {
   table:
     | typeof abcDict
     | typeof operatorsDict
-    | typeof settlementsDict
+    | typeof garTerritoriesDict
     | typeof regionsDict;
   dictValue: FacetDictValue;
   rangeColumn: FacetRangeColumn;
@@ -52,10 +52,10 @@ export const DICT_FACET_CONFIG: Record<DictFacetColumn, DictFacetConfig> = {
     dictValue: operatorsDict.name,
     rangeColumn: numberRanges.operator,
   },
-  settlement: {
-    table: settlementsDict,
-    dictValue: settlementsDict.name,
-    rangeColumn: numberRanges.settlement,
+  garTerritory: {
+    table: garTerritoriesDict,
+    dictValue: garTerritoriesDict.name,
+    rangeColumn: numberRanges.garTerritory,
   },
   region: {
     table: regionsDict,

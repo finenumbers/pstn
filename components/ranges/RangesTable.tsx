@@ -21,7 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
-import { formatSettlementDisplay } from "@/lib/filters/settlementDisplay";
 import {
   compactColumnStyle,
   computeAbcFilterColumnWidth,
@@ -71,7 +70,7 @@ const COLUMN_ORDER = [
   "capacity",
   "operator",
   "region",
-  "settlement",
+  "garTerritory",
   "uvrAntifraud",
   "inn",
 ] as const;
@@ -84,7 +83,7 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
   rangeEnd: "Конец",
   capacity: "Емкость",
   operator: "Оператор связи",
-  settlement: "Населенный пункт",
+  garTerritory: "Территория ГАР",
   region: "Регион",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
@@ -141,7 +140,7 @@ export function RangesTable({
       },
       { accessorKey: "operator", header: "Оператор связи" },
       { accessorKey: "region", header: "Регион" },
-      { accessorKey: "settlement", header: "Населенный пункт" },
+      { accessorKey: "garTerritory", header: "Территория ГАР" },
       {
         accessorKey: "uvrAntifraud",
         header: "УВр Антифрод",
@@ -189,7 +188,7 @@ export function RangesTable({
     if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     if (
       columnId === "operator" ||
-      columnId === "settlement" ||
+      columnId === "garTerritory" ||
       columnId === "region"
     ) {
       return undefined;
@@ -230,7 +229,7 @@ export function RangesTable({
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
     if (
       columnId === "operator" ||
-      columnId === "settlement" ||
+      columnId === "garTerritory" ||
       columnId === "region"
     ) {
       return undefined;
@@ -423,18 +422,17 @@ export function RangesTable({
             placeholder="Оператор связи"
           />
         );
-      case "settlement":
+      case "garTerritory":
         return (
           <FacetCombobox
-            label="Населенный пункт"
-            values={filters.settlement}
-            search={facetSearch.settlement ?? ""}
-            options={facets?.facets.settlement?.options ?? []}
-            onChange={(v) => onFilterChange("settlement", v)}
-            onSearchChange={(s) => onFacetSearchChange("settlement", s)}
+            label="Территория ГАР"
+            values={filters.garTerritory}
+            search={facetSearch.garTerritory ?? ""}
+            options={facets?.facets.garTerritory?.options ?? []}
+            onChange={(v) => onFilterChange("garTerritory", v)}
+            onSearchChange={(s) => onFacetSearchChange("garTerritory", s)}
             isLoading={facetsLoading}
-            placeholder="Населенный пункт"
-            formatOption={formatSettlementDisplay}
+            placeholder="Территория ГАР"
           />
         );
       case "region":
@@ -511,7 +509,7 @@ export function RangesTable({
                 const hasFilter =
                   colId === "abc" ||
                   colId === "operator" ||
-                  colId === "settlement" ||
+                  colId === "garTerritory" ||
                   colId === "region" ||
                   colId === "inn" ||
                   colId === "uvrAntifraud";

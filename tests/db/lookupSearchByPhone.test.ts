@@ -14,7 +14,7 @@ const FALSE_POSITIVE_ROW: TestRangeRow = {
   rangeEnd: 3_902_999,
   capacity: 19_000,
   operator: 'ООО "Манго Телеком"',
-  settlement: "Новосибирск",
+  garTerritory: "Новосибирск",
   region: "Новосибирская область",
   inn: "7702340000",
 };
@@ -25,7 +25,7 @@ const STRICT_MATCH_ROW: TestRangeRow = {
   rangeEnd: 3_999_929,
   capacity: 30,
   operator: 'ООО "ФРОНТИР НЕТВОРК"',
-  settlement: "Новосибирск",
+  garTerritory: "Новосибирск",
   region: "Новосибирская область",
   inn: "5406978329",
 };
@@ -36,7 +36,7 @@ const SEARCH_ROW: TestRangeRow = {
   rangeEnd: 6_660_499,
   capacity: 500,
   operator: 'ООО "ФРОНТИР НЕТВОРК"',
-  settlement: "Москва",
+  garTerritory: "Москва",
   region: "ГФЗ Москва",
   inn: "5406978329",
 };

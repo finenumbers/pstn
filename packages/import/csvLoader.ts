@@ -19,7 +19,7 @@ export async function insertBatch(
     rangeEnd: r.rangeEnd,
     capacity: r.capacity,
     operator: r.operator,
-    settlement: r.settlement,
+    garTerritory: r.garTerritory,
     region: r.region,
     inn: r.inn,
     sourceFile,
@@ -41,7 +41,7 @@ export async function swapStagingToProduction(): Promise<void> {
     );
     await client.query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
     await client.query(`
-      TRUNCATE operators_dict, regions_dict, settlements_dict, abc_dict RESTART IDENTITY
+      TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY
     `);
     await client.query(`
       INSERT INTO operators_dict (name, inn)
@@ -50,9 +50,9 @@ export async function swapStagingToProduction(): Promise<void> {
       GROUP BY operator
     `);
     await client.query(`
-      INSERT INTO settlements_dict (name)
-      SELECT DISTINCT settlement FROM number_ranges
-      WHERE settlement <> ''
+      INSERT INTO gar_territories_dict (name)
+      SELECT DISTINCT gar_territory FROM number_ranges
+      WHERE gar_territory <> ''
     `);
     await client.query(`
       INSERT INTO regions_dict (name)
@@ -76,7 +76,7 @@ export async function rebuildDictionaries(): Promise<void> {
   try {
     await client.query("BEGIN");
     await client.query(`
-      TRUNCATE operators_dict, regions_dict, settlements_dict, abc_dict RESTART IDENTITY
+      TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY
     `);
     await client.query(`
       INSERT INTO operators_dict (name, inn)
@@ -85,9 +85,9 @@ export async function rebuildDictionaries(): Promise<void> {
       GROUP BY operator
     `);
     await client.query(`
-      INSERT INTO settlements_dict (name)
-      SELECT DISTINCT settlement FROM number_ranges
-      WHERE settlement <> ''
+      INSERT INTO gar_territories_dict (name)
+      SELECT DISTINCT gar_territory FROM number_ranges
+      WHERE gar_territory <> ''
     `);
     await client.query(`
       INSERT INTO regions_dict (name)
@@ -112,10 +112,10 @@ export async function clearImportedData(): Promise<void> {
   await p.query("TRUNCATE TABLE number_ranges RESTART IDENTITY");
   await clearStaging();
   await p.query(
-    `TRUNCATE operators_dict, regions_dict, settlements_dict, abc_dict RESTART IDENTITY`
+    `TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY`
   );
   await p.query(
-    `UPDATE dataset_meta SET last_success_at = NULL, last_job_id = NULL, total_rows = NULL, total_capacity = NULL, unique_operators = NULL, unique_regions = NULL WHERE id = 1`
+    `UPDATE dataset_meta SET last_success_at = NULL, last_job_id = NULL, total_rows = NULL, total_capacity = NULL, unique_operators = NULL, unique_regions = NULL, unique_gar_territories = NULL WHERE id = 1`
   );
 }
 
@@ -123,6 +123,7 @@ export async function refreshDatasetGlobalStats(): Promise<{
   totalRows: number;
   totalCapacity: number;
   uniqueRegions: number;
+  uniqueGarTerritories: number;
   uniqueOperators: number;
 }> {
   const p = pool();
@@ -130,12 +131,14 @@ export async function refreshDatasetGlobalStats(): Promise<{
     total_rows: number;
     total_capacity: string;
     unique_regions: number;
+    unique_gar_territories: number;
     unique_operators: number;
   }>(`
     SELECT
       COUNT(*)::int AS total_rows,
       COALESCE(SUM(capacity), 0)::bigint AS total_capacity,
       COUNT(DISTINCT region)::int AS unique_regions,
+      COUNT(DISTINCT gar_territory)::int AS unique_gar_territories,
       COUNT(DISTINCT operator)::int AS unique_operators
     FROM number_ranges
   `);
@@ -144,6 +147,7 @@ export async function refreshDatasetGlobalStats(): Promise<{
     totalRows: row?.total_rows ?? 0,
     totalCapacity: Number(row?.total_capacity ?? 0),
     uniqueRegions: row?.unique_regions ?? 0,
+    uniqueGarTerritories: row?.unique_gar_territories ?? 0,
     uniqueOperators: row?.unique_operators ?? 0,
   };
 
@@ -154,10 +158,17 @@ export async function refreshDatasetGlobalStats(): Promise<{
       total_rows = $1,
       total_capacity = $2,
       unique_regions = $3,
-      unique_operators = $4
+      unique_gar_territories = $4,
+      unique_operators = $5
     WHERE id = 1
   `,
-    [stats.totalRows, stats.totalCapacity, stats.uniqueRegions, stats.uniqueOperators]
+    [
+      stats.totalRows,
+      stats.totalCapacity,
+      stats.uniqueRegions,
+      stats.uniqueGarTerritories,
+      stats.uniqueOperators,
+    ]
   );
 
   return stats;

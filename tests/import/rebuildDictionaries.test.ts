@@ -24,7 +24,7 @@ describeWithDb("rebuildDictionaries", () => {
         number_ranges_staging,
         operators_dict,
         regions_dict,
-        settlements_dict,
+        gar_territories_dict,
         abc_dict
       RESTART IDENTITY
     `);
@@ -32,7 +32,7 @@ describeWithDb("rebuildDictionaries", () => {
     await client.query(`
       INSERT INTO number_ranges (
         abc, range_start, range_end, capacity, operator,
-        settlement, region, inn, source_file
+        gar_territory, region, inn, source_file
       ) VALUES
         ('495', 1000000, 1000999, 1000, 'ООО "ЛИНК"', 'City', 'Region', '1111111111', 'test'),
         ('495', 1001000, 1001999, 1000, 'ООО "ЛИНК"', 'City', 'Region', '2222222222', 'test')

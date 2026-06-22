@@ -7,7 +7,7 @@ export type TestRangeRow = {
   rangeEnd: number;
   capacity: number;
   operator: string;
-  settlement: string;
+  garTerritory: string;
   region: string;
   inn: string;
   sourceFile?: string;
@@ -21,7 +21,7 @@ export async function truncateRangeTables(client?: pg.Pool | pg.PoolClient) {
       number_ranges_staging,
       operators_dict,
       regions_dict,
-      settlements_dict,
+      gar_territories_dict,
       abc_dict
     RESTART IDENTITY
   `);
@@ -48,7 +48,7 @@ export async function insertTestRangeRows(
       `
       INSERT INTO number_ranges (
         abc, range_start, range_end, capacity, operator,
-        settlement, region, inn, source_file
+        gar_territory, region, inn, source_file
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
       [
@@ -57,7 +57,7 @@ export async function insertTestRangeRows(
         row.rangeEnd,
         row.capacity,
         row.operator,
-        row.settlement,
+        row.garTerritory,
         row.region,
         row.inn,
         row.sourceFile ?? "integration-test",
@@ -102,8 +102,9 @@ export async function refreshTestDictTables(client?: pg.Pool | pg.PoolClient) {
     ON CONFLICT (name) DO NOTHING
   `);
   await runner.query(`
-    INSERT INTO settlements_dict (name)
-    SELECT DISTINCT settlement FROM number_ranges
+    INSERT INTO gar_territories_dict (name)
+    SELECT DISTINCT gar_territory FROM number_ranges
+    WHERE gar_territory <> ''
     ON CONFLICT (name) DO NOTHING
   `);
 }
@@ -116,7 +117,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_114_999,
     capacity: 5_000,
     operator: 'ПАО "Ростелеком"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7707049388",
   },
@@ -126,7 +127,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_154_999,
     capacity: 5_000,
     operator: 'ПАО "Ростелеком"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7707049388",
   },
@@ -136,7 +137,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_189_999,
     capacity: 10_000,
     operator: 'ПАО "Ростелеком"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7707049388",
   },
@@ -146,7 +147,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_190_089,
     capacity: 90,
     operator: 'АО "МТТ"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7705017257",
   },
@@ -156,7 +157,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_199_999,
     capacity: 9_000,
     operator: 'АО "МТТ"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7705017257",
   },
@@ -166,7 +167,7 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     rangeEnd: 2_209_999,
     capacity: 10_000,
     operator: 'АО "МТТ"',
-    settlement: "г. Улан-Удэ",
+    garTerritory: "г. Улан-Удэ|Республика Бурятия",
     region: "Республика Бурятия",
     inn: "7705017257",
   },
@@ -182,7 +183,7 @@ export function buildKeysetFillerTestRows(count: number): TestRangeRow[] {
       rangeEnd: start + 999,
       capacity: 1_000,
       operator: 'ПАО "Ростелеком"',
-      settlement: "г. Москва",
+      garTerritory: "Город Москва",
       region: "ГФЗ Москва",
       inn: "7707049388",
     });

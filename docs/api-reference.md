@@ -64,7 +64,7 @@ X-Import-Secret: <IMPORT_SECRET>
 | `filters.abc` | `301\|\|\|353` | Coverage AND, max 20 |
 | `filters.operator` | values `|||` | Coverage AND, max 20 |
 | `filters.region` | values `|||` | Coverage AND, max 20 |
-| `filters.settlement` | values `|||` | Coverage AND, max 20; пустая строка = «Не указан» |
+| `filters.garTerritory` | values `|||` | Coverage AND, max 20 |
 | `filters.inn` | values `|||` | OR, max 50 |
 | `filters.uvrAntifraud` | values `|||` | OR, max 50 |
 | `filters.rangeStart` | string | max 100 chars |
@@ -76,7 +76,7 @@ X-Import-Secret: <IMPORT_SECRET>
 
 ### Сортировка
 
-`sort=column:asc` или `sort=column:desc`. Колонки: `abc`, `rangeStart`, `rangeEnd`, `capacity`, `operator`, `settlement`, `region`, `inn`.
+`sort=column:asc` или `sort=column:desc`. Колонки: `abc`, `rangeStart`, `rangeEnd`, `capacity`, `operator`, `region`, `garTerritory`, `inn`.
 
 ---
 
@@ -167,7 +167,7 @@ Invalid filters → **400** `VALIDATION_ERROR`.
 
 ### `GET /api/summary`
 
-KPI-агрегаты: число диапазонов, суммарная ёмкость, уникальные регионы/операторы.
+KPI-агрегаты: число диапазонов, суммарная ёмкость, уникальные регионы и территории ГАР, операторы.
 
 **Auth:** NPM
 
@@ -182,6 +182,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
     "rangeCount": 446000,
     "totalCapacity": 1234567890,
     "uniqueRegions": 85,
+    "uniqueGarTerritories": 210,
     "uniqueOperators": 1200
   },
   "filtered": {}
@@ -360,8 +361,8 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 | `rangeEnd` | number | Конец диапазона |
 | `capacity` | number | Ёмкость |
 | `operator` | string | Оператор |
-| `settlement` | string | Населённый пункт |
-| `region` | string | Регион |
+| `garTerritory` | string | Территория ГАР (как в CSV) |
+| `region` | string | Регион (как в CSV) |
 | `inn` | string | ИНН |
 | `uvrAntifraud` | number \| null | id_src OPR |
 | `abcRangeGapBefore` | boolean | Пропуск ABC сверху |

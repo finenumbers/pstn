@@ -12,7 +12,7 @@ const LOOKUP_ROW: TestRangeRow = {
   rangeEnd: 5_422_999,
   capacity: 2_000,
   operator: 'ПАО "Ростелеком"',
-  settlement: "р-н Никольский",
+  garTerritory: "р-н Никольский",
   region: "Вологодская область",
   inn: "7707049388",
 };

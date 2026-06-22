@@ -18,7 +18,7 @@ export const EXPORT_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Оператор связи", key: "operator", width: 36 },
   { header: "Регион", key: "region", width: 28 },
-  { header: "Населенный пункт", key: "settlement", width: 24 },
+  { header: "Территория ГАР", key: "garTerritory", width: 36 },
   { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
   { header: "ИНН", key: "inn", width: 15 },
 ];
@@ -64,7 +64,7 @@ function exportRowToNumberRangeRow(
     rangeEnd: row.rangeEnd,
     capacity: row.capacity,
     operator: row.operator,
-    settlement: row.settlement,
+    garTerritory: row.garTerritory,
     region: row.region,
     inn: row.inn,
     uvrAntifraud: row.uvrAntifraud,
@@ -120,7 +120,7 @@ export async function createRangesXlsxExport(
           rangeEnd: row.rangeEnd,
           capacity: row.capacity,
           operator: sanitizeSpreadsheetCell(row.operator),
-          settlement: sanitizeSpreadsheetCell(row.settlement),
+          garTerritory: sanitizeSpreadsheetCell(row.garTerritory),
           region: sanitizeSpreadsheetCell(row.region),
           inn: sanitizeSpreadsheetCell(row.inn),
           uvrAntifraud: sanitizeSpreadsheetCell(

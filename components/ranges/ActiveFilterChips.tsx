@@ -7,13 +7,12 @@ import {
   isPhoneMaskEmpty,
   normalizePhoneMask,
 } from "@/lib/phoneNumberMask";
-import { formatSettlementDisplay } from "@/lib/filters/settlementDisplay";
 import type { FiltersDTO } from "@/packages/shared/contracts/filters.schema";
 
 const FILTER_LABELS: Record<string, string> = {
   abc: "ABC",
   operator: "Оператор связи",
-  settlement: "Населенный пункт",
+  garTerritory: "Территория ГАР",
   region: "Регион",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
@@ -40,7 +39,7 @@ function pushFacetChips(
   field:
     | "abc"
     | "operator"
-    | "settlement"
+    | "garTerritory"
     | "region"
     | "inn"
     | "uvrAntifraud",
@@ -66,7 +65,7 @@ export function ActiveFilterChips({
 
   pushFacetChips(chips, "abc", filters.abc);
   pushFacetChips(chips, "operator", filters.operator);
-  pushFacetChips(chips, "settlement", filters.settlement, formatSettlementDisplay);
+  pushFacetChips(chips, "garTerritory", filters.garTerritory);
   pushFacetChips(chips, "region", filters.region);
 
   pushFacetChips(chips, "inn", filters.inn);

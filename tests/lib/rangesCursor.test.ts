@@ -13,7 +13,7 @@ function sampleRow(id = 4): NumberRangeRow {
     rangeEnd: 2190499,
     capacity: 500,
     operator: "АО \"МТТ\"",
-    settlement: "Улан-Удэ",
+    garTerritory: "Улан-Удэ",
     region: "Республика Бурятия",
     inn: "1234567890",
     uvrAntifraud: null,

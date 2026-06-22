@@ -11,7 +11,7 @@ const COLUMN_MAP = {
   rangeEnd: numberRanges.rangeEnd,
   capacity: numberRanges.capacity,
   operator: numberRanges.operator,
-  settlement: numberRanges.settlement,
+  garTerritory: numberRanges.garTerritory,
   region: numberRanges.region,
   inn: numberRanges.inn,
 } as const;
