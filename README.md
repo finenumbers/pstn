@@ -44,7 +44,8 @@ Compose-стек проекта содержит **только** PostgreSQL и 
 
 | Раздел | Содержание |
 |--------|------------|
-| [docs/deployment.md](docs/deployment.md) | Деплой: dev, Docker, VPS, Portainer, NPM, переменные окружения |
+| [docs/deployment.md](docs/deployment.md) | Деплой: dev, Docker, VPS, Portainer, переменные окружения |
+| [docs/npm.md](docs/npm.md) | **NGINX Proxy Manager:** сценарии, Forward, 502, SSL, чеклист |
 | [docs/security.md](docs/security.md) | Модель безопасности, секреты, заголовки, threat model |
 | [docs/user-guide.md](docs/user-guide.md) | UI `/ranges`: фильтры, импорт, экспорт, KPI |
 | [docs/api-reference.md](docs/api-reference.md) | HTTP API: endpoints, auth, лимиты, примеры |

@@ -215,57 +215,16 @@ Portainer → Stacks → `pstn` → **Pull and redeploy** (или **Update the s
 
 NPM устанавливается и обновляется **независимо** от compose проекта PSTN.
 
-### Таймауты NPM (Portainer и длинные операции)
+**Полное руководство:** [docs/npm.md](npm.md) — выбор сценария (NPM в Docker vs на хосте), Forward `pstn_app` vs `127.0.0.1`, 502, SSL, `EXTERNAL_API_BASE_URL`.
 
-Если Portainer открыт через NPM и при **Deploy the stack** появляется **504 Gateway Time-out** (`openresty`) — прокси оборвал ожидание (обычно 60 с), пока Docker собирал образ.
+Кратко:
 
-Stack PSTN использует **готовый образ** `ghcr.io/finenumbers/pstn` (без сборки на сервере). Если 504 всё ещё появляется на других операциях Portainer, в NPM → Proxy Host **Portainer** → **Advanced** добавьте:
+| NPM где | Forward Hostname | Forward Port |
+|---------|------------------|--------------|
+| **В Docker** (Portainer, сеть `proxy`) | **`pstn_app`** | `5555` |
+| **На хосте** | **`127.0.0.1`** | `5555` |
 
-```nginx
-proxy_connect_timeout 600;
-proxy_send_timeout 600;
-proxy_read_timeout 600;
-send_timeout 600;
-```
-
-Либо открывайте Portainer напрямую: `https://<server-ip>:9443` (минуя NPM) — для первого деплоя и обновлений stack.
-
-### Вариант A — NPM на хосте, app на localhost
-
-Stack публикует app на `127.0.0.1:5555`. В NPM → **Proxy Hosts** → **Add**:
-
-| Поле | Значение |
-|------|----------|
-| Domain Names | `pstn.example.com` |
-| Scheme | `http` |
-| Forward Hostname / IP | `127.0.0.1` |
-| Forward Port | `5555` |
-| Block Common Exploits | включить |
-| Websockets Support | выключить (не требуется) |
-| SSL | Request a new SSL Certificate (Let's Encrypt) |
-
-### Вариант B — NPM и app оба в Docker (рекомендуется)
-
-NPM в контейнере **не видит** `127.0.0.1:5555` на хосте — для него это localhost самого NPM → **502 Bad Gateway**.
-
-1. `pstn_app` должен быть в сети **`proxy`** (как другие сервисы за NPM). В актуальном `docker-compose.portainer.yml` это уже прописано — достаточно **Pull and redeploy** stack `pstn`.
-2. Если сеть `proxy` ещё не создана — она появится при деплое stack **nginx** (NPM).
-3. В NPM → **Proxy Hosts** → ваш host (`pstn.finenumbers.com`):
-
-| Поле | Значение |
-|------|----------|
-| Scheme | `http` |
-| Forward Hostname / IP | **`pstn_app`** (имя контейнера, не `127.0.0.1`) |
-| Forward Port | `5555` |
-| Websockets Support | **выключить** (не требуется) |
-
-Compose PSTN менять вручную не нужно после redeploy.
-
-### Доступ и SSL
-
-- **Access List** или **Basic Auth** в NPM — основная защита UI и internal API.
-- В приложении нет встроенной авторизации.
-- `/api/health` — для локальной проверки после деплоя; не выставляйте наружу без ограничений.
+`127.0.0.1` из контейнера NPM **не** достигает PSTN → 502. Подробности и чеклист: [npm.md](npm.md).
 
 ### Rate limiting (рекомендуется)
 
@@ -280,6 +239,8 @@ Compose PSTN менять вручную не нужно после redeploy.
 
 #### Пример Custom Nginx Configuration (NPM → Advanced)
 
+> При **Forward = `pstn_app`** (NPM в Docker) не указывайте `proxy_pass http://127.0.0.1:5555` — используйте встроенный Rate Limiting в UI NPM или согласуйте upstream с вашим Forward. Подробнее: [npm.md](npm.md).
+
 ```nginx
 # Zone definitions — добавьте в http-контекст NPM или через custom snippet
 limit_req_zone $binary_remote_addr zone=pstn_export:10m rate=5r/m;
@@ -289,22 +250,18 @@ limit_req_zone $binary_remote_addr zone=pstn_import:10m rate=6r/h;
 
 location /api/export/ranges {
     limit_req zone=pstn_export burst=2 nodelay;
-    proxy_pass http://127.0.0.1:5555;
 }
 
 location /api/v1/lookup/search {
     limit_req zone=pstn_search burst=10 nodelay;
-    proxy_pass http://127.0.0.1:5555;
 }
 
 location /api/v1/lookup {
     limit_req zone=pstn_lookup burst=20 nodelay;
-    proxy_pass http://127.0.0.1:5555;
 }
 
 location /api/import {
     limit_req zone=pstn_import burst=1 nodelay;
-    proxy_pass http://127.0.0.1:5555;
 }
 ```
 

@@ -207,5 +207,6 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 ## Связанные документы
 
 - [deployment.md](deployment.md) — NPM, Portainer, env vars
+- [npm.md](npm.md) — NGINX Proxy Manager
 - [api-reference.md](api-reference.md) — endpoints и auth
 - [operations.md](operations.md) — эксплуатация и troubleshooting

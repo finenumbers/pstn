@@ -210,15 +210,9 @@ npm run db:rebuild-dicts
 
 ### NPM → 502 Bad Gateway
 
-**Частая причина:** NPM в Docker, а Forward = `127.0.0.1:5555`. Из контейнера NPM это **не** хост — backend недоступен.
+Пошаговый разбор и таблица сценариев: **[docs/npm.md](npm.md)**.
 
-**Исправление:**
-
-1. NPM → Proxy Host → Forward Hostname: **`pstn_app`**, Port: **5555**
-2. Portainer → Stacks → `pstn` → **Pull and redeploy** (compose подключает `pstn_app` к сети `proxy`)
-3. Проверка на сервере: `curl http://127.0.0.1:5555/api/health` — app должен отвечать локально
-
-Если 502 остаётся: Portainer → Containers → `pstn_app` → **Networks** — должны быть `pstn_internal` и **`proxy`**.
+Кратко: NPM в Docker → Forward **`pstn_app:5555`**, не `127.0.0.1`. NPM на хосте → Forward **`127.0.0.1:5555`**. Stack `pstn` — **Pull and redeploy** (сеть `proxy`).
 
 ### UI import не работает при `IMPORT_SECRET`
 
@@ -312,7 +306,8 @@ tsx scripts/import-opr-csv.ts ./opr.csv
 
 ## Связанные документы
 
-- [deployment.md](deployment.md) — деплой, NPM, Portainer
+- [deployment.md](deployment.md) — деплой, Portainer
+- [npm.md](npm.md) — NGINX Proxy Manager
 - [security.md](security.md) — секреты и auth
 - [user-guide.md](user-guide.md) — UI
 - [api-reference.md](api-reference.md) — HTTP API

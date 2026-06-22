@@ -374,3 +374,4 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 - [security.md](security.md) — auth model, secrets
 - [user-guide.md](user-guide.md) — UI и семантика фильтров
 - [deployment.md](deployment.md) — NPM rate limits
+- [npm.md](npm.md) — настройка Proxy Host

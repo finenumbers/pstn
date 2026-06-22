@@ -19,7 +19,7 @@ docker-compose.portainer.yml
 | **Compose path** | **`docker-compose.portainer.yml`** |
 | Environment | [`portainer.env.example`](../../portainer.env.example) — достаточно `POSTGRES_PASSWORD` |
 
-Полная инструкция: **[docs/deployment.md](../../docs/deployment.md)**
+Полная инструкция: **[docs/deployment.md](../../docs/deployment.md)** · NPM: **[docs/npm.md](../../docs/npm.md)**
 
 ---
 

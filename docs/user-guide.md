@@ -222,4 +222,5 @@ tsx scripts/import-opr-csv.ts /path/to/opr.csv
 
 - [api-reference.md](api-reference.md) — HTTP API
 - [operations.md](operations.md) — первая загрузка, backup, troubleshooting
-- [deployment.md](deployment.md) — деплой и NPM
+- [deployment.md](deployment.md) — деплой и Portainer
+- [npm.md](npm.md) — NGINX Proxy Manager

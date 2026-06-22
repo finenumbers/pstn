@@ -1,7 +1,8 @@
 # Portainer production stack — self-contained, no host bind mounts (как finenumbers/geoip).
 #
 # Portainer → Stacks → Repository → Compose path: docker-compose.portainer.yml
-# Образ app: ghcr.io/finenumbers/pstn:latest (публичный GHCR, без Registries в Portainer).
+# Образ app: ghcr.io/finenumbers/pstn:latest (публичный GHCR).
+# NPM в Docker: Forward pstn_app:5555, сеть proxy — см. docs/npm.md
 # POSTGRES_PASSWORD — в Environment variables stack. Pull and redeploy после push в main.
 
 name: pstn
