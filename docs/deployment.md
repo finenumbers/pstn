@@ -170,8 +170,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 | Переменная | Пример | Обязательна |
 |------------|--------|-------------|
-| `POSTGRES_PASSWORD` | `<openssl rand -base64 32>` | да |
-| `DATABASE_URL` | `postgresql://pstn:<password>@postgres:5432/pstn` | да |
+| `POSTGRES_PASSWORD` | `<openssl rand -base64 32>` | **да** |
 | `POSTGRES_USER` | `pstn` | нет (default) |
 | `POSTGRES_DB` | `pstn` | нет (default) |
 | `APP_PORT` | `5555` | нет |

@@ -234,6 +234,23 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 > 100k строк — ожидайте несколько минут. UI показывает confirm.
 
+### Portainer: `ERR_INVALID_URL` / `Invalid URL` / `base: 'postgres://base'`
+
+**Причина:** неверный `DATABASE_URL` в переменных stack — частые случаи:
+
+- пароль в URL не совпадает с `POSTGRES_PASSWORD`;
+- в пароле символы `@`, `:`, `/`, `#` без URL-кодирования (`@` → `%40`);
+- в значении оставлен placeholder `<password>` или литерал `${POSTGRES_PASSWORD}` (Portainer **не** подставляет переменные внутри другой переменной);
+- лишние кавычки вокруг значения.
+
+**Решение (актуальный compose):** достаточно **`POSTGRES_PASSWORD`** — `DATABASE_URL` собирается в контейнере автоматически. Удалите `DATABASE_URL` из переменных stack и redeploy с новым образом.
+
+**Быстрый fix без обновления образа:** задайте URL вручную, пароль URL-encoded, хост **`postgres`**:
+
+```
+DATABASE_URL=postgresql://pstn:ВАШ_ПАРОЛЬ_URL_ENCODED@postgres:5432/pstn
+```
+
 ### Portainer: `504 Gateway Time-out` (openresty)
 
 **Причина:** UI Portainer открыт через NGINX Proxy Manager. Кнопка **Deploy the stack** ждёт завершения операции Docker; при **сборке образа** на сервере это 5–15 минут, NPM по умолчанию обрывает запрос через ~60 с.

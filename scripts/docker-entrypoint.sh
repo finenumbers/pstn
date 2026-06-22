@@ -5,6 +5,23 @@ DB_HOST="${DB_HOST:-postgres}"
 DB_USER="${DB_USER:-pstn}"
 DB_PASS="${DB_PASS:-pstn}"
 DB_NAME="${DB_NAME:-pstn}"
+DB_PORT="${DB_PORT:-5432}"
+
+# Build DATABASE_URL from DB_* so passwords with @ : / # etc. work (Portainer often sets a broken URL).
+export DATABASE_URL="$(node -e "
+  const user = process.env.DB_USER || 'pstn';
+  const pass = process.env.DB_PASS || 'pstn';
+  const host = process.env.DB_HOST || 'postgres';
+  const db = process.env.DB_NAME || 'pstn';
+  const port = process.env.DB_PORT || '5432';
+  process.stdout.write(
+    'postgresql://' +
+    encodeURIComponent(user) + ':' +
+    encodeURIComponent(pass) + '@' +
+    host + ':' + port + '/' +
+    encodeURIComponent(db)
+  );
+")"
 
 ensure_external_api_key() {
   if [ -n "${EXTERNAL_API_KEY:-}" ]; then

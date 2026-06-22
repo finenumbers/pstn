@@ -36,7 +36,6 @@ services:
       - "127.0.0.1:${APP_PORT:-5555}:${APP_PORT:-5555}"
     environment:
       PORT: ${APP_PORT:-5555}
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER:-pstn}
       DB_PASS: ${POSTGRES_PASSWORD}
