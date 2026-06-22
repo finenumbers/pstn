@@ -32,8 +32,3 @@ jobs:
             org.opencontainers.image.source=https://github.com/finenumbers/pstn
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.vendor=Finenumbers
-
-      - name: Ensure GHCR package is public
-        run: gh api -X PATCH users/finenumbers/packages/container/pstn/visibility -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
