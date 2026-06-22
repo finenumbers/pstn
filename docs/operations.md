@@ -236,13 +236,16 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 ### Portainer: прочерк в «Images up to date»
 
-Portainer не смог сравнить локальный образ с GHCR. Пакет `ghcr.io/finenumbers/pstn` **публичный** — проблема обычно в том, что контейнер `pstn_app` всё ещё на старом образе `pstn-app:latest`.
+Как у `geoip`: stack должен быть создан **через Portainer → Git repository** (**Control: Total**), compose path `docker-compose.portainer.yml`, образ `ghcr.io/finenumbers/pstn:latest` без `build:`.
+
+Если **Control = Limited** (stack поднимали через SSH) — пересоздайте stack через Portainer, см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
 
 ```bash
 docker inspect pstn_app --format '{{.Config.Image}}'
+# ghcr.io/finenumbers/pstn:latest
 ```
 
-Должно быть `ghcr.io/finenumbers/pstn:latest`. Если нет — **Pull and redeploy** stack, добавьте registry `ghcr.io` в Portainer (см. [deployment.md](deployment.md#индикатор-images-up-to-date)), затем **Reload image indicators**.
+Registries в Portainer **не нужны** (публичный GHCR).
 
 ### Portainer: `ERR_INVALID_URL` / `Invalid URL` / `base: 'postgres://base'`
 
@@ -267,10 +270,9 @@ DATABASE_URL=postgresql://pstn:ВАШ_ПАРОЛЬ_URL_ENCODED@postgres:5432/pst
 
 **Что делать:**
 
-1. Обновите stack compose до актуального `docker-compose.portainer.yml` — образ тянется с GHCR (`ghcr.io/finenumbers/pstn`), без локальной сборки; деплой занимает 1–2 минуты.
-2. Убедитесь, что образ опубликован: GitHub → **Actions** → workflow **Publish Docker image** (зелёный статус на `main`).
-3. Если пакет GHCR приватный — добавьте registry `ghcr.io` в Portainer (**Registries**).
-4. Если 504 на других действиях Portainer — увеличьте таймауты NPM для proxy host Portainer (см. [deployment.md](deployment.md#таймауты-npm-portainer-и-длинные-операции)) или зайдите на `:9443` напрямую.
+1. Обновите stack compose до актуального `docker-compose.portainer.yml` — образ `ghcr.io/finenumbers/pstn:latest`, без `build:`.
+2. Убедитесь, что stack с **Control: Total** (создан через Portainer Git, не через SSH).
+3. **Pull and redeploy**.
 
 ### Portainer: `open Dockerfile: no such file or directory`
 

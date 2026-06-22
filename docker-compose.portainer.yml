@@ -1,5 +1,8 @@
-# Portainer production stack — pull-only, no local build (like finenumbers/geoip).
-# Image: ghcr.io/finenumbers/pstn (public). Required for Portainer "Images up to date" indicator.
+# Portainer production stack — self-contained, no host bind mounts (как finenumbers/geoip).
+#
+# Portainer → Stacks → Repository → Compose path: docker-compose.portainer.yml
+# Образ app: ghcr.io/finenumbers/pstn:latest (публичный GHCR, без Registries в Portainer).
+# POSTGRES_PASSWORD — в Environment variables stack. Pull and redeploy после push в main.
 
 name: pstn
 
@@ -28,7 +31,7 @@ services:
       - pstn_internal
 
   app:
-    image: ghcr.io/finenumbers/pstn:${IMAGE_TAG:-latest}
+    image: ghcr.io/finenumbers/pstn:latest
     container_name: pstn_app
     restart: unless-stopped
     ports:
