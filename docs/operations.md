@@ -234,6 +234,22 @@ UI не отправляет `X-Import-Secret`. Варианты:
 
 > 100k строк — ожидайте несколько минут. UI показывает confirm.
 
+### Portainer: `open Dockerfile: no such file or directory`
+
+Portainer проксирует `docker compose build` на Docker-хост. В каталоге stack (`/data/compose/<id>/`) лежит только compose-файл, без репозитория — `build.context: .` не находит `Dockerfile`.
+
+**Решение:** используйте актуальный `docker-compose.portainer.yml` из репозитория — в нём `build.context` указывает на GitHub:
+
+```yaml
+build:
+  context: https://github.com/finenumbers/pstn.git#${GIT_REF:-main}
+  dockerfile: Dockerfile
+```
+
+1. Stacks → `pstn` → **Editor** → замените compose содержимым из GitHub (или пересоздайте stack через **Git repository**).
+2. Убедитесь, что хост имеет доступ к `github.com` (сборка клонирует репозиторий).
+3. При необходимости задайте `GIT_REF=main` (или тег релиза) в переменных stack.
+
 ### Изменения кода не видны после restart
 
 Нужен `docker compose build app`, не restart.

@@ -27,8 +27,10 @@ services:
       - pstn_internal
 
   app:
+    # Portainer proxies builds to the Docker host with only the compose file on disk
+    # (see /data/compose/<id>/). context: . cannot see Dockerfile — fetch from Git instead.
     build:
-      context: .
+      context: https://github.com/finenumbers/pstn.git#${GIT_REF:-main}
       dockerfile: Dockerfile
     image: pstn-app:${IMAGE_TAG:-latest}
     container_name: pstn_app

@@ -160,9 +160,12 @@ docker compose -f docker-compose.prod.yml up -d --build
 ### Шаг 1 — Stack
 
 1. Portainer → **Stacks** → **Add stack**
-2. Источник:
-   - **Git repository:** `https://github.com/finenumbers/pstn`, Compose path: `docker-compose.portainer.yml`
-   - или **Web editor:** вставьте содержимое `docker-compose.portainer.yml`
+2. Источник — **Git repository** (рекомендуется):
+   - **Repository URL:** `https://github.com/finenumbers/pstn`
+   - **Repository reference:** `main`
+   - **Compose path:** `docker-compose.portainer.yml`
+   
+   > **Web editor / Upload** не подходят для сборки образа: Portainer сохраняет только compose-файл на хосте (`/data/compose/<id>/`), без исходников. В `docker-compose.portainer.yml` сборка идёт напрямую из GitHub (`build.context` — URL репозитория), поэтому stack можно развернуть и через Web editor, если вставить **актуальное** содержимое файла из репозитория.
 3. **Environment variables** — из [`portainer.env.example`](../portainer.env.example):
 
 | Переменная | Пример | Обязательна |
@@ -176,6 +179,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `DB_POOL_MAX` | `10` | нет |
 | `DB_IMPORT_POOL_MAX` | `4` | нет |
 | `IMAGE_TAG` | `latest` | нет |
+| `GIT_REF` | `main` | нет (ветка/тег для сборки образа из GitHub) |
 | `EXTERNAL_API_BASE_URL` | `https://pstn.example.com` | рекомендуется |
 | `EXTERNAL_API_KEY` | фиксированный ключ | нет (auto) |
 | `IMPORT_SECRET` | секрет import API | нет |
@@ -298,6 +302,7 @@ location /api/import {
 | `EXTERNAL_API_BASE_URL` | рекомендуется | — | Публичный URL для curl-примеров в UI |
 | `IMPORT_SECRET` | нет | — | Заголовок `X-Import-Secret` для import API |
 | `IMAGE_TAG` | Portainer | `latest` | Тег образа `pstn-app` |
+| `GIT_REF` | Portainer | `main` | Ветка/тег GitHub для сборки образа |
 | `NODE_ENV` | в образе | `production` | Режим Next.js |
 
 ### Пул соединений PostgreSQL
