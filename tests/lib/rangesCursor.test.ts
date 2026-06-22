@@ -16,6 +16,7 @@ function sampleRow(id = 4): NumberRangeRow {
     settlement: "Улан-Удэ",
     region: "Республика Бурятия",
     inn: "1234567890",
+    uvrAntifraud: null,
     abcRangeGapBefore: false,
     abcRangeGapAfter: true,
   };

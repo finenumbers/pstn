@@ -5,7 +5,6 @@ import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 describe("mergeDebouncedTextFilters", () => {
   it("flushes cleared text filters immediately on reset", () => {
     const debounced = {
-      inn: "123",
       rangeStart: "100",
       rangeEnd: "200",
       capacity: "5",
@@ -14,7 +13,6 @@ describe("mergeDebouncedTextFilters", () => {
 
     const merged = mergeDebouncedTextFilters(DEFAULT_FILTERS, debounced);
 
-    expect(merged.inn).toBe("");
     expect(merged.phoneNumber).toBe("");
     expect(merged.rangeStart).toBe("");
   });
@@ -25,7 +23,6 @@ describe("mergeDebouncedTextFilters", () => {
       phoneNumber: "777",
     };
     const debounced = {
-      inn: "",
       rangeStart: "",
       rangeEnd: "",
       capacity: "",

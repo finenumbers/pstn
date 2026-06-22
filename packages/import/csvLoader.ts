@@ -40,6 +40,28 @@ export async function swapStagingToProduction(): Promise<void> {
       `ALTER TABLE number_ranges_swap_old RENAME TO ${RANGES_STAGING_TABLE}`
     );
     await client.query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
+    await client.query(`
+      TRUNCATE operators_dict, regions_dict, settlements_dict, abc_dict RESTART IDENTITY
+    `);
+    await client.query(`
+      INSERT INTO operators_dict (name, inn)
+      SELECT operator, MAX(inn)
+      FROM number_ranges
+      GROUP BY operator
+    `);
+    await client.query(`
+      INSERT INTO settlements_dict (name)
+      SELECT DISTINCT settlement FROM number_ranges
+      WHERE settlement <> ''
+    `);
+    await client.query(`
+      INSERT INTO regions_dict (name)
+      SELECT DISTINCT region FROM number_ranges
+    `);
+    await client.query(`
+      INSERT INTO abc_dict (code)
+      SELECT DISTINCT abc FROM number_ranges
+    `);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -93,24 +115,27 @@ export async function clearImportedData(): Promise<void> {
     `TRUNCATE operators_dict, regions_dict, settlements_dict, abc_dict RESTART IDENTITY`
   );
   await p.query(
-    `UPDATE dataset_meta SET last_success_at = NULL, last_job_id = NULL, total_rows = NULL, total_capacity = NULL, unique_operators = NULL WHERE id = 1`
+    `UPDATE dataset_meta SET last_success_at = NULL, last_job_id = NULL, total_rows = NULL, total_capacity = NULL, unique_operators = NULL, unique_regions = NULL WHERE id = 1`
   );
 }
 
 export async function refreshDatasetGlobalStats(): Promise<{
   totalRows: number;
   totalCapacity: number;
+  uniqueRegions: number;
   uniqueOperators: number;
 }> {
   const p = pool();
   const result = await p.query<{
     total_rows: number;
     total_capacity: string;
+    unique_regions: number;
     unique_operators: number;
   }>(`
     SELECT
       COUNT(*)::int AS total_rows,
       COALESCE(SUM(capacity), 0)::bigint AS total_capacity,
+      COUNT(DISTINCT region)::int AS unique_regions,
       COUNT(DISTINCT operator)::int AS unique_operators
     FROM number_ranges
   `);
@@ -118,6 +143,7 @@ export async function refreshDatasetGlobalStats(): Promise<{
   const stats = {
     totalRows: row?.total_rows ?? 0,
     totalCapacity: Number(row?.total_capacity ?? 0),
+    uniqueRegions: row?.unique_regions ?? 0,
     uniqueOperators: row?.unique_operators ?? 0,
   };
 
@@ -127,10 +153,11 @@ export async function refreshDatasetGlobalStats(): Promise<{
     SET
       total_rows = $1,
       total_capacity = $2,
-      unique_operators = $3
+      unique_regions = $3,
+      unique_operators = $4
     WHERE id = 1
   `,
-    [stats.totalRows, stats.totalCapacity, stats.uniqueOperators]
+    [stats.totalRows, stats.totalCapacity, stats.uniqueRegions, stats.uniqueOperators]
   );
 
   return stats;

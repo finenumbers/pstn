@@ -7,6 +7,7 @@ describe("writeRangesXlsx", () => {
     expect(headers).toContain("Начало");
     expect(headers).toContain("Оператор связи");
     expect(headers).toContain("Регион");
+    expect(headers).toContain("УВр Антифрод");
   });
 
   it("uses red top border when marking an ABC range gap", () => {

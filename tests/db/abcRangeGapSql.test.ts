@@ -1,11 +1,27 @@
-import { asc, eq, and } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { asc, and, eq } from "drizzle-orm";
 import { db } from "@/packages/db/index";
 import { numberRanges } from "@/packages/db/schema/numberRanges";
+import { refreshAbcRangeGaps } from "@/packages/db/queries/refreshAbcRangeGaps";
+import {
+  ABC_301_GAP_TEST_ROWS,
+  insertTestRangeRows,
+  truncateRangeTables,
+} from "@/tests/helpers/dbTestIsolation";
 
 const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeWithDb("abc range gap columns", () => {
+  beforeAll(async () => {
+    await truncateRangeTables();
+    await insertTestRangeRows(ABC_301_GAP_TEST_ROWS);
+    await refreshAbcRangeGaps();
+  }, 30_000);
+
+  afterAll(async () => {
+    await truncateRangeTables();
+  }, 30_000);
+
   it("marks gaps from full ABC order, not visible neighbors", async () => {
     const rows = await db
       .select({
@@ -71,7 +87,7 @@ describeWithDb("abc range gap columns", () => {
     expect(mtt219?.abcRangeGapAfter).toBe(true);
   });
 
-  it("reads gap flags for 50 MTT rows within 100ms", async () => {
+  it("reads gap flags for MTT rows within 100ms", async () => {
     const start = Date.now();
     await db
       .select({
@@ -79,7 +95,7 @@ describeWithDb("abc range gap columns", () => {
         gapAfter: numberRanges.abcGapAfter,
       })
       .from(numberRanges)
-      .where(eq(numberRanges.operator, "АО \"МТТ\""))
+      .where(eq(numberRanges.operator, 'АО "МТТ"'))
       .orderBy(asc(numberRanges.rangeStart))
       .limit(50);
     expect(Date.now() - start).toBeLessThan(100);

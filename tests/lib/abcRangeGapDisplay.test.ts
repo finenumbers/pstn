@@ -17,6 +17,7 @@ function row(
     settlement: "Улан-Удэ",
     region: "Республика Бурятия",
     inn: "",
+    uvrAntifraud: null,
     abcRangeGapBefore: gapBefore,
     abcRangeGapAfter: gapAfter,
   };

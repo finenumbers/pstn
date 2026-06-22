@@ -3,14 +3,29 @@ import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
 import {
   and,
   eq,
-  ilike,
   inArray,
   sql,
   type SQL,
   type AnyColumn,
 } from "drizzle-orm";
-import { numberRanges } from "../schema";
+import { numberRanges, operatorsRegister } from "../schema";
 import { phoneNumberOverlapSql } from "./phoneNumberMatchCount";
+
+export const COVERAGE_AND_COLUMNS = [
+  "abc",
+  "region",
+  "settlement",
+  "operator",
+] as const;
+
+export type CoverageAndColumn = (typeof COVERAGE_AND_COLUMNS)[number];
+
+const COVERAGE_COLUMN_MAP = {
+  abc: numberRanges.abc,
+  region: numberRanges.region,
+  settlement: numberRanges.settlement,
+  operator: numberRanges.operator,
+} as const;
 
 function textNumericFilter(column: AnyColumn, value: string): SQL | undefined {
   if (!value) return undefined;
@@ -50,26 +65,102 @@ function phoneNumberFilter(value: string): SQL | undefined {
   return and(...conditions);
 }
 
-export function buildWhere(
+function uvrAntifraudFilter(values: string[]): SQL | undefined {
+  if (values.length === 0) return undefined;
+  return sql`EXISTS (
+    SELECT 1
+    FROM ${operatorsRegister}
+    WHERE ${operatorsRegister.inn} = ${numberRanges.inn}
+      AND ${operatorsRegister.idSrc}::text IN (${sql.join(
+        values.map((value) => sql`${value}`),
+        sql`, `
+      )})
+  )`;
+}
+
+function buildCoverageOperatorInSql(
+  column: CoverageAndColumn,
+  values: string[],
   filters: FiltersDTO,
   excludeColumn?: string
 ): SQL | undefined {
+  if (values.length <= 1) return undefined;
+
+  const partialFilters: FiltersDTO = { ...filters, [column]: [] };
+  const partialConditions = collectWhereConditions(
+    partialFilters,
+    excludeColumn
+  );
+
+  const columnRef = COVERAGE_COLUMN_MAP[column];
+  const rowConstraint = inArray(columnRef, values);
+  const whereClause =
+    partialConditions.length > 0
+      ? and(...partialConditions, rowConstraint)
+      : rowConstraint;
+
+  return sql`${numberRanges.operator} IN (
+    SELECT ${numberRanges.operator}
+    FROM ${numberRanges}
+    WHERE ${whereClause}
+    GROUP BY ${numberRanges.operator}
+    HAVING COUNT(DISTINCT ${columnRef}) = ${values.length}
+  )`;
+}
+
+function buildCoverageColumnCondition(
+  column: CoverageAndColumn,
+  values: string[],
+  filters: FiltersDTO,
+  excludeColumn?: string
+): SQL | undefined {
+  if (values.length === 0) return undefined;
+
+  if (excludeColumn === column) {
+    return buildCoverageOperatorInSql(column, values, filters, excludeColumn);
+  }
+
+  if (values.length === 1) {
+    return eq(COVERAGE_COLUMN_MAP[column], values[0]);
+  }
+
+  const operatorConstraint = buildCoverageOperatorInSql(
+    column,
+    values,
+    filters,
+    excludeColumn
+  );
+  const rowConstraint = inArray(COVERAGE_COLUMN_MAP[column], values);
+
+  return operatorConstraint
+    ? and(rowConstraint, operatorConstraint)
+    : rowConstraint;
+}
+
+export function collectWhereConditions(
+  filters: FiltersDTO,
+  excludeColumn?: string
+): SQL[] {
   const conditions: SQL[] = [];
 
-  if (excludeColumn !== "abc" && filters.abc.length > 0) {
-    conditions.push(inArray(numberRanges.abc, filters.abc));
+  for (const column of COVERAGE_AND_COLUMNS) {
+    const values = filters[column];
+    if (values.length === 0) continue;
+    const cond = buildCoverageColumnCondition(
+      column,
+      values,
+      filters,
+      excludeColumn
+    );
+    if (cond) conditions.push(cond);
   }
-  if (excludeColumn !== "operator" && filters.operator.length > 0) {
-    conditions.push(inArray(numberRanges.operator, filters.operator));
+
+  if (excludeColumn !== "inn" && filters.inn.length > 0) {
+    conditions.push(inArray(numberRanges.inn, filters.inn));
   }
-  if (excludeColumn !== "settlement" && filters.settlement.length > 0) {
-    conditions.push(inArray(numberRanges.settlement, filters.settlement));
-  }
-  if (excludeColumn !== "region" && filters.region.length > 0) {
-    conditions.push(inArray(numberRanges.region, filters.region));
-  }
-  if (excludeColumn !== "inn" && filters.inn) {
-    conditions.push(ilike(numberRanges.inn, `%${filters.inn}%`));
+  if (excludeColumn !== "uvrAntifraud" && filters.uvrAntifraud.length > 0) {
+    const cond = uvrAntifraudFilter(filters.uvrAntifraud);
+    if (cond) conditions.push(cond);
   }
   if (excludeColumn !== "rangeStart" && filters.rangeStart) {
     const cond = textNumericFilter(numberRanges.rangeStart, filters.rangeStart);
@@ -88,19 +179,29 @@ export function buildWhere(
     if (cond) conditions.push(cond);
   }
 
+  return conditions;
+}
+
+export function buildWhere(
+  filters: FiltersDTO,
+  excludeColumn?: string
+): SQL | undefined {
+  const conditions = collectWhereConditions(filters, excludeColumn);
   if (conditions.length === 0) return undefined;
   return and(...conditions);
 }
 
 export const FACET_COLUMN_MAP: Record<
-  FacetColumn,
+  Exclude<FacetColumn, "uvrAntifraud">,
   | typeof numberRanges.abc
   | typeof numberRanges.operator
   | typeof numberRanges.settlement
   | typeof numberRanges.region
+  | typeof numberRanges.inn
 > = {
   abc: numberRanges.abc,
   operator: numberRanges.operator,
   settlement: numberRanges.settlement,
   region: numberRanges.region,
+  inn: numberRanges.inn,
 };

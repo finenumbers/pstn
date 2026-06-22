@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Телефонный план нумерации России",
+  title: "PSTN Analytics",
   description: "Телефонный план нумерации России",
 };
 

@@ -30,6 +30,8 @@ function createPool(max: number): pg.Pool {
   return new pg.Pool({
     connectionString: getConnectionString(),
     max,
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 30_000,
   });
 }
 
@@ -56,7 +58,7 @@ export function getDb() {
   return dbInstance;
 }
 
-export function getImportDb() {
+function getImportDb() {
   if (!importDbInstance) {
     importDbInstance = drizzle(importPool(), { schema });
   }

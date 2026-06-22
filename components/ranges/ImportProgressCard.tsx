@@ -106,7 +106,7 @@ export function ImportProgressCard({
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Файлы Минцифры
           </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-4 gap-2">
             {progress.files.map((file) => (
               <FileProgressRow key={file.key} file={file} />
             ))}

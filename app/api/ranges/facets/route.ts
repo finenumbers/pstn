@@ -6,9 +6,9 @@ import {
   type FacetColumn,
   type FiltersDTO,
 } from "@/packages/shared/contracts/filters.schema";
-import { facetRangesFromDict } from "@/packages/db/queries/facetRangesFromDict";
+import { facetRanges } from "@/packages/db/queries/facetRanges";
 import { countFacetValue } from "@/packages/db/queries/countFacetValue";
-import { apiError, validationError, withTiming } from "@/lib/api/errors";
+import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
   const startMs = Date.now();
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const facetResults = await Promise.all(
       columns.map((column) =>
-        facetRangesFromDict({
+        facetRanges({
           column,
           filters,
           search: search[column],
@@ -99,11 +99,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ facets });
   } catch (error) {
-    console.error("facets GET error:", error);
-    return apiError(
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Internal server error",
-      500
-    );
+    return internalServerError(error);
   }
 }

@@ -5,7 +5,8 @@ import {
 } from "@/packages/shared/contracts/filters.schema";
 import { countRanges } from "@/packages/db/queries/rangesQueries";
 import { createRangesXlsxExport } from "@/lib/export/writeRangesXlsx";
-import { apiError, validationError, withTiming } from "@/lib/api/errors";
+import { EXPORT_ROW_MAX } from "@/lib/export/exportLimits";
+import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
   const startMs = Date.now();
@@ -18,6 +19,14 @@ export async function GET(request: NextRequest) {
     }
 
     const totalRows = await countRanges(filtersParsed.data);
+    if (totalRows > EXPORT_ROW_MAX) {
+      return apiError(
+        "EXPORT_TOO_LARGE",
+        `Export exceeds maximum of ${EXPORT_ROW_MAX.toLocaleString("ru-RU")} rows (${totalRows.toLocaleString("ru-RU")} matched). Narrow filters.`,
+        400
+      );
+    }
+
     const { body } = await createRangesXlsxExport(
       filtersParsed.data,
       totalRows
@@ -34,11 +43,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("export error:", error);
-    return apiError(
-      "EXPORT_FAILED",
-      error instanceof Error ? error.message : "Export failed",
-      500
-    );
+    return internalServerError(error, "Export failed");
   }
 }

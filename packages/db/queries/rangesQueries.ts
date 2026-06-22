@@ -14,7 +14,7 @@ import {
   sum,
 } from "drizzle-orm";
 import { db } from "../index";
-import { datasetMeta, numberRanges } from "../schema";
+import { datasetMeta, numberRanges, operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
 import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
 import { phoneNumberPartialMatchCountExpr } from "./phoneNumberMatchCount";
@@ -84,10 +84,12 @@ export async function listRanges(params: {
       settlement: numberRanges.settlement,
       region: numberRanges.region,
       inn: numberRanges.inn,
+      uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: numberRanges.abcGapBefore,
       abcRangeGapAfter: numberRanges.abcGapAfter,
     })
     .from(numberRanges)
+    .leftJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
     .where(where)
     .orderBy(...orderBy, ...tailOrder)
     .limit(params.pageSize)
@@ -128,12 +130,14 @@ export async function countRanges(filters: FiltersDTO): Promise<number> {
 async function loadGlobalSummaryFromTable(): Promise<{
   rangeCount: number;
   totalCapacity: number;
+  uniqueRegions: number;
   uniqueOperators: number;
 }> {
   const globalResult = await db
     .select({
       rangeCount: count(),
       totalCapacity: sum(numberRanges.capacity),
+      uniqueRegions: countDistinct(numberRanges.region),
       uniqueOperators: countDistinct(numberRanges.operator),
     })
     .from(numberRanges);
@@ -141,6 +145,7 @@ async function loadGlobalSummaryFromTable(): Promise<{
   return {
     rangeCount: Number(global?.rangeCount ?? 0),
     totalCapacity: Number(global?.totalCapacity ?? 0),
+    uniqueRegions: Number(global?.uniqueRegions ?? 0),
     uniqueOperators: Number(global?.uniqueOperators ?? 0),
   };
 }
@@ -150,12 +155,14 @@ function globalSummaryFromMeta(
 ): {
   rangeCount: number;
   totalCapacity: number;
+  uniqueRegions: number;
   uniqueOperators: number;
 } | null {
   if (
     metaRow?.totalRows == null ||
     metaRow.totalCapacity == null ||
-    metaRow.uniqueOperators == null
+    metaRow.uniqueOperators == null ||
+    metaRow.uniqueRegions == null
   ) {
     return null;
   }
@@ -163,6 +170,7 @@ function globalSummaryFromMeta(
   return {
     rangeCount: metaRow.totalRows,
     totalCapacity: Number(metaRow.totalCapacity),
+    uniqueRegions: metaRow.uniqueRegions,
     uniqueOperators: metaRow.uniqueOperators,
   };
 }
@@ -183,6 +191,7 @@ export async function summaryRanges(filters: FiltersDTO) {
       filtered: {
         rangeCount: global.rangeCount,
         totalCapacity: global.totalCapacity,
+        uniqueRegions: global.uniqueRegions,
         uniqueOperators: global.uniqueOperators,
       },
       global,
@@ -202,6 +211,7 @@ export async function summaryRanges(filters: FiltersDTO) {
     .select({
       rangeCount: count(),
       totalCapacity: sum(filteredCapacityExpr),
+      uniqueRegions: countDistinct(numberRanges.region),
       uniqueOperators: countDistinct(numberRanges.operator),
     })
     .from(numberRanges)
@@ -217,11 +227,13 @@ export async function summaryRanges(filters: FiltersDTO) {
     filtered: {
       rangeCount: Number(filtered?.rangeCount ?? 0),
       totalCapacity: Number(filtered?.totalCapacity ?? 0),
+      uniqueRegions: Number(filtered?.uniqueRegions ?? 0),
       uniqueOperators: Number(filtered?.uniqueOperators ?? 0),
     },
     global: {
       rangeCount: global.rangeCount,
       totalCapacity: global.totalCapacity,
+      uniqueRegions: global.uniqueRegions,
       uniqueOperators: global.uniqueOperators,
     },
   };
@@ -255,10 +267,12 @@ export async function listRangesForExport(
       settlement: numberRanges.settlement,
       region: numberRanges.region,
       inn: numberRanges.inn,
+      uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: numberRanges.abcGapBefore,
       abcRangeGapAfter: numberRanges.abcGapAfter,
     })
     .from(numberRanges)
+    .leftJoin(operatorsRegister, eq(numberRanges.inn, operatorsRegister.inn))
     .where(where)
     .orderBy(
       asc(numberRanges.abc),

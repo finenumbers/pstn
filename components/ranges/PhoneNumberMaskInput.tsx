@@ -118,18 +118,26 @@ export function PhoneNumberMaskInput({
   return (
     <div className="w-full min-w-0" onPaste={handlePaste}>
       <div className="flex w-full items-center gap-[1.1px] text-[0.9rem] tabular-nums leading-none">
-        <span className="shrink-0 text-muted-foreground text-[12px]">(</span>
+        <span className="shrink-0 px-0.5 text-2xl font-semibold text-muted-foreground">
+          (
+        </span>
         {renderSlot(0)}
         {renderSlot(1)}
         {renderSlot(2)}
-        <span className="shrink-0 text-muted-foreground text-[12px]">)</span>
+        <span className="mr-1 shrink-0 px-0.5 text-2xl font-semibold text-muted-foreground">
+          )
+        </span>
         {renderSlot(3)}
         {renderSlot(4)}
         {renderSlot(5)}
-        <span className="shrink-0 text-muted-foreground text-[12px]">-</span>
+        <span className="shrink-0 px-0.5 text-2xl font-semibold text-muted-foreground">
+          -
+        </span>
         {renderSlot(6)}
         {renderSlot(7)}
-        <span className="shrink-0 text-muted-foreground text-[12px]">-</span>
+        <span className="shrink-0 px-0.5 text-2xl font-semibold text-muted-foreground">
+          -
+        </span>
         {renderSlot(8)}
         {renderSlot(9)}
       </div>

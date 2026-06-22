@@ -1,4 +1,4 @@
-import type { FiltersDTO, FacetColumn } from "@/packages/shared/contracts/filters.schema";
+import type { FiltersDTO, DictFacetColumn } from "@/packages/shared/contracts/filters.schema";
 import type { SQL } from "drizzle-orm";
 import {
   and,
@@ -41,7 +41,7 @@ type DictFacetConfig = {
   rangeColumn: FacetRangeColumn;
 };
 
-export const DICT_FACET_CONFIG: Record<FacetColumn, DictFacetConfig> = {
+export const DICT_FACET_CONFIG: Record<DictFacetColumn, DictFacetConfig> = {
   abc: {
     table: abcDict,
     dictValue: abcDict.code,
@@ -65,7 +65,7 @@ export const DICT_FACET_CONFIG: Record<FacetColumn, DictFacetConfig> = {
 };
 
 export async function facetRangesFromDict(params: {
-  column: FacetColumn;
+  column: DictFacetColumn;
   filters: FiltersDTO;
   search?: string;
   limit?: number;

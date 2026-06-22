@@ -20,6 +20,11 @@ describe("buildWhere", () => {
     expect(where).toBeDefined();
   });
 
+  it("includes uvr antifraud filter", () => {
+    const where = buildWhere({ ...DEFAULT_FILTERS, uvrAntifraud: ["11012"] });
+    expect(where).toBeDefined();
+  });
+
   it("excludes self column from facet query", () => {
     const filters = {
       ...DEFAULT_FILTERS,
@@ -30,5 +35,13 @@ describe("buildWhere", () => {
     const excludeOperator = buildWhere(filters, "operator");
     expect(withOperator).toBeDefined();
     expect(excludeOperator).toBeDefined();
+  });
+
+  it("builds distinct where for multi-select ABC", () => {
+    const single = buildWhere({ ...DEFAULT_FILTERS, abc: ["301"] });
+    const multi = buildWhere({ ...DEFAULT_FILTERS, abc: ["301", "353"] });
+    expect(single).toBeDefined();
+    expect(multi).toBeDefined();
+    expect(multi).not.toEqual(single);
   });
 });

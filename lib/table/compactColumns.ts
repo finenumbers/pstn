@@ -13,20 +13,24 @@ const COMPACT_COLUMN_IDS = new Set([
   "rangeStart",
   "rangeEnd",
   "capacity",
-  "inn",
 ]);
 
 /** Button px-3, border, chevron icon */
 const FILTER_FIELD_PADDING_CH = 5;
 const CHEVRON_CH = 3;
 const CLEAR_BUTTON_CH = 2.5;
-const INPUT_CLEAR_PADDING_CH = 3;
 /** Width scale when ABC filter has selected values (active search mode). */
 const ABC_ACTIVE_WIDTH_RATIO = 0.8;
 
 export function isCompactColumn(columnId: string): boolean {
   return COMPACT_COLUMN_IDS.has(columnId);
 }
+
+/** Fixed width for the INN column. */
+export const INN_COLUMN_WIDTH_CH = 15;
+
+/** Fixed width for the УВр Антифрод column. */
+export const UVR_ANTIFRAUD_COLUMN_WIDTH_CH = 18;
 
 /** ABC column: placeholder width; slightly wider when values selected (partial "N выбр…"). */
 export function computeAbcFilterColumnWidth(
@@ -41,23 +45,6 @@ export function computeAbcFilterColumnWidth(
   const partialLabelCh = digits + 5; // e.g. "3 выбр"
   const activeWidth = base + CLEAR_BUTTON_CH + partialLabelCh;
   return activeWidth * ABC_ACTIVE_WIDTH_RATIO;
-}
-
-/** INN column: max page value + active filter text (full INN visible while typing). */
-export function computeInnColumnWidth(
-  data: NumberRangeRow[],
-  filterValue = ""
-): number {
-  const trimmed = filterValue.trim();
-  const clearCh = trimmed ? CLEAR_BUTTON_CH : 0;
-  const dataMax =
-    data.length > 0 ? Math.max(...data.map((r) => r.inn.length)) : 0;
-  const contentLen = Math.max(dataMax, trimmed.length, 3);
-  const minInnDigits = 10;
-  return Math.max(
-    minInnDigits + INPUT_CLEAR_PADDING_CH,
-    contentLen + INPUT_CLEAR_PADDING_CH + clearCh
-  );
 }
 
 export function computeCompactColumnWidths(

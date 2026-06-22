@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { startImportJob } from "@/packages/import/importWorker";
-import { apiError } from "@/lib/api/errors";
+import { internalServerError } from "@/lib/api/errors";
 import { checkImportAuthorization } from "@/lib/api/importAuth";
 
 export async function POST(request: NextRequest) {
@@ -16,11 +16,6 @@ export async function POST(request: NextRequest) {
       status: result.status,
     });
   } catch (error) {
-    console.error("import start error:", error);
-    return apiError(
-      "IMPORT_FAILED",
-      error instanceof Error ? error.message : "Import failed",
-      500
-    );
+    return internalServerError(error, "Import failed");
   }
 }

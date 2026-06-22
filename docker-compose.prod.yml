@@ -42,7 +42,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DB_POOL_MAX: ${DB_POOL_MAX:-10}
       DB_IMPORT_POOL_MAX: ${DB_IMPORT_POOL_MAX:-4}
-      IMPORT_SECRET: ${IMPORT_SECRET:-}
+      EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+    volumes:
+      - pstn_secrets:/app/.secrets
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,3 +66,4 @@ networks:
 
 volumes:
   pstn_pg_data:
+  pstn_secrets:

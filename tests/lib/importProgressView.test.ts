@@ -61,13 +61,51 @@ describe("importProgressView", () => {
     expect(resolvePhaseLabel("validating", "running")).toBe(
       "Проверка полноты данных…"
     );
+    expect(resolvePhaseLabel("binding_uvr_antifraud", "running")).toBe(
+      "Привязка УВр Антифрод по ИНН…"
+    );
     expect(resolvePhaseLabel("completed", "completed")).toBe(
       "Загрузка завершена"
     );
   });
 
+  it("includes uvr antifraud binding step after swap", () => {
+    const display = buildImportProgressDisplay({
+      status: "running",
+      phase: "binding_uvr_antifraud",
+      fileRows: {
+        "ABC-3xx": 1,
+        "ABC-4xx": 1,
+        "ABC-8xx": 1,
+        "DEF-9xx": 1,
+      },
+      filesProcessed: 4,
+      filesTotal: 4,
+      rowsLoaded: 4,
+    });
+
+    expect(display.percent).toBe(97);
+    expect(display.steps.map((step) => step.id)).toEqual([
+      "files",
+      "validating",
+      "computing_gaps",
+      "swapping",
+      "binding_uvr_antifraud",
+      "completed",
+    ]);
+    expect(
+      display.steps.find((step) => step.id === "binding_uvr_antifraud")?.status
+    ).toBe("active");
+    expect(display.steps.find((step) => step.id === "swapping")?.status).toBe(
+      "done"
+    );
+  });
+
   it("returns 100% only for completed jobs", () => {
-    expect(computeImportPercent("swapping", 4, 4, "running")).toBe(96);
+    expect(computeImportPercent("swapping", 4, 4, "running")).toBe(92);
+    expect(computeImportPercent("binding_uvr_antifraud", 4, 4, "running")).toBe(
+      97
+    );
     expect(computeImportPercent("completed", 4, 4, "completed")).toBe(100);
   });
 

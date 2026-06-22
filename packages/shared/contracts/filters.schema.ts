@@ -5,7 +5,19 @@ import {
   serializePhoneMask,
 } from "@/lib/phoneNumberMask";
 
-export const FACET_COLUMNS = ["abc", "operator", "settlement", "region"] as const;
+export const DICT_FACET_COLUMNS = [
+  "abc",
+  "operator",
+  "settlement",
+  "region",
+] as const;
+export type DictFacetColumn = (typeof DICT_FACET_COLUMNS)[number];
+
+export const FACET_COLUMNS = [
+  ...DICT_FACET_COLUMNS,
+  "inn",
+  "uvrAntifraud",
+] as const;
 export type FacetColumn = (typeof FACET_COLUMNS)[number];
 
 export const SORTABLE_COLUMNS = [
@@ -20,16 +32,34 @@ export const SORTABLE_COLUMNS = [
 ] as const;
 export type SortableColumn = (typeof SORTABLE_COLUMNS)[number];
 
+export const FILTER_LIMITS = {
+  /** Coverage AND columns (abc, operator, settlement, region). */
+  maxCoverageArrayLength: 20,
+  maxArrayLength: 50,
+  maxArrayItemLength: 200,
+  maxTextFilterLength: 100,
+  maxPhoneMaskLength: 10,
+} as const;
+
+const coverageArraySchema = z
+  .array(z.string().max(FILTER_LIMITS.maxArrayItemLength))
+  .max(FILTER_LIMITS.maxCoverageArrayLength);
+
+const orMultiArraySchema = z
+  .array(z.string().max(FILTER_LIMITS.maxArrayItemLength))
+  .max(FILTER_LIMITS.maxArrayLength);
+
 export const filtersSchema = z.object({
-  abc: z.array(z.string()).default([]),
-  operator: z.array(z.string()).default([]),
-  settlement: z.array(z.string()).default([]),
-  region: z.array(z.string()).default([]),
-  inn: z.string().default(""),
-  rangeStart: z.string().default(""),
-  rangeEnd: z.string().default(""),
-  capacity: z.string().default(""),
-  phoneNumber: z.string().default(""),
+  abc: coverageArraySchema.default([]),
+  operator: coverageArraySchema.default([]),
+  settlement: coverageArraySchema.default([]),
+  region: coverageArraySchema.default([]),
+  inn: orMultiArraySchema.default([]),
+  uvrAntifraud: orMultiArraySchema.default([]),
+  rangeStart: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
+  rangeEnd: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
+  capacity: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
+  phoneNumber: z.string().max(FILTER_LIMITS.maxPhoneMaskLength).default(""),
 });
 
 export type FiltersDTO = z.infer<typeof filtersSchema>;
@@ -71,6 +101,8 @@ export interface NumberRangeRow {
   settlement: string;
   region: string;
   inn: string;
+  /** УВр Антифрод — id_src из реестра OPR, привязка по ИНН. */
+  uvrAntifraud: number | null;
   /** Red separator above: gap vs full-data predecessor in same ABC. */
   abcRangeGapBefore: boolean;
   /** Red separator below: gap vs full-data successor in same ABC. */
@@ -121,11 +153,13 @@ export interface SummaryResponse {
   filtered: {
     rangeCount: number;
     totalCapacity: number;
+    uniqueRegions: number;
     uniqueOperators: number;
   };
   global: {
     rangeCount: number;
     totalCapacity: number;
+    uniqueRegions: number;
     uniqueOperators: number;
   };
 }
@@ -171,7 +205,8 @@ export const DEFAULT_FILTERS: FiltersDTO = {
   operator: [],
   settlement: [],
   region: [],
-  inn: "",
+  inn: [],
+  uvrAntifraud: [],
   rangeStart: "",
   rangeEnd: "",
   capacity: "",
@@ -189,7 +224,8 @@ export function normalizeFilters(filters: FiltersDTO): FiltersDTO {
     operator: [...filters.operator].sort(),
     settlement: [...filters.settlement].sort(),
     region: [...filters.region].sort(),
-    inn: filters.inn.trim(),
+    inn: [...filters.inn].sort(),
+    uvrAntifraud: [...filters.uvrAntifraud].sort(),
     rangeStart: filters.rangeStart.trim(),
     rangeEnd: filters.rangeEnd.trim(),
     capacity: filters.capacity.trim(),
@@ -225,19 +261,45 @@ export function parseFiltersFromSearchParams(
   const getArray = (key: string) => {
     const val = params.get(`filters.${key}`);
     if (val === null) return [];
-    return val.split("|||");
+    return val
+      .split("|||")
+      .slice(0, FILTER_LIMITS.maxCoverageArrayLength)
+      .map((item) => item.slice(0, FILTER_LIMITS.maxArrayItemLength));
   };
-  return normalizeFilters({
+  const getOrMultiArray = (key: string) => {
+    const val = params.get(`filters.${key}`);
+    if (val === null) return [];
+    return val
+      .split("|||")
+      .slice(0, FILTER_LIMITS.maxArrayLength)
+      .map((item) => item.slice(0, FILTER_LIMITS.maxArrayItemLength));
+  };
+  const raw = {
     abc: getArray("abc"),
     operator: getArray("operator"),
     settlement: getArray("settlement"),
     region: getArray("region"),
-    inn: params.get("filters.inn") ?? "",
-    rangeStart: params.get("filters.rangeStart") ?? "",
-    rangeEnd: params.get("filters.rangeEnd") ?? "",
-    capacity: params.get("filters.capacity") ?? "",
-    phoneNumber: params.get("filters.phoneNumber") ?? "",
-  });
+    inn: getOrMultiArray("inn"),
+    uvrAntifraud: getOrMultiArray("uvrAntifraud"),
+    rangeStart: (params.get("filters.rangeStart") ?? "").slice(
+      0,
+      FILTER_LIMITS.maxTextFilterLength
+    ),
+    rangeEnd: (params.get("filters.rangeEnd") ?? "").slice(
+      0,
+      FILTER_LIMITS.maxTextFilterLength
+    ),
+    capacity: (params.get("filters.capacity") ?? "").slice(
+      0,
+      FILTER_LIMITS.maxTextFilterLength
+    ),
+    phoneNumber: (params.get("filters.phoneNumber") ?? "").slice(
+      0,
+      FILTER_LIMITS.maxPhoneMaskLength
+    ),
+  };
+  const parsed = filtersSchema.safeParse(raw);
+  return normalizeFilters(parsed.success ? parsed.data : DEFAULT_FILTERS);
 }
 
 export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
@@ -249,7 +311,9 @@ export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
     params.set("filters.settlement", filters.settlement.join("|||"));
   if (filters.region.length)
     params.set("filters.region", filters.region.join("|||"));
-  if (filters.inn) params.set("filters.inn", filters.inn);
+  if (filters.inn.length) params.set("filters.inn", filters.inn.join("|||"));
+  if (filters.uvrAntifraud.length)
+    params.set("filters.uvrAntifraud", filters.uvrAntifraud.join("|||"));
   if (filters.rangeStart) params.set("filters.rangeStart", filters.rangeStart);
   if (filters.rangeEnd) params.set("filters.rangeEnd", filters.rangeEnd);
   if (filters.capacity) params.set("filters.capacity", filters.capacity);

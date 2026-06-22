@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
 import {
+  countMatchingNumbersInRange,
+  parsePhoneNumberMask,
+} from "@/lib/phoneNumberMask";
+import {
+  isAllSubscriberDigitsFixed,
   phoneNumberOverlapSql,
   phoneNumberPartialMatchCountExpr,
 } from "@/packages/db/queries/phoneNumberMatchCount";
-import { countMatchingNumbersInRange } from "@/lib/phoneNumberMask";
 
 describe("phoneNumberMatchCount SQL", () => {
   it("uses simple overlap SQL for a fully specified subscriber number", () => {
@@ -17,6 +20,18 @@ describe("phoneNumberMatchCount SQL", () => {
   it("builds partial-mask overlap without stack overflow", () => {
     const parts = parsePhoneNumberMask("777777")!;
     expect(() => phoneNumberOverlapSql(parts)).not.toThrow();
+  });
+
+  it("adds subscriber bounds before phone_mask_match_count for partial masks", () => {
+    const parts = parsePhoneNumberMask("(383) 399-XX-XX")!;
+    expect(isAllSubscriberDigitsFixed(parts)).toBe(false);
+    expect(() => phoneNumberOverlapSql(parts)).not.toThrow();
+
+    const fullParts = parsePhoneNumberMask("___7777373")!;
+    expect(isAllSubscriberDigitsFixed(fullParts)).toBe(true);
+    const fullOverlap = phoneNumberOverlapSql(fullParts);
+    expect(JSON.stringify(fullOverlap)).toContain(String(fullParts.subscriberMin));
+    expect(JSON.stringify(fullOverlap)).not.toContain("phone_mask_match_count");
   });
 
   it("builds partial-mask capacity expression without stack overflow", () => {

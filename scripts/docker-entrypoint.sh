@@ -6,6 +6,33 @@ DB_USER="${DB_USER:-pstn}"
 DB_PASS="${DB_PASS:-pstn}"
 DB_NAME="${DB_NAME:-pstn}"
 
+ensure_external_api_key() {
+  if [ -n "${EXTERNAL_API_KEY:-}" ]; then
+    echo "Using EXTERNAL_API_KEY from environment"
+    export EXTERNAL_API_KEY
+    return
+  fi
+
+  SECRET_DIR="/app/.secrets"
+  SECRET_FILE="${SECRET_DIR}/external_api_key"
+
+  mkdir -p "$SECRET_DIR"
+  chown nextjs:nodejs "$SECRET_DIR"
+
+  if [ -f "$SECRET_FILE" ]; then
+    EXTERNAL_API_KEY="$(cat "$SECRET_FILE")"
+    export EXTERNAL_API_KEY
+    return
+  fi
+
+  EXTERNAL_API_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")"
+  printf '%s' "$EXTERNAL_API_KEY" > "$SECRET_FILE"
+  chown nextjs:nodejs "$SECRET_FILE"
+  chmod 600 "$SECRET_FILE"
+  echo "Generated new EXTERNAL_API_KEY — retrieve from ${SECRET_FILE}"
+  export EXTERNAL_API_KEY
+}
+
 echo "Waiting for PostgreSQL at ${DB_HOST}..."
 until PGPASSWORD="$DB_PASS" pg_isready -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; do
   sleep 2
@@ -38,5 +65,7 @@ for migration in packages/db/migrations/*.sql; do
     -c "INSERT INTO schema_migrations (filename) VALUES ('${filename}')"
 done
 
+ensure_external_api_key
+
 echo "Starting PSTN Analytics on port ${PORT:-5555}..."
-exec node server.js
+exec su-exec nextjs env EXTERNAL_API_KEY="${EXTERNAL_API_KEY}" node server.js

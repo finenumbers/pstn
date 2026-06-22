@@ -1,13 +1,14 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { pool } from "@/packages/db";
-import { seedTestFixture } from "@/packages/db/seedTestFixture";
 import { clearStaging, insertBatch, swapStagingToProduction } from "@/packages/import/csvLoader";
 
 const describeWithDb = process.env.DATABASE_URL ? describe : describe.skip;
 
 describeWithDb("import staging swap", () => {
   afterAll(async () => {
-    await seedTestFixture();
+    await pool().query(`
+      TRUNCATE TABLE number_ranges, number_ranges_staging RESTART IDENTITY
+    `);
   }, 30_000);
 
   it("preserves production rows until swap and replaces them atomically", async () => {
@@ -37,7 +38,7 @@ describeWithDb("import staging swap", () => {
           inn: "",
         },
       ],
-      "test-fixture"
+      "ABC-4xx"
     );
 
     const beforeSwap = await client.query<{ operator: string }>(

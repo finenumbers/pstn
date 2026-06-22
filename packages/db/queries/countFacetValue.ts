@@ -1,8 +1,17 @@
 import type { FiltersDTO, FacetColumn } from "@/packages/shared/contracts/filters.schema";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
-import { numberRanges } from "../schema";
+import { numberRanges, operatorsRegister } from "../schema";
 import { buildWhere, FACET_COLUMN_MAP } from "./buildWhere";
+
+function uvrAntifraudValueWhere(value: string): SQL {
+  return sql`EXISTS (
+    SELECT 1
+    FROM ${operatorsRegister}
+    WHERE ${operatorsRegister.inn} = ${numberRanges.inn}
+      AND ${operatorsRegister.idSrc}::text = ${value}
+  )`;
+}
 
 /** Count rows matching all filters including a specific facet value. */
 export async function countFacetValue(
@@ -10,9 +19,11 @@ export async function countFacetValue(
   value: string,
   filters: FiltersDTO
 ): Promise<number> {
-  const columnField = FACET_COLUMN_MAP[column];
   const baseWhere = buildWhere(filters);
-  const valueWhere = eq(columnField, value);
+  const valueWhere =
+    column === "uvrAntifraud"
+      ? uvrAntifraudValueWhere(value)
+      : eq(FACET_COLUMN_MAP[column], value);
   const where = baseWhere ? and(baseWhere, valueWhere) : valueWhere;
 
   const result = await db

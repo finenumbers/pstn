@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { pool } from "@/packages/db";
 
 export async function GET() {
+  let client;
   try {
-    const client = await pool().connect();
+    client = await pool().connect();
     await client.query("SELECT 1");
-    client.release();
     return NextResponse.json({ status: "ok", database: "ok" });
   } catch (error) {
     console.error("health GET error:", error);
@@ -14,9 +14,15 @@ export async function GET() {
         status: "error",
         database: "down",
         message:
-          error instanceof Error ? error.message : "Internal server error",
+          process.env.NODE_ENV === "production"
+            ? "Database unavailable"
+            : error instanceof Error
+              ? error.message
+              : "Internal server error",
       },
       { status: 503 }
     );
+  } finally {
+    client?.release();
   }
 }

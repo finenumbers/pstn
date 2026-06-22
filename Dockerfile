@@ -20,9 +20,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=5555
 
-RUN apk add --no-cache postgresql-client && \
+RUN apk add --no-cache postgresql-client su-exec && \
     addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+    adduser --system --uid 1001 nextjs && \
+    mkdir -p /app/.secrets && chown nextjs:nodejs /app/.secrets
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -31,7 +32,6 @@ COPY --from=builder /app/packages/db/migrations ./packages/db/migrations
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-USER nextjs
 EXPOSE 5555
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

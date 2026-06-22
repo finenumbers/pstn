@@ -11,7 +11,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { FacetCombobox } from "@/components/ranges/FacetCombobox";
-import { FilterTextInput } from "@/components/ranges/FilterTextInput";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -27,7 +26,8 @@ import {
   compactColumnStyle,
   computeAbcFilterColumnWidth,
   computeCompactColumnWidths,
-  computeInnColumnWidth,
+  INN_COLUMN_WIDTH_CH,
+  UVR_ANTIFRAUD_COLUMN_WIDTH_CH,
   columnWidthStyle,
   isCompactColumn,
 } from "@/lib/table/compactColumns";
@@ -64,18 +64,21 @@ interface RangesTableProps {
   facetsError?: string;
 }
 
-const COLUMN_ORDER: SortableColumn[] = [
+const COLUMN_ORDER = [
   "abc",
   "rangeStart",
   "rangeEnd",
   "capacity",
   "operator",
-  "settlement",
   "region",
+  "settlement",
+  "uvrAntifraud",
   "inn",
-];
+] as const;
 
-const COLUMN_LABELS: Record<SortableColumn, string> = {
+type TableColumnId = (typeof COLUMN_ORDER)[number];
+
+const COLUMN_LABELS: Record<TableColumnId, string> = {
   abc: "ABC",
   rangeStart: "Начало",
   rangeEnd: "Конец",
@@ -84,6 +87,7 @@ const COLUMN_LABELS: Record<SortableColumn, string> = {
   settlement: "Населенный пункт",
   region: "Регион",
   inn: "ИНН",
+  uvrAntifraud: "УВр Антифрод",
 };
 
 function isNineSeriesAbc(abc: string): boolean {
@@ -136,8 +140,16 @@ export function RangesTable({
           formatNumber(row.original.capacity),
       },
       { accessorKey: "operator", header: "Оператор связи" },
-      { accessorKey: "settlement", header: "Населенный пункт" },
       { accessorKey: "region", header: "Регион" },
+      { accessorKey: "settlement", header: "Населенный пункт" },
+      {
+        accessorKey: "uvrAntifraud",
+        header: "УВр Антифрод",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
+          const value = row.original.uvrAntifraud;
+          return value != null ? String(value) : "—";
+        },
+      },
       {
         accessorKey: "inn",
         header: "ИНН",
@@ -171,15 +183,17 @@ export function RangesTable({
     [filters.abc.length]
   );
 
-  const innColumnWidthCh = useMemo(
-    () => computeInnColumnWidth(data, filters.inn),
-    [data, filters.inn]
-  );
-
   const getColumnWidthCh = (columnId: string): number | undefined => {
     if (columnId === "abc") return abcColumnWidthCh;
-    if (columnId === "inn") return innColumnWidthCh;
-    if (columnId === "operator" || columnId === "settlement" || columnId === "region") return undefined;
+    if (columnId === "inn") return INN_COLUMN_WIDTH_CH;
+    if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
+    if (
+      columnId === "operator" ||
+      columnId === "settlement" ||
+      columnId === "region"
+    ) {
+      return undefined;
+    }
     if (isCompactColumn(columnId)) return compactWidths[columnId];
     return undefined;
   };
@@ -194,7 +208,13 @@ export function RangesTable({
     if (columnId === "inn") {
       return {
         className: "whitespace-nowrap tabular-nums",
-        style: compactColumnStyle(innColumnWidthCh),
+        style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
+      };
+    }
+    if (columnId === "uvrAntifraud") {
+      return {
+        className: "whitespace-nowrap tabular-nums",
+        style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
       };
     }
     if (!isCompactColumn(columnId)) {
@@ -208,14 +228,21 @@ export function RangesTable({
   };
 
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
-    if (columnId === "operator" || columnId === "settlement" || columnId === "region") {
+    if (
+      columnId === "operator" ||
+      columnId === "settlement" ||
+      columnId === "region"
+    ) {
       return undefined;
     }
     if (columnId === "abc") {
       return columnWidthStyle(abcColumnWidthCh);
     }
     if (columnId === "inn") {
-      return columnWidthStyle(innColumnWidthCh);
+      return compactColumnStyle(INN_COLUMN_WIDTH_CH);
+    }
+    if (columnId === "uvrAntifraud") {
+      return compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH);
     }
     if (isCompactColumn(columnId)) {
       return compactColumnStyle(compactWidths[columnId]);
@@ -283,8 +310,12 @@ export function RangesTable({
           gapAfter && showGapMarkers && "range-gap-after"
         )}
       >
-        {row.getVisibleCells().map((cell) => {
-          const compact = getCompactCellProps(cell.column.id);
+        {COLUMN_ORDER.map((colId) => {
+          const cell = row
+            .getVisibleCells()
+            .find((visibleCell) => visibleCell.column.id === colId);
+          if (!cell) return null;
+          const compact = getCompactCellProps(colId);
           return (
             <TableCell
               key={cell.id}
@@ -351,7 +382,7 @@ export function RangesTable({
   const SortHeader = ({ columnId }: { columnId: SortableColumn }) => (
     <button
       type="button"
-      className="flex items-center gap-1 text-xs font-medium hover:text-foreground"
+      className="flex items-center gap-1 text-xs font-bold hover:text-foreground"
       onClick={() => toggleSort(columnId)}
     >
       {COLUMN_LABELS[columnId]}
@@ -359,7 +390,7 @@ export function RangesTable({
     </button>
   );
 
-  const renderHeaderCell = (colId: SortableColumn) => {
+  const renderHeaderCell = (colId: TableColumnId) => {
     switch (colId) {
       case "abc":
         return (
@@ -421,11 +452,28 @@ export function RangesTable({
         );
       case "inn":
         return (
-          <FilterTextInput
-            value={filters.inn}
+          <FacetCombobox
+            label="ИНН"
+            values={filters.inn}
+            search={facetSearch.inn ?? ""}
+            options={facets?.facets.inn?.options ?? []}
             onChange={(v) => onFilterChange("inn", v)}
+            onSearchChange={(s) => onFacetSearchChange("inn", s)}
+            isLoading={facetsLoading}
             placeholder="ИНН"
-            className="w-full"
+          />
+        );
+      case "uvrAntifraud":
+        return (
+          <FacetCombobox
+            label="УВр Антифрод"
+            values={filters.uvrAntifraud}
+            search={facetSearch.uvrAntifraud ?? ""}
+            options={facets?.facets.uvrAntifraud?.options ?? []}
+            onChange={(v) => onFilterChange("uvrAntifraud", v)}
+            onSearchChange={(s) => onFacetSearchChange("uvrAntifraud", s)}
+            isLoading={facetsLoading}
+            placeholder="УВр Антифрод"
           />
         );
       default:
@@ -465,7 +513,8 @@ export function RangesTable({
                   colId === "operator" ||
                   colId === "settlement" ||
                   colId === "region" ||
-                  colId === "inn";
+                  colId === "inn" ||
+                  colId === "uvrAntifraud";
                 return (
                   <TableHead
                     key={colId}

@@ -20,6 +20,21 @@ export function validationError(error: ZodError) {
   });
 }
 
+/** Never forward raw error.message to clients in production. */
+export function internalServerError(
+  error: unknown,
+  fallback = "Internal server error"
+) {
+  console.error(error);
+  const message =
+    process.env.NODE_ENV === "production"
+      ? fallback
+      : error instanceof Error
+        ? error.message
+        : fallback;
+  return apiError("INTERNAL_ERROR", message, 500);
+}
+
 export function withTiming(
   route: string,
   startMs: number,

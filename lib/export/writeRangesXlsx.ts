@@ -4,6 +4,7 @@ import {
 } from "@/packages/db/queries/rangesQueries";
 import { rowToRangesCursor } from "@/lib/api/rangesCursor";
 import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
+import { sanitizeSpreadsheetCell } from "@/lib/export/sanitizeSpreadsheetCell";
 import ExcelJS from "exceljs";
 import { PassThrough } from "node:stream";
 import { Readable } from "node:stream";
@@ -16,9 +17,10 @@ export const EXPORT_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Конец", key: "rangeEnd", width: 12 },
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Оператор связи", key: "operator", width: 36 },
-  { header: "Населенный пункт", key: "settlement", width: 24 },
   { header: "Регион", key: "region", width: 28 },
-  { header: "ИНН", key: "inn", width: 14 },
+  { header: "Населенный пункт", key: "settlement", width: 24 },
+  { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
+  { header: "ИНН", key: "inn", width: 15 },
 ];
 
 const THIN_BORDER: Partial<ExcelJS.Border> = { style: "thin" };
@@ -65,6 +67,7 @@ function exportRowToNumberRangeRow(
     settlement: row.settlement,
     region: row.region,
     inn: row.inn,
+    uvrAntifraud: row.uvrAntifraud,
     abcRangeGapBefore: row.abcRangeGapBefore,
     abcRangeGapAfter: row.abcRangeGapAfter,
   };
@@ -112,14 +115,17 @@ export async function createRangesXlsxExport(
           prevRow
         );
         const exportRow = {
-          abc: row.abc,
+          abc: sanitizeSpreadsheetCell(row.abc),
           rangeStart: row.rangeStart,
           rangeEnd: row.rangeEnd,
           capacity: row.capacity,
-          operator: row.operator,
-          settlement: row.settlement,
-          region: row.region,
-          inn: row.inn,
+          operator: sanitizeSpreadsheetCell(row.operator),
+          settlement: sanitizeSpreadsheetCell(row.settlement),
+          region: sanitizeSpreadsheetCell(row.region),
+          inn: sanitizeSpreadsheetCell(row.inn),
+          uvrAntifraud: sanitizeSpreadsheetCell(
+            row.uvrAntifraud != null ? String(row.uvrAntifraud) : ""
+          ),
         };
         const addedRow = worksheet.addRow(exportRow);
         applyRowBorders(addedRow, columnCount, gapBefore, gapAfter);

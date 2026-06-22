@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  DEFAULT_FILTERS,
   filtersSchema,
   parseFiltersFromSearchParams,
   parseSortParam,
@@ -10,7 +9,7 @@ import {
 import { decodeRangesCursor } from "@/lib/api/rangesCursor";
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import { listRanges } from "@/packages/db/queries/rangesQueries";
-import { apiError, validationError, withTiming } from "@/lib/api/errors";
+import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
   const startMs = Date.now();
@@ -29,9 +28,10 @@ export async function GET(request: NextRequest) {
 
     const filtersRaw = parseFiltersFromSearchParams(params);
     const filtersParsed = filtersSchema.safeParse(filtersRaw);
-    const filters = filtersParsed.success
-      ? filtersParsed.data
-      : DEFAULT_FILTERS;
+    if (!filtersParsed.success) {
+      return validationError(filtersParsed.error);
+    }
+    const filters = filtersParsed.data;
 
     const sort = normalizeRangesSort(parseSortParam(parsed.data.sort));
     const cursor = parsed.data.cursor
@@ -67,11 +67,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("ranges GET error:", error);
-    return apiError(
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Internal server error",
-      500
-    );
+    return internalServerError(error);
   }
 }

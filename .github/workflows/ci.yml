@@ -36,11 +36,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Audit dependencies (high severity and above)
+        run: npm audit --audit-level=high
+
       - name: Apply migrations
         run: npx tsx scripts/migrate.ts
-
-      - name: Seed test fixture
-        run: npm run db:seed-test
 
       - name: Lint
         run: npm run lint
@@ -84,9 +84,6 @@ jobs:
 
       - name: Apply migrations
         run: npx tsx scripts/migrate.ts
-
-      - name: Seed test fixture
-        run: npm run db:seed-test
 
       - name: Build
         run: npm run build

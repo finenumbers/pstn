@@ -5,6 +5,7 @@ import {
   type SortableColumn,
 } from "@/packages/shared/contracts/filters.schema";
 import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
+import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 
 export const DEFAULT_PAGE_SIZE = 50;
 
@@ -50,10 +51,28 @@ export function rangesTableReducer(
   }
 }
 
-/** Enable «Сбросить фильтры» when user searched, filtered, or loaded extra pages. */
+export function isDefaultSort(
+  sorting: { id: SortableColumn; desc: boolean }[]
+): boolean {
+  const normalized = normalizeRangesSort(sorting);
+  const defaultNormalized = normalizeRangesSort(DEFAULT_SORT);
+  if (normalized.length !== defaultNormalized.length) return false;
+  return normalized.every(
+    (item, index) =>
+      item.id === defaultNormalized[index].id &&
+      item.desc === defaultNormalized[index].desc
+  );
+}
+
+/** Enable «Сбросить фильтры» when search, filters, sort, or scroll differ from default. */
 export function canResetRangesTable(
   filters: FiltersDTO,
-  loadedPageCount: number
+  loadedPageCount: number,
+  sorting: { id: SortableColumn; desc: boolean }[] = DEFAULT_SORT
 ): boolean {
-  return hasActiveFilters(filters) || loadedPageCount > 1;
+  return (
+    hasActiveFilters(filters) ||
+    loadedPageCount > 1 ||
+    !isDefaultSort(sorting)
+  );
 }

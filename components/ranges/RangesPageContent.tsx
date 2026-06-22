@@ -77,9 +77,9 @@ export function RangesPageContent() {
   const queryClient = useQueryClient();
   const prevImportStatus = useRef<string | undefined>(undefined);
   const urlSyncedRef = useRef(false);
+  const urlHistoryInitializedRef = useRef(false);
 
   const textDebounced = useDebouncedValue({
-    inn: state.filters.inn,
     rangeStart: state.filters.rangeStart,
     rangeEnd: state.filters.rangeEnd,
     capacity: state.filters.capacity,
@@ -189,9 +189,33 @@ export function RangesPageContent() {
       : window.location.pathname;
     const current = window.location.pathname + window.location.search;
     if (current !== next) {
-      window.history.replaceState(null, "", next);
+      if (urlHistoryInitializedRef.current) {
+        window.history.pushState(null, "", next);
+      } else {
+        window.history.replaceState(null, "", next);
+        urlHistoryInitializedRef.current = true;
+      }
     }
   }, [debouncedFilters, sortQueryKey, sortingForQuery]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const parsed = parseRangesTableFromSearchParams(
+        new URLSearchParams(window.location.search)
+      );
+      if (parsed) {
+        dispatch({ type: "SET_FILTERS", filters: parsed.filters });
+        dispatch({ type: "SET_SORTING", sorting: parsed.sorting });
+      } else {
+        dispatch({ type: "RESET_ALL" });
+      }
+      setRangesResetKey((key) => key + 1);
+      queryClient.removeQueries({ queryKey: ["ranges"] });
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [queryClient]);
 
   useEffect(() => {
     const data = importStatus.data;
@@ -229,49 +253,6 @@ export function RangesPageContent() {
 
     return () => window.clearTimeout(timer);
   }, [trackedImport?.status, trackedImport?.jobId, trackedJobId]);
-
-  useEffect(() => {
-    if (!facetsQuery.isSuccess || !facetsQuery.data) return;
-    if (
-      facetsQuery.isFetching ||
-      facetsQuery.isPlaceholderData ||
-      facetsQuery.isPending
-    ) {
-      return;
-    }
-
-    const facetsData = facetsQuery.data;
-    const nextFilters = { ...state.filters };
-    let changed = false;
-
-    for (const column of FACET_COLUMNS) {
-      const facetOptions = facetsData.facets[column]?.options ?? [];
-      const current = nextFilters[column];
-      if (current.length === 0) continue;
-
-      const filtered = current.filter((v) => {
-        const option = facetOptions.find((o) => o.value === v);
-        if (!option) return true;
-        return option.count > 0;
-      });
-      if (filtered.length !== current.length) {
-        nextFilters[column] = filtered;
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      dispatch({ type: "SET_FILTERS", filters: nextFilters });
-    }
-  }, [
-    debouncedFiltersKey,
-    state.filters,
-    facetsQuery.data,
-    facetsQuery.isSuccess,
-    facetsQuery.isFetching,
-    facetsQuery.isPlaceholderData,
-    facetsQuery.isPending,
-  ]);
 
   const handleLoadData = async () => {
     const result = await importStart.mutateAsync();
@@ -405,7 +386,8 @@ export function RangesPageContent() {
         onResetFilters={handleResetAll}
         hasActiveFilters={canResetRangesTable(
           state.filters,
-          rangesQuery.data?.pages.length ?? 0
+          rangesQuery.data?.pages.length ?? 0,
+          state.sorting
         )}
       />
 

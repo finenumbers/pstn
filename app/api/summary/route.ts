@@ -4,7 +4,7 @@ import {
   parseFiltersFromSearchParams,
 } from "@/packages/shared/contracts/filters.schema";
 import { summaryRanges } from "@/packages/db/queries/rangesQueries";
-import { apiError, validationError, withTiming } from "@/lib/api/errors";
+import { internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
   const startMs = Date.now();
@@ -23,11 +23,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(summary);
   } catch (error) {
-    console.error("summary GET error:", error);
-    return apiError(
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Internal server error",
-      500
-    );
+    return internalServerError(error);
   }
 }

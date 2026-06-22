@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Readable } from "node:stream";
 import {
+  normalizeMunicipalDistrictOrder,
+  normalizeRegionAbbreviation,
   normalizeSettlement,
   parseCsvStream,
   parseGarTerritory,
+  resolveTerritory,
 } from "@/packages/import/csvParser";
 
 describe("normalizeSettlement", () => {
@@ -101,6 +104,70 @@ describe("parseGarTerritory", () => {
   });
 });
 
+describe("normalizeRegionAbbreviation", () => {
+  it("expands обл. to область", () => {
+    expect(normalizeRegionAbbreviation("Вологодская обл.")).toBe(
+      "Вологодская область"
+    );
+  });
+});
+
+describe("normalizeMunicipalDistrictOrder", () => {
+  it("moves trailing м.р-н to the front", () => {
+    expect(normalizeMunicipalDistrictOrder("Междуреченский м.р-н")).toBe(
+      "м.р-н Междуреченский"
+    );
+  });
+
+  it("leaves already prefixed values unchanged", () => {
+    expect(normalizeMunicipalDistrictOrder("м.р-н Никольский")).toBe(
+      "м.р-н Никольский"
+    );
+  });
+});
+
+describe("resolveTerritory", () => {
+  it("uses CSV region when GAR region contains м.р-н", () => {
+    expect(
+      resolveTerritory("м.р-н Никольский", "р-н Никольский|Вологодская обл.")
+    ).toEqual({
+      settlement: "р-н Никольский",
+      region: "Вологодская область",
+    });
+  });
+
+  it("reorders settlement when CSV part ends with м.р-н", () => {
+    expect(
+      resolveTerritory(
+        "Междуреченский м.р-н",
+        "Междуреченский м.р-н|Кемеровская обл."
+      )
+    ).toEqual({
+      settlement: "м.р-н Междуреченский",
+      region: "Кемеровская область",
+    });
+  });
+
+  it("keeps GAR parsing when region has no м.р-н", () => {
+    expect(
+      resolveTerritory(
+        "г. Улан-Удэ|Республика Бурятия",
+        "ignored|ignored"
+      )
+    ).toEqual({
+      settlement: "Улан-Удэ",
+      region: "Республика Бурятия",
+    });
+  });
+
+  it("falls back to GAR when CSV region has no pipe", () => {
+    expect(resolveTerritory("м.р-н Никольский", "ignored")).toEqual({
+      settlement: "",
+      region: "м.р-н Никольский",
+    });
+  });
+});
+
 describe("parseCsvStream", () => {
   it("parses operator names with embedded quotes and normalizes settlement", async () => {
     const csv = `АВС/ DEF;От;До;Емкость;Оператор;Регион;Территория ГАР;ИНН
@@ -192,5 +259,25 @@ describe("parseCsvStream", () => {
       settlement: "",
       region: "Республика Бурятия",
     });
+  });
+
+  it("uses CSV region for м.р-н-only GAR values from MinDigital", async () => {
+    const csv = `АВС/ DEF;От;До;Емкость;Оператор;Регион;Территория ГАР;ИНН
+817;5421000;5422999;2000;ПАО "Ростелеком";р-н Никольский|Вологодская обл.;м.р-н Никольский;7707049388
+817;4921000;4921999;1000;ПАО "Ростелеком";р-н Междуреченский|Вологодская обл.;Междуреченский м.р-н;7707049388
+`;
+
+    const collected: Array<{ settlement: string; region: string }> = [];
+
+    await parseCsvStream(Readable.from([csv]), async (batch) => {
+      for (const row of batch) {
+        collected.push({ settlement: row.settlement, region: row.region });
+      }
+    });
+
+    expect(collected).toEqual([
+      { settlement: "р-н Никольский", region: "Вологодская область" },
+      { settlement: "р-н Междуреченский", region: "Вологодская область" },
+    ]);
   });
 });

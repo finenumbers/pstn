@@ -90,6 +90,69 @@ export function parseGarTerritory(gar: string): {
   };
 }
 
+/** Expand «обл.» to «область» in subject names from CSV «Регион». */
+export function normalizeRegionAbbreviation(region: string): string {
+  return region.replace(/обл\./g, "область");
+}
+
+/** «Междуреченский м.р-н» → «м.р-н Междуреченский». */
+export function normalizeMunicipalDistrictOrder(value: string): string {
+  const trimmed = value.trim();
+  const trailing = trimmed.match(/^(.+?)\s+м\.р-н\s*$/u);
+  if (trailing) {
+    return `м.р-н ${trailing[1].trim()}`;
+  }
+  return trimmed;
+}
+
+/** Split CSV «Регион»: before first | → settlement, after last | → region. */
+export function parseCsvRegionColumn(csvRegion: string): {
+  settlement: string;
+  region: string;
+} | null {
+  const trimmed = csvRegion.trim();
+  if (!trimmed.includes("|")) {
+    return null;
+  }
+
+  const firstPipe = trimmed.indexOf("|");
+  const lastPipe = trimmed.lastIndexOf("|");
+
+  return {
+    settlement: trimmed.slice(0, firstPipe).trim(),
+    region: trimmed.slice(lastPipe + 1).trim(),
+  };
+}
+
+/**
+ * GAR-first territory; when parsed region contains «м.р-н», fall back to CSV «Регион».
+ */
+export function resolveTerritory(
+  gar: string,
+  csvRegion: string
+): { settlement: string; region: string } {
+  const fromGar = parseGarTerritory(gar);
+
+  if (!fromGar.region.includes("м.р-н")) {
+    return {
+      settlement: normalizeSettlement(fromGar.settlement),
+      region: fromGar.region,
+    };
+  }
+
+  const fromCsv = parseCsvRegionColumn(csvRegion);
+  if (!fromCsv) {
+    return fromGar;
+  }
+
+  const settlement = normalizeSettlement(
+    normalizeMunicipalDistrictOrder(fromCsv.settlement)
+  );
+  const region = normalizeRegionAbbreviation(fromCsv.region);
+
+  return { settlement, region };
+}
+
 export interface CsvParseResult {
   /** Successfully parsed and accepted rows. */
   loaded: number;
@@ -175,9 +238,10 @@ function mapRecord(record: string[]): ParsedRangeRow | null {
     return null;
   }
 
-  // Indices: 0=ABC, 1=От, 2=До, 3=Емкость, 4=Оператор, 5=Регион (ignore), 6=Территория ГАР, 7=ИНН
+  // Indices: 0=ABC, 1=От, 2=До, 3=Емкость, 4=Оператор, 5=Регион, 6=Территория ГАР, 7=ИНН
   const gar = record[6]?.trim() ?? "";
-  const { settlement, region } = parseGarTerritory(gar);
+  const csvRegion = record[5]?.trim() ?? "";
+  const { settlement, region } = resolveTerritory(gar, csvRegion);
   const innValue = (record[7]?.trim() ?? "").replace(/\D/g, "");
 
   return {
@@ -186,7 +250,7 @@ function mapRecord(record: string[]): ParsedRangeRow | null {
     rangeEnd,
     capacity,
     operator,
-    settlement: normalizeSettlement(settlement),
+    settlement,
     region,
     inn: innValue,
   };

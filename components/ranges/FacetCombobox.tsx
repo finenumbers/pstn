@@ -72,7 +72,7 @@ export function FacetCombobox({
             variant="outline"
             size="sm"
             className={cn(
-              "h-8 min-w-0 justify-between font-normal w-full",
+              "h-8 min-w-0 justify-between font-bold w-full",
               values.length > 0 && "border-primary/50 bg-primary/5"
             )}
             aria-label={label}

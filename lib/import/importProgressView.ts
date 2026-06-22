@@ -41,6 +41,7 @@ const POST_LOAD_PHASES = [
   { id: "validating", label: "Проверка полноты данных" },
   { id: "computing_gaps", label: "Расчёт пропусков в диапазонах" },
   { id: "swapping", label: "Обновление таблицы и справочников" },
+  { id: "binding_uvr_antifraud", label: "Привязка УВр Антифрод" },
   { id: "completed", label: "Готово" },
 ] as const;
 
@@ -50,6 +51,7 @@ const PHASE_LABELS: Record<string, string> = {
   validating: "Проверка полноты данных…",
   computing_gaps: "Расчёт пропусков в диапазонах…",
   swapping: "Обновление таблицы и справочников…",
+  binding_uvr_antifraud: "Привязка УВр Антифрод по ИНН…",
   completed: "Загрузка завершена",
   failed: "Загрузка не завершена",
 };
@@ -67,7 +69,7 @@ export function buildImportFileProgress(
   fileRows: Partial<LoadedRowsBySource>,
   jobStatus: ImportJobStatus,
   filesProcessed = 0,
-  filesTotal = SOURCE_FILES.length
+  filesTotal: number = SOURCE_FILES.length
 ): ImportFileProgress[] {
   const loadingKey = loadingPhaseKey(phase);
   const hasFileBreakdown = SOURCE_FILES.some(
@@ -145,8 +147,9 @@ export function computeImportPercent(
 
   const postPercent: Record<string, number> = {
     validating: 84,
-    computing_gaps: 90,
-    swapping: 96,
+    computing_gaps: 88,
+    swapping: 92,
+    binding_uvr_antifraud: 97,
     completed: 100,
   };
 

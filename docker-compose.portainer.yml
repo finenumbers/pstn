@@ -1,12 +1,4 @@
-# PSTN Analytics — production stack (Portainer or CLI).
-#
-# Contains only this project: PostgreSQL + app. No NGINX Proxy Manager.
-# SSL / reverse proxy — configure NPM separately (see README).
-#
-# Portainer: Stacks → Add stack → Compose path: docker-compose.portainer.yml
-# Env vars: portainer.env.example
-#
-# Manual data import only: /ranges → «Загрузить данные».
+# See docs/deployment.md
 
 name: pstn
 
@@ -53,7 +45,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DB_POOL_MAX: ${DB_POOL_MAX:-10}
       DB_IMPORT_POOL_MAX: ${DB_IMPORT_POOL_MAX:-4}
-      IMPORT_SECRET: ${IMPORT_SECRET:-}
+      EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+    volumes:
+      - pstn_secrets:/app/.secrets
     depends_on:
       postgres:
         condition: service_healthy
@@ -77,3 +71,5 @@ networks:
 volumes:
   pstn_pg_data:
     name: pstn_pg_data
+  pstn_secrets:
+    name: pstn_secrets

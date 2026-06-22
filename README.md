@@ -1,177 +1,98 @@
 # PSTN Analytics
 
-Веб-сервис аналитики телефонной нумерации Минцифры России.
+Веб-сервис аналитики телефонного плана нумерации Российской Федерации на основе открытых CSV Минцифры и реестра операторов OPR (УВр Антифрод).
 
-## Стек
+**Стек:** Next.js 15, React 19, TypeScript, PostgreSQL 16, Drizzle ORM, TanStack Table/Query, shadcn/ui, Tailwind CSS 4.
 
-- Next.js 15, React 19, TypeScript
-- TanStack Table + TanStack Query
-- shadcn/ui + Tailwind CSS 4
-- PostgreSQL 16 + Drizzle ORM
+---
 
-## Запуск через Docker Desktop (production)
+## Архитектура
 
-Полный стек: PostgreSQL + Next.js в контейнерах.
+```mermaid
+flowchart LR
+  user[Пользователь / API-клиент]
+  npm[NGINX Proxy Manager]
+  app[pstn_app :5555]
+  pg[(PostgreSQL)]
 
-```bash
-docker compose up -d --build
+  user --> npm
+  npm --> app
+  app --> pg
 ```
 
-Откройте http://localhost:5555/ranges и нажмите **Загрузить данные** для полной перезагрузки CSV с opendata.digital.gov.ru.
+В production приложение рассчитано на работу **за reverse proxy** (NGINX Proxy Manager). Встроенной авторизации (логин/пароль, сессии) **нет** — доступ к UI и internal API защищается на периметре (Access List, Basic Auth, VPN). Подробнее: [docs/security.md](docs/security.md).
 
-Полезные команды:
+Compose-стек проекта содержит **только** PostgreSQL и приложение. NPM, Portainer и SSL настраиваются отдельно.
 
-```bash
-npm run docker:up      # build + start
-npm run docker:down    # остановить контейнеры
-npm run docker:logs    # логи приложения
-docker compose ps      # статус сервисов
-```
+| Compose-файл | Назначение |
+|--------------|------------|
+| [docker-compose.dev.yml](docker-compose.dev.yml) | Локально: только PostgreSQL; Next.js на хосте |
+| [docker-compose.yml](docker-compose.yml) | Локально: полный стек (PG + app) |
+| [docker-compose.prod.yml](docker-compose.prod.yml) | Production через CLI и `.env` |
+| [docker-compose.portainer.yml](docker-compose.portainer.yml) | Production через Portainer |
 
-При первом запуске контейнер `app` автоматически применяет миграции и стартует сервер.
+---
 
-## Production (VPS)
+## Документация
 
-Рекомендуемые ресурсы: **4 GB RAM**, **20–50 GB** диск, Ubuntu 22.04/24.04 или Debian 12.
+| Раздел | Содержание |
+|--------|------------|
+| [docs/deployment.md](docs/deployment.md) | Деплой: dev, Docker, VPS, Portainer, NPM, переменные окружения |
+| [docs/security.md](docs/security.md) | Модель безопасности, секреты, заголовки, threat model |
+| [docs/user-guide.md](docs/user-guide.md) | UI `/ranges`: фильтры, импорт, экспорт, KPI |
+| [docs/api-reference.md](docs/api-reference.md) | HTTP API: endpoints, auth, лимиты, примеры |
+| [docs/operations.md](docs/operations.md) | Эксплуатация: backup, обновление, troubleshooting |
 
-Stack содержит **только проект**: PostgreSQL + приложение. NGINX Proxy Manager, Portainer и SSL **не входят** в compose — ставятся и настраиваются отдельно.
+Шаблоны переменных: [.env.example](.env.example), [.env.production.example](.env.production.example), [portainer.env.example](portainer.env.example).
 
-**Импорт данных — только вручную:** `/ranges` → **«Загрузить данные»**. Автоимпортов и расписаний нет.
+---
 
-### Compose-файлы
+## Quick start
 
-| Файл | Назначение |
-|------|------------|
-| `docker-compose.portainer.yml` | Деплой через **Portainer** (env в UI) |
-| `docker-compose.prod.yml` | Деплой через **CLI** (файл `.env`) |
-
-Приложение слушает **`127.0.0.1:5555`** на хосте. PostgreSQL снаружи недоступен.
-
-Переменные: `portainer.env.example` (Portainer) или `.env.production.example` → `.env` (CLI).
-
-### 1. Деплой через Portainer
-
-1. Portainer → **Stacks** → **Add stack**
-2. **Git:** URL репозитория, Compose path: `docker-compose.portainer.yml`  
-   или **Web editor:** вставьте содержимое файла
-3. **Environment variables** — из `portainer.env.example`:
-   - `POSTGRES_PASSWORD` — сильный пароль
-   - `DATABASE_URL` — тот же пароль, хост **`postgres`**
-4. **Deploy the stack** → дождитесь **healthy** у `pstn_app` (~2–3 мин при первой сборке)
-
-### 2. Деплой через CLI
-
-```bash
-git clone <repo-url> /opt/pstn
-cd /opt/pstn
-cp .env.production.example .env
-# отредактируйте пароли в .env
-
-docker compose -f docker-compose.prod.yml up -d --build
-# или
-./scripts/deploy.sh
-```
-
-Проверка: `curl http://127.0.0.1:5555/api/health`
-
-### 3. Первая загрузка данных
-
-1. Откройте `http://127.0.0.1:5555/ranges` (или домен после настройки NPM)
-2. **«Загрузить данные»** — все 4 CSV с opendata.digital.gov.ru (~5–10 мин, ~446k строк)
-3. Нужен исходящий HTTPS с VPS до opendata.digital.gov.ru
-
-### 4. NGINX Proxy Manager (отдельно, не в compose)
-
-NPM ставится и обновляется **независимо** от этого проекта.
-
-#### Вариант A — NPM проксирует на localhost
-
-Stack публикует app на `127.0.0.1:5555`. В NPM → **Proxy Hosts** → **Add**:
-
-| Поле | Значение |
-|------|----------|
-| Domain Names | `pstn.example.com` |
-| Forward Hostname / IP | `127.0.0.1` |
-| Forward Port | `5555` |
-| SSL | Request a new SSL Certificate (Let's Encrypt) |
-
-#### Вариант B — NPM в Docker (Portainer)
-
-1. NPM работает в **отдельном** stack (своя docker-сеть, например `npm_default`)
-2. Portainer → **Containers** → `pstn_app` → **Join network** → сеть NPM
-3. В NPM → **Proxy Host**:
-
-| Поле | Значение |
-|------|----------|
-| Domain Names | `pstn.example.com` |
-| Forward Hostname / IP | `pstn_app` |
-| Forward Port | `5555` |
-| SSL | Let's Encrypt |
-
-Сеть NPM подключается через **Join network** в Portainer — compose проекта менять не нужно.
-
-#### Рекомендации по NPM
-
-- **Access List** или Basic Auth — в приложении нет встроенного логина
-- Health check (опционально): `GET /api/health` → `200`, `"status":"ok"`
-- `IMPORT_SECRET` **не задавайте**, если импорт через кнопку в UI
-
-### 5. Обновление
-
-**Portainer:** Stacks → `pstn` → Pull and redeploy.
-
-**CLI:** `cd /opt/pstn && ./scripts/deploy.sh`
-
-### 6. Бэкап PostgreSQL
-
-```bash
-COMPOSE_FILE=docker-compose.portainer.yml ./scripts/backup-db.sh
-```
-
-Cron **только для бэкапа**, не для импорта:
-
-```cron
-0 3 * * * cd /opt/pstn && COMPOSE_FILE=docker-compose.portainer.yml ./scripts/backup-db.sh
-```
-
-### 7. Мониторинг
-
-`GET /api/health` — Uptime Kuma, NPM health checks, `curl` на VPS.
-
-## Локальная разработка
-
-Только PostgreSQL в Docker, Next.js на хосте:
+### Локальная разработка
 
 ```bash
 cp .env.example .env
-npm run docker:dev-db
+npm run docker:dev-db    # PostgreSQL в Docker
 npm install
 npm run db:migrate
-npm run dev
+npm run dev              # http://localhost:5555/ranges
 ```
 
-## API
-
-- `GET /api/health` — healthcheck приложения и PostgreSQL
-- `GET /api/ranges` — таблица с пагинацией, фильтрами, сортировкой
-- `GET /api/ranges/facets` — фасетные опции для select-фильтров
-- `GET /api/summary` — KPI агрегаты
-- `POST /api/import` — полная перезагрузка **всех четырёх** CSV с opendata.digital.gov.ru без ограничений по объёму; неполный импорт отклоняется до подмены production-данных
-- `GET /api/import/status` — статус импорта
-- `GET /api/export/ranges` — экспорт XLSX с текущими фильтрами
-
-## Тесты
+### Docker Desktop (полный стек)
 
 ```bash
-npm run docker:dev-db   # PostgreSQL для локальных DB-тестов
-npm run db:migrate
-npm run db:seed-test    # минимальный набор строк для tests/db/*
-npm test
-npm run lint
+docker compose up -d --build
+# http://localhost:5555/ranges → «Загрузить данные»
 ```
 
-DB-интеграционные тесты (`tests/db/*`) выполняются только при заданном `DATABASE_URL`. В CI фикстура загружается автоматически после миграций.
+### Production (VPS)
 
-## Устранение неполадок IDE
+Рекомендуемые ресурсы: **4 GB RAM**, **20–50 GB** диск, Ubuntu 22.04/24.04 или Debian 12.
 
-**`Npm task detection: failed to parse package.json`** — Cursor/VS Code не смог прочитать `package.json` как JSON (обычно несохранённый буфер или синтаксическая ошибка). Проверьте файл и выполните **Developer: Reload Window**. Если `package.json` валиден (`npm pkg get name` работает), ошибка исчезнет после перезагрузки.
+```bash
+git clone <repo-url> /opt/pstn && cd /opt/pstn
+cp .env.production.example .env   # задайте пароли
+./scripts/deploy.sh
+curl http://127.0.0.1:5555/api/health
+```
+
+Далее: NPM → SSL → Access List → первая загрузка данных. Пошагово: [docs/deployment.md](docs/deployment.md).
+
+---
+
+## Основные команды
+
+```bash
+npm run docker:up          # build + start (docker-compose.yml)
+npm run docker:prod        # production compose
+npm run docker:portainer   # Portainer compose локально
+npm test                   # unit/integration tests
+npm run audit              # npm audit --audit-level=high
+```
+
+---
+
+## Данные
+
+Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Реестр OPR для колонки «УВр Антифрод» загружается отдельным скриптом — см. [docs/operations.md](docs/operations.md).

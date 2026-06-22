@@ -43,6 +43,37 @@ export function isPhoneMaskEmpty(value: string): boolean {
   return normalizePhoneMask(value).every((slot) => slot === EMPTY_PHONE_SLOT);
 }
 
+/** Strip formatting and map API wildcards (X) to internal `_` slots. */
+export function normalizePhoneMaskQuery(input: string): string | null {
+  const stripped = input
+    .trim()
+    .replace(/[\s()-]/g, "")
+    .replace(/[Xx]/g, EMPTY_PHONE_SLOT);
+
+  if (!stripped) return null;
+
+  const serialized = serializePhoneMask(normalizePhoneMask(stripped));
+  if (isPhoneMaskEmpty(serialized)) return null;
+  if (!parsePhoneNumberMask(serialized)) return null;
+  return serialized;
+}
+
+/** External API display: `_` wildcards shown as `X`. */
+export function formatPhoneMaskForApi(serialized: string): string {
+  return serialized.replace(/_/g, "X");
+}
+
+export function parseLookupSearchPhone(
+  raw: string
+): { normalized: string; display: string } | null {
+  const normalized = normalizePhoneMaskQuery(raw);
+  if (!normalized) return null;
+  return {
+    normalized,
+    display: formatPhoneMaskForApi(normalized),
+  };
+}
+
 /** Visual hint: (XXX) XXX-XX-XX — X for empty slots */
 export function formatPhoneMaskHint(slots: string[]): string {
   const d = (index: number) =>

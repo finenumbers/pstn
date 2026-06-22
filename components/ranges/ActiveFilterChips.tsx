@@ -16,6 +16,7 @@ const FILTER_LABELS: Record<string, string> = {
   settlement: "Населенный пункт",
   region: "Регион",
   inn: "ИНН",
+  uvrAntifraud: "УВр Антифрод",
   phoneNumber: "Номер",
   rangeStart: "Начало",
   rangeEnd: "Конец",
@@ -36,7 +37,13 @@ interface ActiveFilterChipsProps {
 
 function pushFacetChips(
   chips: FilterChip[],
-  field: "abc" | "operator" | "settlement" | "region",
+  field:
+    | "abc"
+    | "operator"
+    | "settlement"
+    | "region"
+    | "inn"
+    | "uvrAntifraud",
   values: string[],
   formatDisplay?: (value: string) => string
 ) {
@@ -62,14 +69,9 @@ export function ActiveFilterChips({
   pushFacetChips(chips, "settlement", filters.settlement, formatSettlementDisplay);
   pushFacetChips(chips, "region", filters.region);
 
-  if (filters.inn) {
-    chips.push({
-      field: "inn",
-      label: FILTER_LABELS.inn,
-      value: filters.inn,
-      display: filters.inn,
-    });
-  }
+  pushFacetChips(chips, "inn", filters.inn);
+  pushFacetChips(chips, "uvrAntifraud", filters.uvrAntifraud);
+
   if (!isPhoneMaskEmpty(filters.phoneNumber)) {
     chips.push({
       field: "phoneNumber",

@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: pstn
       POSTGRES_DB: pstn
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pstn_pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,9 +36,13 @@ services:
       LOG_LEVEL: info
       DB_POOL_MAX: "10"
       DB_IMPORT_POOL_MAX: "4"
+      EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+    volumes:
+      - pstn_secrets:/app/.secrets
     depends_on:
       postgres:
         condition: service_healthy
 
 volumes:
   pstn_pg_data:
+  pstn_secrets:

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeEqual } from "@/lib/api/safeEqual";
 import { apiError } from "@/lib/api/errors";
 
 export function checkImportAuthorization(
@@ -10,7 +11,7 @@ export function checkImportAuthorization(
   }
 
   const headerSecret = request.headers.get("x-import-secret")?.trim();
-  if (headerSecret === secret) {
+  if (headerSecret && safeEqual(secret, headerSecret)) {
     return null;
   }
 

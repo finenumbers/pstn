@@ -1,6 +1,7 @@
 "use client";
 
 import { PhoneNumberMaskInput } from "@/components/ranges/PhoneNumberMaskInput";
+import { ExternalApiHelpDialog } from "@/components/ranges/ExternalApiHelpDialog";
 import { Loader2, RefreshCw, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,8 @@ export function KpiSummaryBar({
   const loadedAt = summary?.loadedAt ?? null;
   const filtered = summary?.filtered;
   const global = summary?.global;
+  const isEmptyDataset =
+    !isLoading && global != null && global.rangeCount === 0;
 
   return (
     <div className="space-y-4">
@@ -47,7 +50,7 @@ export function KpiSummaryBar({
             Телефонный план нумерации России
           </h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {onResetFilters && (
             <Button
               variant="outline"
@@ -59,6 +62,8 @@ export function KpiSummaryBar({
               Сбросить фильтры
             </Button>
           )}
+          <LoadedAtIndicator loadedAt={loadedAt} isLoading={isLoading} />
+          <ExternalApiHelpDialog phoneMask={phoneNumber} disabled={isImporting} />
           <Button
             variant="outline"
             onClick={onExport}
@@ -86,6 +91,14 @@ export function KpiSummaryBar({
         </div>
       )}
 
+      {isEmptyDataset && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Данные ещё не загружены. Нажмите «Загрузить данные» для полной
+          загрузки всех четырёх CSV с opendata.digital.gov.ru. При сбоях или
+          некорректных данных — повторите загрузку тем же способом.
+        </div>
+      )}
+
       {isExporting && (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
           <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
@@ -95,11 +108,6 @@ export function KpiSummaryBar({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
-          title="Дата загрузки данных"
-          value={formatDateTime(loadedAt)}
-          isLoading={isLoading}
-        />
-        <KpiCard
           title="Найденные диапазоны"
           isLoading={isLoading}
           compare={
@@ -107,6 +115,30 @@ export function KpiSummaryBar({
               ? {
                   filtered: formatNumber(filtered.rangeCount),
                   global: formatNumber(global.rangeCount),
+                }
+              : undefined
+          }
+        />
+        <KpiCard
+          title="Операторы связи"
+          isLoading={isLoading}
+          compare={
+            filtered && global
+              ? {
+                  filtered: formatNumber(filtered.uniqueOperators),
+                  global: formatNumber(global.uniqueOperators),
+                }
+              : undefined
+          }
+        />
+        <KpiCard
+          title="Регионы"
+          isLoading={isLoading}
+          compare={
+            filtered && global
+              ? {
+                  filtered: formatNumber(filtered.uniqueRegions),
+                  global: formatNumber(global.uniqueRegions),
                 }
               : undefined
           }
@@ -123,24 +155,36 @@ export function KpiSummaryBar({
               : undefined
           }
         />
-        <KpiCard
-          title="Уникальные операторы"
-          isLoading={isLoading}
-          compare={
-            filtered && global
-              ? {
-                  filtered: formatNumber(filtered.uniqueOperators),
-                  global: formatNumber(global.uniqueOperators),
-                }
-              : undefined
-          }
-        />
         <PhoneNumberSearchCard
           value={phoneNumber}
           onChange={onPhoneNumberChange}
           disabled={isImporting}
         />
       </div>
+    </div>
+  );
+}
+
+function LoadedAtIndicator({
+  loadedAt,
+  isLoading,
+}: {
+  loadedAt: string | null;
+  isLoading?: boolean;
+}) {
+  return (
+    <div
+      className="flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm"
+      title="Дата последней загрузки данных"
+    >
+      <span className="text-muted-foreground">Дата загрузки:</span>
+      <span className="ml-1.5 font-semibold tabular-nums text-green-600">
+        {isLoading ? (
+          <Skeleton className="inline-block h-4 w-28 align-middle" />
+        ) : (
+          formatDateTime(loadedAt)
+        )}
+      </span>
     </div>
   );
 }
@@ -196,7 +240,7 @@ function KpiCard({
         ) : compare ? (
           <CompareKpiValue filtered={compare.filtered} global={compare.global} />
         ) : (
-          <p className="text-lg font-semibold tabular-nums">{value ?? "—"}</p>
+          <p className="text-base font-semibold tabular-nums">{value ?? "—"}</p>
         )}
       </CardContent>
     </Card>
@@ -211,7 +255,7 @@ function CompareKpiValue({
   global: string;
 }) {
   return (
-    <p className="text-lg font-semibold tabular-nums">
+    <p className="text-base font-semibold tabular-nums">
       <span className="rounded-sm bg-yellow-200/80 px-1">{filtered}</span>
       <span className="text-muted-foreground"> / </span>
       <span>{global}</span>

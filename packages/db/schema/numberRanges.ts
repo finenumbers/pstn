@@ -68,6 +68,19 @@ export const operatorsDict = pgTable("operators_dict", {
   inn: varchar("inn", { length: 12 }).notNull().default(""),
 });
 
+export const operatorsRegister = pgTable("operators_register", {
+  idSrc: integer("id_src").primaryKey(),
+  oprName: text("opr_name").notNull(),
+  oprNick: text("opr_nick").notNull(),
+  inn: varchar("inn", { length: 12 }).notNull().unique(),
+  bdpnCode: text("bdpn_code").notNull().default(""),
+  nameBrand: text("name_brand").notNull().default(""),
+  sourceFile: text("source_file").notNull().default(""),
+  loadedAt: timestamp("loaded_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const regionsDict = pgTable("regions_dict", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -100,6 +113,10 @@ export const importJobs = pgTable("import_jobs", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const datasetMeta = pgTable("dataset_meta", {
@@ -109,4 +126,5 @@ export const datasetMeta = pgTable("dataset_meta", {
   totalRows: integer("total_rows"),
   totalCapacity: bigint("total_capacity", { mode: "number" }),
   uniqueOperators: integer("unique_operators"),
+  uniqueRegions: integer("unique_regions"),
 });

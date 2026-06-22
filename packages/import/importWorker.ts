@@ -1,8 +1,9 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql, and } from "drizzle-orm";
 import { db, importPool } from "@/packages/db";
 import { RANGES_STAGING_TABLE } from "@/packages/db/importTables";
 import { datasetMeta, importJobs } from "@/packages/db/schema";
 import { refreshAbcRangeGaps } from "@/packages/db/queries/refreshAbcRangeGaps";
+import { refreshUvrAntifraudBinding } from "@/packages/db/queries/refreshUvrAntifraudBinding";
 import { buildImportProgressDisplay } from "@/lib/import/importProgressView";
 import {
   BATCH_SIZE,
@@ -14,7 +15,6 @@ import {
   analyzeRanges,
   clearStaging,
   insertBatch,
-  rebuildDictionaries,
   refreshDatasetGlobalStats,
   swapStagingToProduction,
 } from "./csvLoader";
@@ -112,7 +112,8 @@ async function loadSourceFile(
         UPDATE import_jobs
         SET
           rows_loaded = $2,
-          progress_phase = $3
+          progress_phase = $3,
+          updated_at = now()
         WHERE id = $1
       `,
         [jobId, rowsBefore + fileRowsLoaded, `loading_${file.key}`]
@@ -177,7 +178,17 @@ async function runImportJob(jobId: string): Promise<void> {
         rowsLoaded: 0,
         fileRows: {},
       })
-      .where(eq(importJobs.id, jobId));
+      .where(and(eq(importJobs.id, jobId), eq(importJobs.status, "pending")));
+
+    const running = await db
+      .select({ id: importJobs.id })
+      .from(importJobs)
+      .where(and(eq(importJobs.id, jobId), eq(importJobs.status, "running")))
+      .limit(1);
+
+    if (running.length === 0) {
+      return;
+    }
 
     await clearStaging();
 
@@ -197,7 +208,8 @@ async function runImportJob(jobId: string): Promise<void> {
           rows_loaded = $2,
           files_processed = $3,
           progress_phase = $4,
-          file_rows = $5::jsonb
+          file_rows = $5::jsonb,
+          updated_at = now()
         WHERE id = $1
       `,
         [
@@ -230,8 +242,14 @@ async function runImportJob(jobId: string): Promise<void> {
       .where(eq(importJobs.id, jobId));
 
     await swapStagingToProduction();
-    await rebuildDictionaries();
     await analyzeRanges();
+
+    await db
+      .update(importJobs)
+      .set({ progressPhase: "binding_uvr_antifraud" })
+      .where(eq(importJobs.id, jobId));
+
+    await refreshUvrAntifraudBinding();
 
     const stats = await refreshDatasetGlobalStats();
     const finishedAt = new Date();
@@ -244,6 +262,7 @@ async function runImportJob(jobId: string): Promise<void> {
         lastJobId: jobId,
         totalRows: stats.totalRows,
         totalCapacity: stats.totalCapacity,
+        uniqueRegions: stats.uniqueRegions,
         uniqueOperators: stats.uniqueOperators,
       })
       .onConflictDoUpdate({
@@ -253,6 +272,7 @@ async function runImportJob(jobId: string): Promise<void> {
           lastJobId: jobId,
           totalRows: stats.totalRows,
           totalCapacity: stats.totalCapacity,
+          uniqueRegions: stats.uniqueRegions,
           uniqueOperators: stats.uniqueOperators,
         },
       });

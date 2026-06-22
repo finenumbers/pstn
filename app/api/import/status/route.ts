@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { importStatusQuerySchema } from "@/packages/shared/contracts/filters.schema";
+import { checkImportAuthorization } from "@/lib/api/importAuth";
 import { getImportStatus } from "@/packages/import/importWorker";
-import { apiError, validationError } from "@/lib/api/errors";
+import { internalServerError, validationError } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
+  const authError = checkImportAuthorization(request);
+  if (authError) {
+    return authError;
+  }
+
   try {
     const params = request.nextUrl.searchParams;
     const parsed = importStatusQuerySchema.safeParse({
@@ -17,11 +23,6 @@ export async function GET(request: NextRequest) {
     const status = await getImportStatus(parsed.data.jobId);
     return NextResponse.json(status);
   } catch (error) {
-    console.error("import status error:", error);
-    return apiError(
-      "INTERNAL_ERROR",
-      error instanceof Error ? error.message : "Internal server error",
-      500
-    );
+    return internalServerError(error);
   }
 }
