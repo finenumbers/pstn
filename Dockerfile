@@ -31,7 +31,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/packages/db/migrations ./packages/db/migrations
+COPY data/opr ./data/opr
 COPY scripts/docker-entrypoint.sh /docker-entrypoint.sh
+ENV OPR_CSV_PATH=/app/data/opr/OPR_2026_06_18_00_00_00.csv
 RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 5555

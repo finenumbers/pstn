@@ -1,9 +1,13 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { access } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { parse } from "csv-parse";
 import { normalizeInn } from "@/lib/inn/normalizeInn";
 import { importPool } from "@/packages/db";
+import {
+  BUNDLED_OPR_CONTAINER_PATH,
+  BUNDLED_OPR_FILENAME,
+} from "./constants";
 
 type OprRow = {
   id_src: string;
@@ -13,6 +17,24 @@ type OprRow = {
   bdpn_code: string;
   name_brand: string;
 };
+
+export function resolveOprCsvPath(): string | null {
+  const envPath = process.env.OPR_CSV_PATH?.trim();
+  if (envPath && existsSync(envPath)) {
+    return envPath;
+  }
+
+  if (existsSync(BUNDLED_OPR_CONTAINER_PATH)) {
+    return BUNDLED_OPR_CONTAINER_PATH;
+  }
+
+  const devPath = join(process.cwd(), "data", "opr", BUNDLED_OPR_FILENAME);
+  if (existsSync(devPath)) {
+    return devPath;
+  }
+
+  return envPath ?? null;
+}
 
 export async function importOprRegisterFromFile(
   filePath: string
@@ -83,19 +105,27 @@ export async function importOprRegisterFromFile(
   }
 }
 
-export async function tryImportOprFromEnvPath(): Promise<number | null> {
-  const filePath = process.env.OPR_CSV_PATH?.trim();
-  if (!filePath) return null;
+/** Loads bundled OPR (or OPR_CSV_PATH override) into operators_register. Idempotent per source_file. */
+export async function ensureOprRegisterLoaded(): Promise<number | null> {
+  const filePath = resolveOprCsvPath();
+  if (!filePath) {
+    return null;
+  }
 
   try {
     const count = await importOprRegisterFromFile(filePath);
-    console.warn(`Imported ${count} OPR operators from ${filePath}`);
+    console.warn(`Loaded ${count} OPR operators from ${filePath}`);
     return count;
   } catch (error) {
     console.warn(
-      `OPR import skipped (${filePath}):`,
+      `OPR import failed (${filePath}):`,
       error instanceof Error ? error.message : error
     );
     return null;
   }
+}
+
+/** @deprecated Use ensureOprRegisterLoaded */
+export async function tryImportOprFromEnvPath(): Promise<number | null> {
+  return ensureOprRegisterLoaded();
 }

@@ -10,22 +10,23 @@ export async function register() {
       );
     }
 
+    const { ensureOprRegisterLoaded } = await import(
+      "@/packages/import/importOprRegister"
+    );
     const { refreshUvrAntifraudBinding } = await import(
       "@/packages/db/queries/refreshUvrAntifraudBinding"
     );
-    const { tryImportOprFromEnvPath } = await import(
-      "@/packages/import/importOprRegister"
-    );
 
-    let binding = await refreshUvrAntifraudBinding();
-    if (binding.registryOperators === 0) {
-      await tryImportOprFromEnvPath();
-      binding = await refreshUvrAntifraudBinding();
-    }
+    await ensureOprRegisterLoaded();
+    const binding = await refreshUvrAntifraudBinding();
 
     if (binding.registryOperators === 0) {
       console.warn(
-        "operators_register is empty — column «УВр Антифraud» will be blank until OPR CSV is loaded (see docs/operations.md)"
+        "operators_register is empty — column «УВр Антифraud» will stay blank (bundled OPR file missing?)"
+      );
+    } else {
+      console.warn(
+        `UVR binding: ${binding.registryOperators} OPR operators, ${binding.matchedDistinctInns} matched INNs`
       );
     }
   }

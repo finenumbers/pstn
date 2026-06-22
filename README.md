@@ -103,4 +103,4 @@ npm run audit              # npm audit --audit-level=high
 
 ## Данные
 
-Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Реестр OPR для колонки «УВр Антифрод» загружается отдельным скриптом — см. [docs/operations.md](docs/operations.md).
+Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Реестр OPR для колонки «УВр Антифрод» встроен в образ (`data/opr/OPR_2026_06_18_00_00_00.csv`) и загружается автоматически — см. [docs/operations.md](docs/operations.md).

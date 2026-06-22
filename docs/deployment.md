@@ -336,7 +336,9 @@ User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/fi
 
 ### Реестр OPR (УВр Антифрод)
 
-Колонка «УВр Антифрод» требует отдельной загрузки CSV реестра OPR — см. [operations.md](operations.md).
+Файл **`data/opr/OPR_2026_06_18_00_00_00.csv`** входит в Docker-образ и загружается в `operators_register` **автоматически** при старте приложения и после import CSV Минцифры. Дополнительных действий после деплоя не требуется.
+
+Переопределить путь (опционально): env `OPR_CSV_PATH`. Ручной import: [`scripts/import-opr-csv.ts`](../scripts/import-opr-csv.ts).
 
 ---
 

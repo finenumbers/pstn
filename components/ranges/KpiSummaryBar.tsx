@@ -105,21 +105,12 @@ export function KpiSummaryBar({
 
       {isUvrUnbound && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Колонка «УВр Антифraud» пустая: реестр OPR не загружен в{" "}
-          <code className="rounded bg-amber-100 px-1">operators_register</code>.
-          См.{" "}
-          <a
-            href="https://github.com/finenumbers/pstn/blob/main/docs/operations.md#загрузка-реестра-opr-увр-антифraud"
-            className="underline"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            загрузку OPR
-          </a>
-          . При деплое volume PostgreSQL сохраняется, но OPR нужно положить в{" "}
-          <code className="rounded bg-amber-100 px-1">/app/.secrets/opr.csv</code>{" "}
-          и задать <code className="rounded bg-amber-100 px-1">OPR_CSV_PATH</code>{" "}
-          в stack (или выполнить import вручную).
+          Колонка «УВр Антифraud» пустая: реестр OPR не загружен. После{" "}
+          <strong>Pull and redeploy</strong> образ с{" "}
+          <code className="rounded bg-amber-100 px-1">data/opr/</code> должен
+          подтянуться автоматически при старте. Проверьте логи{" "}
+          <code className="rounded bg-amber-100 px-1">pstn_app</code> («Loaded …
+          OPR operators»).
         </div>
       )}
 

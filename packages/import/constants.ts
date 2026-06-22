@@ -40,3 +40,7 @@ export function emptyLoadedRowsBySource(): LoadedRowsBySource {
     "DEF-9xx": 0,
   };
 }
+
+/** Bundled OPR register for «УВр Антифraud» (JOIN by INN). Shipped in Docker image at /app/data/opr/. */
+export const BUNDLED_OPR_FILENAME = "OPR_2026_06_18_00_00_00.csv";
+export const BUNDLED_OPR_CONTAINER_PATH = `/app/data/opr/${BUNDLED_OPR_FILENAME}`;
