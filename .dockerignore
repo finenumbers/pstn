@@ -1,0 +1,14 @@
+# dependencies
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*.local
+*.md
+!README.md
+coverage
+.DS_Store
+npm-debug.log*
+.cursor
+uploads

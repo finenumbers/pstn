@@ -1,0 +1,22 @@
+# Локальная разработка: только PostgreSQL в Docker, Next.js на хосте
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pstn_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pstn
+      POSTGRES_PASSWORD: pstn
+      POSTGRES_DB: pstn
+    ports:
+      - "5432:5432"
+    volumes:
+      - pstn_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pstn -d pstn"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pstn_pg_data:

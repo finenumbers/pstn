@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pstn
+          POSTGRES_PASSWORD: pstn
+          POSTGRES_DB: pstn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pstn -d pstn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://pstn:pstn@localhost:5432/pstn
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npx tsx scripts/migrate.ts
+
+      - name: Seed test fixture
+        run: npm run db:seed-test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pstn
+          POSTGRES_PASSWORD: pstn
+          POSTGRES_DB: pstn
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pstn -d pstn"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://pstn:pstn@localhost:5432/pstn
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:5555
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npx tsx scripts/migrate.ts
+
+      - name: Seed test fixture
+        run: npm run db:seed-test
+
+      - name: Build
+        run: npm run build
+
+      - name: Start server
+        run: |
+          npm run start &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5555/api/health && break
+            sleep 2
+          done
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: E2E
+        run: npm run test:e2e

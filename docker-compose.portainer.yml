@@ -1,0 +1,79 @@
+# PSTN Analytics — production stack (Portainer or CLI).
+#
+# Contains only this project: PostgreSQL + app. No NGINX Proxy Manager.
+# SSL / reverse proxy — configure NPM separately (see README).
+#
+# Portainer: Stacks → Add stack → Compose path: docker-compose.portainer.yml
+# Env vars: portainer.env.example
+#
+# Manual data import only: /ranges → «Загрузить данные».
+
+name: pstn
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pstn_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pstn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-pstn}
+    volumes:
+      - pstn_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-pstn} -d ${POSTGRES_DB:-pstn}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - pstn_internal
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pstn-app:${IMAGE_TAG:-latest}
+    container_name: pstn_app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-5555}:${APP_PORT:-5555}"
+    environment:
+      PORT: ${APP_PORT:-5555}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER:-pstn}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-pstn}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      DB_IMPORT_POOL_MAX: ${DB_IMPORT_POOL_MAX:-4}
+      IMPORT_SECRET: ${IMPORT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:'+(process.env.PORT||5555)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - pstn_internal
+
+networks:
+  pstn_internal:
+    name: pstn_internal
+
+volumes:
+  pstn_pg_data:
+    name: pstn_pg_data
