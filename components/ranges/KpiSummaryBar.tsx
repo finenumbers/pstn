@@ -2,7 +2,8 @@
 
 import { PhoneNumberMaskInput } from "@/components/ranges/PhoneNumberMaskInput";
 import { ExternalApiHelpDialog } from "@/components/ranges/ExternalApiHelpDialog";
-import { Loader2, RefreshCw, FilterX } from "lucide-react";
+import { ToolbarOutlineButton } from "@/components/ranges/ToolbarOutlineButton";
+import { FileSpreadsheet, Loader2, RefreshCw, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,16 +69,17 @@ export function KpiSummaryBar({
           )}
           <LoadedAtIndicator loadedAt={loadedAt} isLoading={isLoading} />
           <ExternalApiHelpDialog phoneMask={phoneNumber} disabled={isImporting} />
-          <Button
-            variant="outline"
+          <ToolbarOutlineButton
             onClick={onExport}
             disabled={isImporting || isExporting}
           >
             {isExporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : null}
-            Экспорт XLSX
-          </Button>
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4 shrink-0" />
+            )}
+            XLSX
+          </ToolbarOutlineButton>
           <Button onClick={onLoadData} disabled={isImporting}>
             {isImporting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
