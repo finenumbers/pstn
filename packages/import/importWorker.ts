@@ -325,7 +325,9 @@ async function runImportJob(jobId: string): Promise<void> {
       loadImportDiffOldRanges(),
       loadStagingRangesForDiff(),
     ]);
-    const diffSegments = diffRangeDatasets(oldRanges, newRanges);
+    // First import: production was empty — no baseline to compare, skip diff snapshot.
+    const diffSegments =
+      oldRanges.length === 0 ? [] : diffRangeDatasets(oldRanges, newRanges);
     const diffCounts = countDiffSegments(diffSegments);
     await touchImportJobHeartbeat(jobId);
 

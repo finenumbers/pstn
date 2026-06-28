@@ -281,22 +281,23 @@ export function RangesTable({
       ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
       : 0;
 
-  const showGapMarkers = isGapCompatibleSort(
-    sorting.map((s) => ({
-      id: s.id as SortableColumn,
-      desc: s.desc ?? false,
-    }))
-  );
+  const showGapMarkers =
+    !isDiffView &&
+    isGapCompatibleSort(
+      sorting.map((s) => ({
+        id: s.id as SortableColumn,
+        desc: s.desc ?? false,
+      }))
+    );
 
   const renderDataRow = (
     row: Row<NumberRangeRow>,
     rowIndex: number,
     prev?: NumberRangeRow
   ) => {
-    const { gapBefore, gapAfter } = effectiveAbcRangeGapMarkers(
-      row.original,
-      prev
-    );
+    const { gapBefore, gapAfter } = isDiffView
+      ? { gapBefore: false, gapAfter: false }
+      : effectiveAbcRangeGapMarkers(row.original, prev);
     const changeType = row.original.changeType;
 
     return (
@@ -319,8 +320,8 @@ export function RangesTable({
             isNineSeriesAbc(row.original.abc) &&
             !isFrontirNetworkInn(row.original.inn) &&
             "bg-green-100 hover:bg-green-100/90",
-          !isDiffView && gapBefore && showGapMarkers && "range-gap-before",
-          !isDiffView && gapAfter && showGapMarkers && "range-gap-after"
+          gapBefore && showGapMarkers && "range-gap-before",
+          gapAfter && showGapMarkers && "range-gap-after"
         )}
       >
         {COLUMN_ORDER.map((colId) => {

@@ -170,8 +170,8 @@ export async function listRanges(params: {
     data: data.map((row) => ({
       ...row,
       changeType: row.changeType as "added" | "changed" | "removed" | null | undefined,
-      abcRangeGapBefore: Boolean(row.abcRangeGapBefore),
-      abcRangeGapAfter: Boolean(row.abcRangeGapAfter),
+      abcRangeGapBefore: context.isDiff ? false : Boolean(row.abcRangeGapBefore),
+      abcRangeGapAfter: context.isDiff ? false : Boolean(row.abcRangeGapAfter),
     })),
     totalRows,
     hasMore: data.length === params.pageSize,

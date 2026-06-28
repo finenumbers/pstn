@@ -89,4 +89,17 @@ describe("rangeDatasetDiff", () => {
       removed: 1,
     });
   });
+
+  it("handles many added segments without stack overflow", () => {
+    const newRanges = Array.from({ length: 50_000 }, (_, index) =>
+      range("900", index * 10 + 1, index * 10 + 5)
+    );
+
+    const segments = diffRangeDatasets([], newRanges);
+
+    expect(segments).toHaveLength(50_000);
+    expect(segments.every((segment) => segment.changeType === "added")).toBe(
+      true
+    );
+  });
 });

@@ -85,13 +85,27 @@ function displayRecordFromOld(
   };
 }
 
-function collectBoundaries(ranges: RangeRecord[]): number[] {
+function collectBoundaries(
+  oldRanges: RangeRecord[],
+  newRanges: RangeRecord[]
+): number[] {
   const points = new Set<number>();
-  for (const range of ranges) {
+  for (const range of oldRanges) {
+    points.add(range.rangeStart);
+    points.add(range.rangeEnd + 1);
+  }
+  for (const range of newRanges) {
     points.add(range.rangeStart);
     points.add(range.rangeEnd + 1);
   }
   return Array.from(points).sort((a, b) => a - b);
+}
+
+/** Avoid `target.push(...source)` — spread blows the call stack on large arrays. */
+function appendAll<T>(target: T[], source: readonly T[]): void {
+  for (let index = 0; index < source.length; index++) {
+    target.push(source[index]!);
+  }
 }
 
 function mergeAdjacentSegments(segments: DiffSegment[]): DiffSegment[] {
@@ -137,7 +151,7 @@ export function diffRangesForAbc(
   oldRanges: RangeRecord[],
   newRanges: RangeRecord[]
 ): DiffSegment[] {
-  const boundaries = collectBoundaries([...oldRanges, ...newRanges]);
+  const boundaries = collectBoundaries(oldRanges, newRanges);
   if (boundaries.length < 2) return [];
 
   const segments: DiffSegment[] = [];
@@ -226,8 +240,9 @@ export function diffRangeDatasets(
 
   const result: DiffSegment[] = [];
   for (const abc of Array.from(abcCodes).sort()) {
-    result.push(
-      ...diffRangesForAbc(
+    appendAll(
+      result,
+      diffRangesForAbc(
         abc,
         oldByAbc.get(abc) ?? [],
         newByAbc.get(abc) ?? []

@@ -127,10 +127,9 @@ export async function createRangesXlsxExport(
 
       for (const row of batch) {
         const numberRow = exportRowToNumberRangeRow(row);
-        const { gapBefore, gapAfter } = effectiveAbcRangeGapMarkers(
-          numberRow,
-          prevRow
-        );
+        const { gapBefore, gapAfter } = isDiff
+          ? { gapBefore: false, gapAfter: false }
+          : effectiveAbcRangeGapMarkers(numberRow, prevRow);
         const exportRow = {
           ...(isDiff
             ? {
