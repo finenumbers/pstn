@@ -42,17 +42,20 @@ export function buildLookupSearchCurlExample(
   apiKey: string,
   phoneMask: string = LOOKUP_DEFAULT_MASK,
   page = 1,
-  pageSize = 50
+  pageSize = 50,
+  dataset = "current"
 ): string {
   const base = origin.replace(/\/$/, "");
   const encodedPhone = encodeURIComponent(phoneMask);
-  return `curl -s "${base}/api/v1/lookup/search?phone=${encodedPhone}&page=${page}&pageSize=${pageSize}" -H "Authorization: Bearer ${apiKey}"`;
+  const datasetQuery = dataset !== "current" ? `&dataset=${encodeURIComponent(dataset)}` : "";
+  return `curl -s "${base}/api/v1/lookup/search?phone=${encodedPhone}&page=${page}&pageSize=${pageSize}${datasetQuery}" -H "Authorization: Bearer ${apiKey}"`;
 }
 
 export function buildLookupCurlExamples(
   origin: string,
   apiKey: string,
-  phoneMask = ""
+  phoneMask = "",
+  dataset = "current"
 ): { exactCurl: string | null; searchCurl: string } {
   const exactPhone = phoneQueryFromMask(phoneMask);
   const searchMask = maskSearchQueryFromMask(phoneMask);
@@ -60,7 +63,14 @@ export function buildLookupCurlExamples(
     exactCurl: exactPhone
       ? buildLookupCurlExample(origin, apiKey, exactPhone)
       : null,
-    searchCurl: buildLookupSearchCurlExample(origin, apiKey, searchMask),
+    searchCurl: buildLookupSearchCurlExample(
+      origin,
+      apiKey,
+      searchMask,
+      1,
+      50,
+      dataset
+    ),
   };
 }
 

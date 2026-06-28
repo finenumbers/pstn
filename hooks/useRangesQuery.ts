@@ -1,4 +1,6 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
+import { serializeDatasetParam } from "@/packages/shared/contracts/dataset.schema";
 import {
   serializeSort,
   type FiltersDTO,
@@ -13,19 +15,23 @@ export function useRangesInfiniteQuery(params: {
   filters: FiltersDTO;
   sorting: { id: SortableColumn; desc: boolean }[];
   pageSize: number;
+  dataset: DatasetRef;
 }) {
   const sort = serializeSort(params.sorting);
+  const datasetParam = serializeDatasetParam(params.dataset);
 
   return useInfiniteQuery({
     queryKey: queryKeys.ranges({
       filters: params.filters,
       sort,
       pageSize: params.pageSize,
+      dataset: datasetParam,
     }),
     queryFn: async ({ pageParam, signal }) => {
       const filterParams = buildFilterParams(params.filters);
       filterParams.set("pageSize", String(params.pageSize));
       filterParams.set("sort", sort);
+      filterParams.set("dataset", datasetParam);
       if (pageParam) {
         filterParams.set("cursor", pageParam);
       } else {

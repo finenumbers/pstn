@@ -2,7 +2,7 @@
 
 Краткое руководство: как вывести PSTN Analytics в интернет через **NGINX Proxy Manager**, если NPM у вас настроен по-разному.
 
-PSTN **не содержит** NPM в своём compose — только `postgres` и `pstn_app`. SSL, домены и доступ настраиваются **в NPM отдельно**.
+PSTN **не содержит** NPM в своём compose. Production stack: **postgres + app + scheduler** (cron-импорт). Локальный dev stack — postgres + app **без** scheduler. SSL, домены и доступ настраиваются **в NPM отдельно**.
 
 ---
 
@@ -172,7 +172,7 @@ networks:
 ## Безопасность (кратко)
 
 - В PSTN **нет** логина — защита на NPM: **Access List**, Basic Auth, VPN.
-- Рекомендуется **rate limiting** на тяжёлые endpoints (`/api/export/ranges`, `/api/import`). Подробнее: [deployment.md](deployment.md#rate-limiting-рекомендуется).
+- Рекомендуется **rate limiting** на тяжёлые endpoints (`/api/export/ranges`, `/api/import`). Cron scheduler вызывает import **раз в сутки**; rate limit не должен блокировать плановый cron, но защищает от злоупотреблений manual import. Подробнее: [deployment.md](deployment.md#rate-limiting-рекомендуется), [import-and-datasets.md](import-and-datasets.md).
 - `/api/health` не выставляйте публично без необходимости.
 
 Полная модель: [security.md](security.md).
@@ -208,6 +208,7 @@ send_timeout 600;
 
 ## Связанные документы
 
+- [import-and-datasets.md](import-and-datasets.md) — импорт, cron, diff snapshots
 - [deployment.md](deployment.md) — Portainer, переменные окружения, rate limits
 - [operations.md](operations.md) — troubleshooting, backup, обновления
 - [security.md](security.md) — периметр и секреты

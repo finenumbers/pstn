@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   FACET_COLUMNS,
+  FILTER_LIMITS,
   filtersSchema,
   parseFiltersFromSearchParams,
   type FacetColumn,
   type FiltersDTO,
 } from "@/packages/shared/contracts/filters.schema";
 import { facetRanges } from "@/packages/db/queries/facetRanges";
+import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
+import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { countFacetValue } from "@/packages/db/queries/countFacetValue";
 import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
@@ -32,11 +36,23 @@ export async function GET(request: NextRequest) {
       return validationError(filtersParsed.error);
     }
     const filters = filtersParsed.data;
+    const dataset = parseDatasetOrError(params);
+    if (isDatasetParseError(dataset)) {
+      return dataset;
+    }
 
     const search: Record<string, string> = {};
     for (const col of columns) {
       const val = params.get(`search.${col}`);
-      if (val) search[col] = val;
+      if (!val) continue;
+      if (val.length > FILTER_LIMITS.maxTextFilterLength) {
+        return apiError(
+          "VALIDATION_ERROR",
+          `search.${col} exceeds maximum length`,
+          400
+        );
+      }
+      search[col] = val;
     }
 
     const facets: Record<
@@ -59,6 +75,7 @@ export async function GET(request: NextRequest) {
           filters,
           search: search[column],
           limit: 200,
+          dataset,
         })
       )
     );
@@ -77,7 +94,7 @@ export async function GET(request: NextRequest) {
         const counts = await Promise.all(
           missingSelected.map(async (selected) => ({
             selected,
-            count: await countFacetValue(column, selected, filters),
+            count: await countFacetValue(column, selected, filters, dataset),
           }))
         );
         for (const { selected, count } of counts) {
@@ -103,6 +120,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ facets });
   } catch (error) {
+    if (error instanceof DatasetNotFoundError) {
+      return datasetNotFoundResponse(error);
+    }
     return internalServerError(error);
   }
 }

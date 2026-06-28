@@ -6,8 +6,24 @@ import {
   type FiltersDTO,
   type SortableColumn,
 } from "@/packages/shared/contracts/filters.schema";
+import {
+  DATASET_CURRENT_ID,
+  serializeDatasetParam,
+  tryParseDatasetParam,
+  type DatasetRef,
+} from "@/packages/shared/contracts/dataset.schema";
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import type { RangesTableState } from "@/lib/table/rangesTableState";
+
+export function parseDatasetFromSearchParams(
+  params: URLSearchParams
+): DatasetRef {
+  const parsed = tryParseDatasetParam(params.get("dataset"));
+  if (!parsed.success) {
+    return { kind: "current" };
+  }
+  return parsed.data;
+}
 
 export function parseRangesTableFromSearchParams(
   params: URLSearchParams
@@ -28,9 +44,14 @@ export function parseRangesTableFromSearchParams(
 
 export function buildRangesPageSearchParams(
   filters: FiltersDTO,
-  sorting: { id: SortableColumn; desc: boolean }[]
+  sorting: { id: SortableColumn; desc: boolean }[],
+  dataset: DatasetRef = { kind: "current" }
 ): URLSearchParams {
   const params = filtersToSearchParams(filters);
+  const datasetParam = serializeDatasetParam(dataset);
+  if (datasetParam !== DATASET_CURRENT_ID) {
+    params.set("dataset", datasetParam);
+  }
   const sortStr = sorting
     .map((s) => `${s.id}:${s.desc ? "desc" : "asc"}`)
     .join(",");

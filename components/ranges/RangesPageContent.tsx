@@ -30,7 +30,12 @@ import {
 import {
   buildRangesPageSearchParams,
   parseRangesTableFromSearchParams,
+  parseDatasetFromSearchParams,
 } from "@/lib/url/rangesPageUrl";
+import {
+  serializeDatasetParam,
+  type DatasetRef,
+} from "@/packages/shared/contracts/dataset.schema";
 import {
   DEFAULT_SORT,
   FACET_COLUMNS,
@@ -56,10 +61,16 @@ function clearFacetSearchField(
 
 function readInitialTableState(): RangesTableState {
   if (typeof window === "undefined") return initialTableState;
-  const parsed = parseRangesTableFromSearchParams(
+  const params = new URLSearchParams(window.location.search);
+  const parsed = parseRangesTableFromSearchParams(params);
+  return parsed ?? initialTableState;
+}
+
+function readInitialDataset(): DatasetRef {
+  if (typeof window === "undefined") return { kind: "current" };
+  return parseDatasetFromSearchParams(
     new URLSearchParams(window.location.search)
   );
-  return parsed ?? initialTableState;
 }
 
 export function RangesPageContent() {
@@ -72,6 +83,9 @@ export function RangesPageContent() {
   const [trackedJobId, setTrackedJobId] = useState<string | null>(null);
   const [dismissedJobId, setDismissedJobId] = useState<string | null>(null);
   const [rangesResetKey, setRangesResetKey] = useState(0);
+  const [selectedDataset, setSelectedDataset] = useState<DatasetRef>(
+    readInitialDataset
+  );
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const queryClient = useQueryClient();
@@ -115,21 +129,27 @@ export function RangesPageContent() {
     filters: debouncedFilters,
     sorting: sortingForQuery,
     pageSize: state.pageSize,
+    dataset: selectedDataset,
   });
+
+  const isDiffView = selectedDataset.kind === "diff";
+  const datasetParam = serializeDatasetParam(selectedDataset);
 
   const rangesData =
     rangesQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const totalRows = rangesQuery.data?.pages[0]?.meta.totalRows ?? 0;
-  const rangesListKey = `${debouncedFiltersKey}:${serializeSort(sortingForQuery)}:${rangesResetKey}`;
+  const rangesListKey = `${datasetParam}:${debouncedFiltersKey}:${serializeSort(sortingForQuery)}:${rangesResetKey}`;
 
-  const globalSummaryQuery = useGlobalSummaryQuery();
+  const globalSummaryQuery = useGlobalSummaryQuery(selectedDataset);
   const rangesReadyForSecondaryQueries =
     !filtersActive || rangesQuery.isFetched || rangesQuery.isSuccess;
   const filteredSummaryQuery = useSummaryQuery(debouncedFilters, {
     enabled: filtersActive && rangesReadyForSecondaryQueries,
+    dataset: selectedDataset,
   });
   const facetsQuery = useFacetsQuery(debouncedFilters, debouncedFacetSearch, {
     enabled: rangesReadyForSecondaryQueries,
+    dataset: selectedDataset,
   });
 
   const importStart = useImportStart();
@@ -153,15 +173,13 @@ export function RangesPageContent() {
     (trackedImport?.status === "pending" ||
       trackedImport?.status === "running" ||
       trackedImport?.status === "completed" ||
-      trackedImport?.status === "failed");
+      trackedImport?.status === "failed" ||
+      trackedImport?.status === "skipped");
 
   const mergedSummary: SummaryResponse | undefined =
     globalSummaryQuery.data?.global
       ? {
-          loadedAt:
-            globalSummaryQuery.data.loadedAt ??
-            (filtersActive ? filteredSummaryQuery.data?.loadedAt : null) ??
-            null,
+          loadedAt: globalSummaryQuery.data.loadedAt ?? null,
           global: globalSummaryQuery.data.global,
           filtered:
             filtersActive && filteredSummaryQuery.data
@@ -200,7 +218,8 @@ export function RangesPageContent() {
     if (!urlSyncedRef.current) return;
     const params = buildRangesPageSearchParams(
       debouncedFilters,
-      sortingForQuery
+      sortingForQuery,
+      selectedDataset
     );
     const qs = params.toString();
     const next = qs
@@ -215,11 +234,14 @@ export function RangesPageContent() {
         urlHistoryInitializedRef.current = true;
       }
     }
-  }, [debouncedFilters, sortQueryKey, sortingForQuery]);
+  }, [debouncedFilters, sortQueryKey, sortingForQuery, selectedDataset]);
 
   useEffect(() => {
     const handlePopState = () => {
       const parsed = parseRangesTableFromSearchParams(
+        new URLSearchParams(window.location.search)
+      );
+      const dataset = parseDatasetFromSearchParams(
         new URLSearchParams(window.location.search)
       );
       if (parsed) {
@@ -228,6 +250,7 @@ export function RangesPageContent() {
       } else {
         dispatch({ type: "RESET_ALL" });
       }
+      setSelectedDataset(dataset);
       setRangesResetKey((key) => key + 1);
       queryClient.removeQueries({ queryKey: ["ranges"] });
     };
@@ -252,18 +275,19 @@ export function RangesPageContent() {
     if (
       status &&
       status !== prevImportStatus.current &&
-      status === "completed"
+      (status === "completed" || status === "skipped")
     ) {
       queryClient.invalidateQueries({ queryKey: ["ranges"] });
       queryClient.invalidateQueries({ queryKey: ["facets"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
+      queryClient.invalidateQueries({ queryKey: ["datasets"] });
     }
 
     prevImportStatus.current = status;
   }, [trackedImport, trackedJobId, queryClient]);
 
   useEffect(() => {
-    if (trackedImport?.status !== "completed") return;
+    if (trackedImport?.status !== "completed" && trackedImport?.status !== "skipped") return;
     if (trackedImport.jobId !== trackedJobId) return;
 
     const timer = window.setTimeout(() => {
@@ -272,6 +296,44 @@ export function RangesPageContent() {
 
     return () => window.clearTimeout(timer);
   }, [trackedImport?.status, trackedImport?.jobId, trackedJobId]);
+
+  useEffect(() => {
+    if (selectedDataset.kind !== "diff") return;
+
+    const datasetError =
+      rangesQuery.error ??
+      globalSummaryQuery.error ??
+      (filtersActive ? filteredSummaryQuery.error : undefined);
+    if (!datasetError) return;
+
+    const message = datasetError.message ?? "";
+    if (!/Dataset snapshot not found/i.test(message)) return;
+
+    setSelectedDataset({ kind: "current" });
+    setRangesResetKey((key) => key + 1);
+    setToastMessage("Снимок расхождений не найден, показан текущий датасет");
+    queryClient.removeQueries({ queryKey: ["ranges"] });
+
+    const params = buildRangesPageSearchParams(
+      debouncedFilters,
+      sortingForQuery,
+      { kind: "current" }
+    );
+    const qs = params.toString();
+    const next = qs
+      ? `${window.location.pathname}?${qs}`
+      : window.location.pathname;
+    window.history.replaceState(null, "", next);
+  }, [
+    selectedDataset.kind,
+    rangesQuery.error,
+    globalSummaryQuery.error,
+    filteredSummaryQuery.error,
+    filtersActive,
+    debouncedFilters,
+    sortingForQuery,
+    queryClient,
+  ]);
 
   const handleLoadData = async () => {
     const result = await importStart.mutateAsync();
@@ -328,9 +390,16 @@ export function RangesPageContent() {
   const handleResetAll = () => {
     dispatch({ type: "RESET_ALL" });
     setFacetSearch({});
+    setSelectedDataset({ kind: "current" });
     setRangesResetKey((key) => key + 1);
     queryClient.removeQueries({ queryKey: ["ranges"] });
     window.history.replaceState(null, "", window.location.pathname);
+  };
+
+  const handleDatasetChange = (dataset: DatasetRef) => {
+    setSelectedDataset(dataset);
+    setRangesResetKey((key) => key + 1);
+    queryClient.removeQueries({ queryKey: ["ranges"] });
   };
 
   const handleExport = async () => {
@@ -351,6 +420,7 @@ export function RangesPageContent() {
     setIsExporting(true);
     try {
       const params = buildFilterParams(debouncedFilters);
+      params.set("dataset", datasetParam);
       const response = await fetch(`/api/export/ranges?${params.toString()}`);
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
@@ -403,11 +473,15 @@ export function RangesPageContent() {
         onLoadData={handleLoadData}
         onExport={handleExport}
         onResetFilters={handleResetAll}
-        hasActiveFilters={canResetRangesTable(
-          debouncedFilters,
-          rangesQuery.data?.pages.length ?? 0,
-          state.sorting
-        )}
+        hasActiveFilters={
+          canResetRangesTable(
+            debouncedFilters,
+            rangesQuery.data?.pages.length ?? 0,
+            state.sorting
+          ) || selectedDataset.kind !== "current"
+        }
+        selectedDataset={selectedDataset}
+        onDatasetChange={handleDatasetChange}
       />
 
       {showImportProgress && trackedImport && (
@@ -450,6 +524,7 @@ export function RangesPageContent() {
             ? facetsQuery.error?.message ?? "Не удалось загрузить фильтры"
             : undefined
         }
+        isDiffView={isDiffView}
       />
 
       <AppToast

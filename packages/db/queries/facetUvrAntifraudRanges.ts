@@ -1,17 +1,27 @@
 import type { FiltersDTO } from "@/packages/shared/contracts/filters.schema";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { and, asc, count, countDistinct, desc, ilike, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
-import { numberRanges, operatorsRegister } from "../schema";
+import { operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
+import {
+  CURRENT_RANGE_CONTEXT,
+  resolveRangeQueryContext,
+} from "./datasetContext";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
 export async function facetUvrAntifraudRanges(params: {
   filters: FiltersDTO;
   search?: string;
   limit?: number;
+  dataset?: DatasetRef;
 }) {
   const limit = params.limit ?? 200;
-  const rangeWhere = buildWhere(params.filters, "uvrAntifraud");
+  const context = params.dataset
+    ? await resolveRangeQueryContext(params.dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const table = context.table;
+  const rangeWhere = buildWhere(params.filters, context, "uvrAntifraud");
   const conditions: SQL[] = [];
   if (params.search) {
     conditions.push(
@@ -27,20 +37,20 @@ export async function facetUvrAntifraudRanges(params: {
     db
       .select({
         value: sql<string>`${operatorsRegister.idSrc}::text`.as("value"),
-        count: count(numberRanges.id),
+        count: count(table.id),
       })
-      .from(numberRanges)
-      .innerJoin(operatorsRegister, innRegisterMatchSql())
+      .from(table)
+      .innerJoin(operatorsRegister, innRegisterMatchSql(table.inn))
       .where(where)
       .groupBy(operatorsRegister.idSrc)
-      .orderBy(desc(count(numberRanges.id)), asc(operatorsRegister.idSrc))
+      .orderBy(desc(count(table.id)), asc(operatorsRegister.idSrc))
       .limit(limit),
     db
       .select({
         total: countDistinct(operatorsRegister.idSrc),
       })
-      .from(numberRanges)
-      .innerJoin(operatorsRegister, innRegisterMatchSql())
+      .from(table)
+      .innerJoin(operatorsRegister, innRegisterMatchSql(table.inn))
       .where(where),
   ]);
 

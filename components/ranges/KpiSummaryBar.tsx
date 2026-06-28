@@ -2,13 +2,18 @@
 
 import { PhoneNumberMaskInput } from "@/components/ranges/PhoneNumberMaskInput";
 import { ExternalApiHelpDialog } from "@/components/ranges/ExternalApiHelpDialog";
+import { DatasetDatePicker } from "@/components/ranges/DatasetDatePicker";
+import {
+  DatasetSelector,
+} from "@/components/ranges/DatasetSelector";
 import { ToolbarOutlineButton } from "@/components/ranges/ToolbarOutlineButton";
 import { FileSpreadsheet, Loader2, RefreshCw, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import type { SummaryResponse } from "@/packages/shared/contracts/filters.schema";
+import type { DatasetRef as SharedDatasetRef } from "@/packages/shared/contracts/dataset.schema";
 
 interface KpiSummaryBarProps {
   summary?: SummaryResponse;
@@ -22,6 +27,8 @@ interface KpiSummaryBarProps {
   onExport?: () => void;
   onResetFilters?: () => void;
   hasActiveFilters?: boolean;
+  selectedDataset?: SharedDatasetRef;
+  onDatasetChange?: (dataset: SharedDatasetRef) => void;
 }
 
 export function KpiSummaryBar({
@@ -36,8 +43,9 @@ export function KpiSummaryBar({
   onExport,
   onResetFilters,
   hasActiveFilters = false,
+  selectedDataset = { kind: "current" },
+  onDatasetChange,
 }: KpiSummaryBarProps) {
-  const loadedAt = summary?.loadedAt ?? null;
   const filtered = summary?.filtered;
   const global = summary?.global;
   const isEmptyDataset =
@@ -67,8 +75,19 @@ export function KpiSummaryBar({
               Сбросить фильтры
             </Button>
           )}
-          <LoadedAtIndicator loadedAt={loadedAt} isLoading={isLoading} />
-          <ExternalApiHelpDialog phoneMask={phoneNumber} disabled={isImporting} />
+          <DatasetDatePicker />
+          {onDatasetChange && (
+            <DatasetSelector
+              value={selectedDataset}
+              onChange={onDatasetChange}
+              disabled={isImporting}
+            />
+          )}
+          <ExternalApiHelpDialog
+            phoneMask={phoneNumber}
+            dataset={selectedDataset}
+            disabled={isImporting}
+          />
           <ToolbarOutlineButton
             onClick={onExport}
             disabled={isImporting || isExporting}
@@ -186,30 +205,6 @@ export function KpiSummaryBar({
           disabled={isImporting}
         />
       </div>
-    </div>
-  );
-}
-
-function LoadedAtIndicator({
-  loadedAt,
-  isLoading,
-}: {
-  loadedAt: string | null;
-  isLoading?: boolean;
-}) {
-  return (
-    <div
-      className="flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm"
-      title="Дата последней загрузки данных"
-    >
-      <span className="text-muted-foreground">Дата загрузки:</span>
-      <span className="ml-1.5 font-semibold tabular-nums text-green-600">
-        {isLoading ? (
-          <Skeleton className="inline-block h-4 w-28 align-middle" />
-        ) : (
-          formatDateTime(loadedAt)
-        )}
-      </span>
     </div>
   );
 }

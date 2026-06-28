@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRangesPageSearchParams,
+  parseDatasetFromSearchParams,
   parseRangesTableFromSearchParams,
 } from "@/lib/url/rangesPageUrl";
 import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
@@ -36,5 +37,25 @@ describe("rangesPageUrl", () => {
         ])
       )
     ).toBeNull();
+  });
+
+  it("round-trips dataset query param", () => {
+    const snapshotId = "550e8400-e29b-41d4-a716-446655440000";
+    const params = buildRangesPageSearchParams(
+      DEFAULT_FILTERS,
+      [{ id: "abc", desc: false }, { id: "rangeStart", desc: false }],
+      { kind: "diff", snapshotId }
+    );
+
+    expect(params.get("dataset")).toBe(`diff:${snapshotId}`);
+    expect(parseDatasetFromSearchParams(params)).toEqual({
+      kind: "diff",
+      snapshotId,
+    });
+  });
+
+  it("falls back to current for invalid dataset param", () => {
+    const params = new URLSearchParams({ dataset: "diff:not-a-uuid" });
+    expect(parseDatasetFromSearchParams(params)).toEqual({ kind: "current" });
   });
 });

@@ -3,6 +3,7 @@ import type {
   FiltersDTO,
   FacetColumn,
 } from "@/packages/shared/contracts/filters.schema";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { facetInnRanges } from "./facetInnRanges";
 import { facetRangesFromDict } from "./facetRangesFromDict";
 import { facetUvrAntifraudRanges } from "./facetUvrAntifraudRanges";
@@ -12,6 +13,7 @@ export async function facetRanges(params: {
   filters: FiltersDTO;
   search?: string;
   limit?: number;
+  dataset?: DatasetRef;
 }) {
   switch (params.column) {
     case "inn":

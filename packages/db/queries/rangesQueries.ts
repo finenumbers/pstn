@@ -1,4 +1,5 @@
 import type { FiltersDTO, RangesCursor, SortableColumn } from "@/packages/shared/contracts/filters.schema";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { getCachedSummary, setCachedSummary } from "@/lib/cache/summaryCache";
 import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
 import { PHONE_CAPACITY_SUMMARY_LIMIT } from "@/lib/filters/phoneSearchLimits";
@@ -9,13 +10,26 @@ import {
   countDistinct,
   desc,
   eq,
+  sql,
   type SQL,
   sum,
 } from "drizzle-orm";
 import { db } from "../index";
-import { datasetMeta, numberRanges, operatorsRegister } from "../schema";
+import {
+  datasetMeta,
+  datasetSnapshots,
+  numberRangeDiffs,
+  numberRanges,
+  operatorsRegister,
+} from "../schema";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 import { buildWhere } from "./buildWhere";
+import {
+  CURRENT_RANGE_CONTEXT,
+  resolveRangeQueryContext,
+  type RangeQueryContext,
+} from "./datasetContext";
+import { getSnapshotLoadDate } from "./datasetsQueries";
 import { getUvrAntifraudBindingCached } from "./refreshUvrAntifraudBinding";
 import { phoneNumberPartialMatchCountExpr } from "./phoneNumberMatchCount";
 import {
@@ -46,32 +60,43 @@ export type SummaryRangesResult = {
   };
 };
 
-const COLUMN_MAP = {
-  abc: numberRanges.abc,
-  rangeStart: numberRanges.rangeStart,
-  rangeEnd: numberRanges.rangeEnd,
-  capacity: numberRanges.capacity,
-  operator: numberRanges.operator,
-  garTerritory: numberRanges.garTerritory,
-  region: numberRanges.region,
-  inn: numberRanges.inn,
-} as const;
+function getColumnMap(context: RangeQueryContext) {
+  const table = context.table;
+  return {
+    abc: table.abc,
+    rangeStart: table.rangeStart,
+    rangeEnd: table.rangeEnd,
+    capacity: table.capacity,
+    operator: table.operator,
+    garTerritory: table.garTerritory,
+    region: table.region,
+    inn: table.inn,
+  } as const;
+}
 
-export function buildOrderBy(sort: { id: string; desc: boolean }[]): SQL[] {
+export function buildOrderBy(
+  context: RangeQueryContext,
+  sort: { id: string; desc: boolean }[]
+): SQL[] {
+  const columns = getColumnMap(context);
   return sort.map((s) => {
-    const col = COLUMN_MAP[s.id as keyof typeof COLUMN_MAP];
+    const col = columns[s.id as keyof typeof columns];
     return s.desc ? desc(col) : asc(col);
   });
 }
 
-function buildTailOrderBy(sort: { id: string; desc: boolean }[]): SQL[] {
+function buildTailOrderBy(
+  context: RangeQueryContext,
+  sort: { id: string; desc: boolean }[]
+): SQL[] {
+  const table = context.table;
   const hasRangeStart = sort.some((s) => s.id === "rangeStart");
   const allDesc = sort.every((s) => s.desc);
   const tail: SQL[] = [];
   if (!hasRangeStart) {
-    tail.push(asc(numberRanges.rangeStart));
+    tail.push(asc(table.rangeStart));
   }
-  tail.push(allDesc ? desc(numberRanges.id) : asc(numberRanges.id));
+  tail.push(allDesc ? desc(table.id) : asc(table.id));
   return tail;
 }
 
@@ -82,11 +107,17 @@ export async function listRanges(params: {
   cursor?: RangesCursor | null;
   page?: number;
   skipCount?: boolean;
+  dataset?: DatasetRef;
 }) {
-  const baseWhere = buildWhere(params.filters);
-  const orderBy = buildOrderBy(params.sort);
+  const context = params.dataset
+    ? await resolveRangeQueryContext(params.dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const table = context.table;
+  const baseWhere = buildWhere(params.filters, context);
+  const orderBy = buildOrderBy(context, params.sort);
   const keysetWhere = params.cursor
     ? buildKeysetWhere(
+        table,
         params.sort as { id: SortableColumn; desc: boolean }[],
         params.cursor
       )
@@ -95,25 +126,30 @@ export async function listRanges(params: {
 
   const useOffset = !keysetWhere && params.page && params.page > 1;
   const offset = useOffset ? (params.page! - 1) * params.pageSize : 0;
-  const tailOrder = buildTailOrderBy(params.sort);
+  const tailOrder = buildTailOrderBy(context, params.sort);
 
   const dataQuery = db
     .select({
-      id: numberRanges.id,
-      abc: numberRanges.abc,
-      rangeStart: numberRanges.rangeStart,
-      rangeEnd: numberRanges.rangeEnd,
-      capacity: numberRanges.capacity,
-      operator: numberRanges.operator,
-      garTerritory: numberRanges.garTerritory,
-      region: numberRanges.region,
-      inn: numberRanges.inn,
+      id: table.id,
+      abc: table.abc,
+      rangeStart: table.rangeStart,
+      rangeEnd: table.rangeEnd,
+      capacity: table.capacity,
+      operator: table.operator,
+      garTerritory: table.garTerritory,
+      region: table.region,
+      inn: table.inn,
       uvrAntifraud: operatorsRegister.idSrc,
-      abcRangeGapBefore: numberRanges.abcGapBefore,
-      abcRangeGapAfter: numberRanges.abcGapAfter,
+      abcRangeGapBefore: context.isDiff
+        ? sql<boolean>`false`
+        : numberRanges.abcGapBefore,
+      abcRangeGapAfter: context.isDiff
+        ? sql<boolean>`false`
+        : numberRanges.abcGapAfter,
+      changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
     })
-    .from(numberRanges)
-    .leftJoin(operatorsRegister, innRegisterMatchSql())
+    .from(table)
+    .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
     .where(where)
     .orderBy(...orderBy, ...tailOrder)
     .limit(params.pageSize)
@@ -122,7 +158,7 @@ export async function listRanges(params: {
   const resolveTotalRows = (): Promise<number> => {
     if (params.cursor) return Promise.resolve(0);
     if (params.skipCount) return Promise.resolve(-1);
-    return countRanges(params.filters);
+    return countRanges(params.filters, params.dataset);
   };
 
   const [totalRows, data] = await Promise.all([
@@ -131,14 +167,26 @@ export async function listRanges(params: {
   ]);
 
   return {
-    data,
+    data: data.map((row) => ({
+      ...row,
+      changeType: row.changeType as "added" | "changed" | "removed" | null | undefined,
+      abcRangeGapBefore: Boolean(row.abcRangeGapBefore),
+      abcRangeGapAfter: Boolean(row.abcRangeGapAfter),
+    })),
     totalRows,
     hasMore: data.length === params.pageSize,
   };
 }
 
-export async function countRanges(filters: FiltersDTO): Promise<number> {
-  if (!hasActiveFilters(filters)) {
+export async function countRanges(
+  filters: FiltersDTO,
+  dataset?: DatasetRef
+): Promise<number> {
+  const context = dataset
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
+
+  if (!context.isDiff && !hasActiveFilters(filters)) {
     const metaRows = await db
       .select({ totalRows: datasetMeta.totalRows })
       .from(datasetMeta)
@@ -149,30 +197,38 @@ export async function countRanges(filters: FiltersDTO): Promise<number> {
     }
   }
 
-  const where = buildWhere(filters);
+  const where = buildWhere(filters, context);
   const result = await db
     .select({ total: count() })
-    .from(numberRanges)
+    .from(context.table)
     .where(where);
   return Number(result[0]?.total ?? 0);
 }
 
-async function loadGlobalSummaryFromTable(): Promise<{
+async function loadGlobalSummaryFromTable(
+  context: RangeQueryContext
+): Promise<{
   rangeCount: number;
   totalCapacity: number;
   uniqueRegions: number;
   uniqueGarTerritories: number;
   uniqueOperators: number;
 }> {
+  const table = context.table;
   const globalResult = await db
     .select({
       rangeCount: count(),
-      totalCapacity: sum(numberRanges.capacity),
-      uniqueRegions: countDistinct(numberRanges.region),
-      uniqueGarTerritories: countDistinct(numberRanges.garTerritory),
-      uniqueOperators: countDistinct(numberRanges.operator),
+      totalCapacity: sum(table.capacity),
+      uniqueRegions: countDistinct(table.region),
+      uniqueGarTerritories: countDistinct(table.garTerritory),
+      uniqueOperators: countDistinct(table.operator),
     })
-    .from(numberRanges);
+    .from(table)
+    .where(
+      context.isDiff && context.snapshotId
+        ? eq(numberRangeDiffs.snapshotId, context.snapshotId)
+        : undefined
+    );
   const global = globalResult[0];
   return {
     rangeCount: Number(global?.rangeCount ?? 0),
@@ -180,6 +236,38 @@ async function loadGlobalSummaryFromTable(): Promise<{
     uniqueRegions: Number(global?.uniqueRegions ?? 0),
     uniqueGarTerritories: Number(global?.uniqueGarTerritories ?? 0),
     uniqueOperators: Number(global?.uniqueOperators ?? 0),
+  };
+}
+
+async function loadDiffGlobalFromSnapshot(snapshotId: string) {
+  const rows = await db
+    .select()
+    .from(datasetSnapshots)
+    .where(eq(datasetSnapshots.id, snapshotId))
+    .limit(1);
+  const snapshot = rows[0];
+  if (!snapshot) {
+    return loadGlobalSummaryFromTable({
+      table: numberRangeDiffs,
+      snapshotId,
+      isDiff: true,
+    });
+  }
+
+  const rangeCount =
+    snapshot.addedCount + snapshot.changedCount + snapshot.removedCount;
+  const tableStats = await loadGlobalSummaryFromTable({
+    table: numberRangeDiffs,
+    snapshotId,
+    isDiff: true,
+  });
+
+  return {
+    rangeCount,
+    totalCapacity: tableStats.totalCapacity,
+    uniqueRegions: tableStats.uniqueRegions,
+    uniqueGarTerritories: tableStats.uniqueGarTerritories,
+    uniqueOperators: tableStats.uniqueOperators,
   };
 }
 
@@ -212,9 +300,13 @@ function globalSummaryFromMeta(
 }
 
 export async function summaryRanges(
-  filters: FiltersDTO
+  filters: FiltersDTO,
+  dataset?: DatasetRef
 ): Promise<SummaryRangesResult> {
-  const cached = getCachedSummary<SummaryRangesResult>(filters);
+  const context = dataset
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const cached = getCachedSummary<SummaryRangesResult>(filters, dataset);
   if (cached) {
     return cached;
   }
@@ -226,12 +318,24 @@ export async function summaryRanges(
   const metaRow = metaRows[0];
   const uvrBinding = await getUvrAntifraudBindingCached();
 
-  if (!hasActiveFilters(filters)) {
-    const globalFromMeta = globalSummaryFromMeta(metaRow);
-    const global = globalFromMeta ?? (await loadGlobalSummaryFromTable());
+  const diffLoadedAt =
+    context.isDiff && context.snapshotId
+      ? await getSnapshotLoadDate(context.snapshotId)
+      : null;
+  const loadedAt =
+    diffLoadedAt != null
+      ? `${diffLoadedAt}T00:00:00.000Z`
+      : metaRow?.lastSuccessAt?.toISOString() ?? null;
 
+  const global =
+    context.isDiff && context.snapshotId
+      ? await loadDiffGlobalFromSnapshot(context.snapshotId)
+      : globalSummaryFromMeta(metaRow) ??
+        (await loadGlobalSummaryFromTable(context));
+
+  if (!hasActiveFilters(filters)) {
     const result = {
-      loadedAt: metaRow?.lastSuccessAt?.toISOString() ?? null,
+      loadedAt,
       filtered: {
         rangeCount: global.rangeCount,
         totalCapacity: global.totalCapacity,
@@ -242,23 +346,24 @@ export async function summaryRanges(
       global,
       uvrBinding,
     };
-    setCachedSummary(filters, result);
+    setCachedSummary(filters, result, dataset);
     return result;
   }
 
-  const filteredWhere = buildWhere(filters);
+  const filteredWhere = buildWhere(filters, context);
   const phoneParts = filters.phoneNumber
     ? parsePhoneNumberMask(filters.phoneNumber)
     : null;
+  const table = context.table;
 
   const filteredResult = await db
     .select({
       rangeCount: count(),
-      uniqueRegions: countDistinct(numberRanges.region),
-      uniqueGarTerritories: countDistinct(numberRanges.garTerritory),
-      uniqueOperators: countDistinct(numberRanges.operator),
+      uniqueRegions: countDistinct(table.region),
+      uniqueGarTerritories: countDistinct(table.garTerritory),
+      uniqueOperators: countDistinct(table.operator),
     })
-    .from(numberRanges)
+    .from(table)
     .where(filteredWhere);
 
   const filtered = filteredResult[0];
@@ -273,28 +378,24 @@ export async function summaryRanges(
     } else {
       const capacityResult = await db
         .select({
-          totalCapacity: sum(phoneNumberPartialMatchCountExpr(phoneParts)),
+          totalCapacity: sum(phoneNumberPartialMatchCountExpr(phoneParts, table)),
         })
-        .from(numberRanges)
+        .from(table)
         .where(filteredWhere);
       totalCapacity = Number(capacityResult[0]?.totalCapacity ?? 0);
     }
   } else {
     const capacityResult = await db
       .select({
-        totalCapacity: sum(numberRanges.capacity),
+        totalCapacity: sum(table.capacity),
       })
-      .from(numberRanges)
+      .from(table)
       .where(filteredWhere);
     totalCapacity = Number(capacityResult[0]?.totalCapacity ?? 0);
   }
 
-  const globalFromMeta = globalSummaryFromMeta(metaRow);
-  const global =
-    globalFromMeta ?? (await loadGlobalSummaryFromTable());
-
   const result = {
-    loadedAt: metaRow?.lastSuccessAt?.toISOString() ?? null,
+    loadedAt,
     filtered: {
       rangeCount,
       totalCapacity,
@@ -303,27 +404,27 @@ export async function summaryRanges(
       uniqueGarTerritories: Number(filtered?.uniqueGarTerritories ?? 0),
       uniqueOperators: Number(filtered?.uniqueOperators ?? 0),
     },
-    global: {
-      rangeCount: global.rangeCount,
-      totalCapacity: global.totalCapacity,
-      uniqueRegions: global.uniqueRegions,
-      uniqueGarTerritories: global.uniqueGarTerritories,
-      uniqueOperators: global.uniqueOperators,
-    },
+    global,
     uvrBinding,
   };
-  setCachedSummary(filters, result);
+  setCachedSummary(filters, result, dataset);
   return result;
 }
 
 export async function listRangesForExport(
   filters: FiltersDTO,
   limit: number,
-  cursor?: RangesCursor | null
+  cursor?: RangesCursor | null,
+  dataset?: DatasetRef
 ) {
-  const baseWhere = buildWhere(filters);
+  const context = dataset
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const table = context.table;
+  const baseWhere = buildWhere(filters, context);
   const keysetWhere = cursor
     ? buildKeysetWhere(
+        table,
         [
           { id: "abc", desc: false },
           { id: "rangeStart", desc: false },
@@ -335,26 +436,27 @@ export async function listRangesForExport(
 
   return db
     .select({
-      id: numberRanges.id,
-      abc: numberRanges.abc,
-      rangeStart: numberRanges.rangeStart,
-      rangeEnd: numberRanges.rangeEnd,
-      capacity: numberRanges.capacity,
-      operator: numberRanges.operator,
-      garTerritory: numberRanges.garTerritory,
-      region: numberRanges.region,
-      inn: numberRanges.inn,
+      id: table.id,
+      abc: table.abc,
+      rangeStart: table.rangeStart,
+      rangeEnd: table.rangeEnd,
+      capacity: table.capacity,
+      operator: table.operator,
+      garTerritory: table.garTerritory,
+      region: table.region,
+      inn: table.inn,
       uvrAntifraud: operatorsRegister.idSrc,
-      abcRangeGapBefore: numberRanges.abcGapBefore,
-      abcRangeGapAfter: numberRanges.abcGapAfter,
+      abcRangeGapBefore: context.isDiff
+        ? sql<boolean>`false`
+        : numberRanges.abcGapBefore,
+      abcRangeGapAfter: context.isDiff
+        ? sql<boolean>`false`
+        : numberRanges.abcGapAfter,
+      changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
     })
-    .from(numberRanges)
-    .leftJoin(operatorsRegister, innRegisterMatchSql())
+    .from(table)
+    .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
     .where(where)
-    .orderBy(
-      asc(numberRanges.abc),
-      asc(numberRanges.rangeStart),
-      asc(numberRanges.id)
-    )
+    .orderBy(asc(table.abc), asc(table.rangeStart), asc(table.id))
     .limit(limit);
 }

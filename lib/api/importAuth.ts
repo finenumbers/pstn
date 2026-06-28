@@ -17,3 +17,15 @@ export function checkImportAuthorization(
 
   return apiError("UNAUTHORIZED", "Invalid or missing import secret", 401);
 }
+
+export function requireImportSecret(request: Request): NextResponse | null {
+  const secret = process.env.IMPORT_SECRET?.trim();
+  if (!secret) {
+    return apiError(
+      "UNAUTHORIZED",
+      "IMPORT_SECRET is required for scheduled imports",
+      401
+    );
+  }
+  return checkImportAuthorization(request);
+}

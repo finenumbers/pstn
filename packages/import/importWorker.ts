@@ -8,6 +8,7 @@ import {
   refreshUvrAntifraudBinding,
 } from "@/packages/db/queries/refreshUvrAntifraudBinding";
 import { ensureOprRegisterLoaded } from "@/packages/import/importOprRegister";
+import { clearSummaryCache } from "@/lib/cache/summaryCache";
 import { buildImportProgressDisplay } from "@/lib/import/importProgressView";
 import {
   BATCH_SIZE,
@@ -26,14 +27,35 @@ import {
   CsvParseIncompleteError,
   parseCsvStream,
 } from "./csvParser";
+import {
+  dropImportDiffOldTable,
+  getStoredSourceHashes,
+  loadImportDiffOldRanges,
+  loadStagingRangesForDiff,
+  mskLoadDateKey,
+  prepareImportDiffOldTable,
+  saveDatasetMetaAfterImport,
+  saveDiffSnapshot,
+} from "./diffSnapshot";
+import {
+  countDiffSegments,
+  diffRangeDatasets,
+} from "./rangeDatasetDiff";
 import { recoverStaleImportJobs } from "./recoverStaleImportJobs";
 import {
   assertStagingImportComplete,
   ImportValidationError,
 } from "./validateStagingImport";
 import { getDownloadStream } from "./sourceFileHttp";
+import {
+  hashAllSourceFiles,
+  sourceHashesEqual,
+  type SourceFileHashes,
+} from "./sourceFileHash";
 
 const IMPORT_JOB_ADVISORY_LOCK_KEY = 7123456789;
+
+export type ImportTriggeredBy = "manual" | "cron";
 
 async function touchImportJobHeartbeat(jobId: string): Promise<boolean> {
   const rows = await db
@@ -58,7 +80,9 @@ function normalizeFileRows(
   return value as Partial<LoadedRowsBySource>;
 }
 
-export async function startImportJob(): Promise<{
+export async function startImportJob(
+  triggeredBy: ImportTriggeredBy = "manual"
+): Promise<{
   jobId: string;
   status: string;
 }> {
@@ -86,7 +110,7 @@ export async function startImportJob(): Promise<{
 
     const [job] = await tx
       .insert(importJobs)
-      .values({ status: "pending", fileRows: {} })
+      .values({ status: "pending", triggeredBy, fileRows: {} })
       .returning();
 
     return { jobId: job.id, status: "pending", schedule: true };
@@ -182,10 +206,12 @@ async function failImportJob(
     .where(eq(importJobs.id, jobId));
 
   await clearStaging().catch(() => undefined);
+  await dropImportDiffOldTable().catch(() => undefined);
 }
 
 async function runImportJob(jobId: string): Promise<void> {
   const loadedByFile: LoadedRowsBySource = emptyLoadedRowsBySource();
+  let sourceHashes: SourceFileHashes | null = null;
 
   try {
     await db
@@ -193,10 +219,12 @@ async function runImportJob(jobId: string): Promise<void> {
       .set({
         status: "running",
         startedAt: new Date(),
-        progressPhase: "clearing_staging",
+        progressPhase: "checking_sources",
         filesProcessed: 0,
         rowsLoaded: 0,
         fileRows: {},
+        skipReason: null,
+        errorMessage: null,
       })
       .where(and(eq(importJobs.id, jobId), eq(importJobs.status, "pending")));
 
@@ -209,6 +237,35 @@ async function runImportJob(jobId: string): Promise<void> {
     if (running.length === 0) {
       return;
     }
+
+    sourceHashes = await hashAllSourceFiles();
+    await touchImportJobHeartbeat(jobId);
+
+    const storedHashes = await getStoredSourceHashes();
+    if (storedHashes && sourceHashesEqual(sourceHashes, storedHashes)) {
+      await db
+        .update(importJobs)
+        .set({
+          status: "skipped",
+          skipReason: "unchanged",
+          finishedAt: new Date(),
+          progressPhase: "skipped_unchanged",
+          filesProcessed: 0,
+          rowsLoaded: 0,
+          fileRows: {},
+        })
+        .where(eq(importJobs.id, jobId));
+      clearSummaryCache();
+      return;
+    }
+
+    await prepareImportDiffOldTable();
+    await touchImportJobHeartbeat(jobId);
+
+    await db
+      .update(importJobs)
+      .set({ progressPhase: "clearing_staging" })
+      .where(eq(importJobs.id, jobId));
 
     await clearStaging();
 
@@ -260,6 +317,20 @@ async function runImportJob(jobId: string): Promise<void> {
 
     await db
       .update(importJobs)
+      .set({ progressPhase: "computing_diff" })
+      .where(eq(importJobs.id, jobId));
+
+    await assertImportJobStillRunning(jobId);
+    const [oldRanges, newRanges] = await Promise.all([
+      loadImportDiffOldRanges(),
+      loadStagingRangesForDiff(),
+    ]);
+    const diffSegments = diffRangeDatasets(oldRanges, newRanges);
+    const diffCounts = countDiffSegments(diffSegments);
+    await touchImportJobHeartbeat(jobId);
+
+    await db
+      .update(importJobs)
       .set({ progressPhase: "swapping" })
       .where(eq(importJobs.id, jobId));
 
@@ -268,6 +339,22 @@ async function runImportJob(jobId: string): Promise<void> {
     await touchImportJobHeartbeat(jobId);
     await analyzeRanges();
     await touchImportJobHeartbeat(jobId);
+
+    if (diffSegments.length > 0) {
+      await db
+        .update(importJobs)
+        .set({ progressPhase: "saving_diff_snapshot" })
+        .where(eq(importJobs.id, jobId));
+
+      await assertImportJobStillRunning(jobId);
+      await saveDiffSnapshot({
+        jobId,
+        loadDate: mskLoadDateKey(new Date()),
+        segments: diffSegments,
+        counts: diffCounts,
+      });
+      await touchImportJobHeartbeat(jobId);
+    }
 
     await db
       .update(importJobs)
@@ -283,30 +370,15 @@ async function runImportJob(jobId: string): Promise<void> {
     const stats = await refreshDatasetGlobalStats();
     const finishedAt = new Date();
 
-    await db
-      .insert(datasetMeta)
-      .values({
-        id: 1,
-        lastSuccessAt: finishedAt,
-        lastJobId: jobId,
-        totalRows: stats.totalRows,
-        totalCapacity: stats.totalCapacity,
-        uniqueRegions: stats.uniqueRegions,
-        uniqueGarTerritories: stats.uniqueGarTerritories,
-        uniqueOperators: stats.uniqueOperators,
-      })
-      .onConflictDoUpdate({
-        target: datasetMeta.id,
-        set: {
-          lastSuccessAt: finishedAt,
-          lastJobId: jobId,
-          totalRows: stats.totalRows,
-          totalCapacity: stats.totalCapacity,
-          uniqueRegions: stats.uniqueRegions,
-          uniqueGarTerritories: stats.uniqueGarTerritories,
-          uniqueOperators: stats.uniqueOperators,
-        },
-      });
+    await saveDatasetMetaAfterImport({
+      jobId,
+      finishedAt,
+      sourceHashes: sourceHashes!,
+      stats,
+    });
+
+    await dropImportDiffOldTable();
+    clearSummaryCache();
 
     await db
       .update(importJobs)
@@ -362,7 +434,12 @@ export async function getImportStatus(jobId?: string) {
   }
 
   const fileRows = normalizeFileRows(job.fileRows);
-  const status = job.status as "pending" | "running" | "completed" | "failed";
+  const status = job.status as
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "skipped";
   const phase = job.progressPhase ?? "";
   const filesProcessed = job.filesProcessed ?? 0;
   const filesTotal = job.filesTotal ?? 4;
@@ -371,6 +448,7 @@ export async function getImportStatus(jobId?: string) {
   return {
     jobId: job.id,
     status,
+    skipReason: job.skipReason ?? undefined,
     progress: buildImportProgressDisplay({
       status,
       phase,

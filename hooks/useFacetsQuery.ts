@@ -1,4 +1,6 @@
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
+import { serializeDatasetParam } from "@/packages/shared/contracts/dataset.schema";
 import {
   normalizeFilters,
   FACET_COLUMNS,
@@ -19,17 +21,24 @@ function normalizeFacetSearch(
 export function useFacetsQuery(
   filters: FiltersDTO,
   facetSearch: Record<string, string>,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; dataset?: DatasetRef }
 ) {
+  const dataset = options?.dataset ?? { kind: "current" as const };
+  const datasetParam = serializeDatasetParam(dataset);
   const activeFacetSearch = normalizeFacetSearch(facetSearch);
   const normalizedFilters = normalizeFilters(filters);
-  const params = { filters: normalizedFilters, facetSearch: activeFacetSearch };
+  const params = {
+    filters: normalizedFilters,
+    facetSearch: activeFacetSearch,
+    dataset: datasetParam,
+  };
 
   return useQuery({
     queryKey: queryKeys.facets(params),
     queryFn: async ({ signal }) => {
       const filterParams = buildFilterParams(normalizedFilters);
       filterParams.set("columns", FACET_COLUMNS.join(","));
+      filterParams.set("dataset", datasetParam);
       for (const [col, search] of Object.entries(activeFacetSearch)) {
         filterParams.set(`search.${col}`, search);
       }

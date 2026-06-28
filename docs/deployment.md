@@ -35,8 +35,8 @@
 |------|---------|-------------------|-----|
 | `docker-compose.dev.yml` | postgres | `5432:5432` | встроенные dev-пароли |
 | `docker-compose.yml` | postgres + app | app `127.0.0.1:5555`, pg `127.0.0.1:5432` | встроенные dev-пароли |
-| `docker-compose.prod.yml` | postgres + app | app `127.0.0.1:5555` | `.env` |
-| `docker-compose.portainer.yml` | postgres + app | app `127.0.0.1:5555` | переменные в UI Portainer |
+| `docker-compose.prod.yml` | postgres + app + scheduler | app `127.0.0.1:5555` | `.env` |
+| `docker-compose.portainer.yml` | postgres + app + scheduler | app `127.0.0.1:5555` | переменные в UI Portainer |
 
 PostgreSQL в production **не** публикуется на хост — доступен только внутри docker-сети (`postgres:5432`).
 
@@ -179,7 +179,31 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `DB_IMPORT_POOL_MAX` | `4` | нет |
 | `EXTERNAL_API_BASE_URL` | `https://pstn.example.com` | рекомендуется |
 | `EXTERNAL_API_KEY` | фиксированный ключ | нет (auto) |
-| `IMPORT_SECRET` | секрет import API | нет |
+| `IMPORT_SECRET` | секрет import API | **да для scheduler** |
+
+### Автоимпорт (scheduler)
+
+Сервис `pstn_scheduler` **только** в [`docker-compose.prod.yml`](../docker-compose.prod.yml) и [`docker-compose.portainer.yml`](../docker-compose.portainer.yml). Локальные compose (`docker-compose.yml`, `docker-compose.dev.yml`) scheduler **не включают**.
+
+| Параметр | Значение |
+|----------|----------|
+| Container | `pstn_scheduler` |
+| Образ | `alpine:3.21` + `curl` + `crond` |
+| `CRON_TZ` | `Europe/Moscow` |
+| Расписание | **ежедневно 12:00 MSK** (`0 12 * * *`) |
+| Скрипт | `/usr/local/bin/pstn-cron-import.sh` |
+| Запрос | `POST http://app:${APP_PORT}/api/import` с `{"triggeredBy":"cron"}` и `X-Import-Secret` |
+| Лог | `[pstn-cron] HTTP <code> <json body>` |
+
+### IMPORT_SECRET и UI
+
+`IMPORT_SECRET` **обязателен** для scheduler (compose validation `:?`). В production stack secret задаётся и на **app**, и на **scheduler**.
+
+UI «Загрузить данные» **не отправляет** `X-Import-Secret` → при заданном secret на app кнопка возвращает **401**. Cron при этом работает.
+
+**Workarounds для manual import:** curl с header, NPM inject header, или убрать secret только на app (см. [operations.md](operations.md#ui-import-не-работает-при-import_secret)).
+
+Подробнее: [import-and-datasets.md](import-and-datasets.md).
 
 4. **Deploy the stack**
 5. Дождитесь статуса **healthy** у контейнера `pstn_app` (~1–2 мин при первом pull)
@@ -290,11 +314,12 @@ location /api/import {
 | `DB_IMPORT_POOL_MAX` | нет | `4` | Max connections import pool |
 | `EXTERNAL_API_KEY` | нет | auto | Ключ external lookup API |
 | `EXTERNAL_API_BASE_URL` | рекомендуется | — | Публичный URL для curl-примеров в UI |
-| `IMPORT_SECRET` | нет | — | Заголовок `X-Import-Secret` для import API |
+| `IMPORT_SECRET` | **да для scheduler** | — | Заголовок `X-Import-Secret` для import API и cron |
+| `CRON_TZ` | в scheduler | `Europe/Moscow` | Часовой пояс cron |
 | `OPR_CSV_PATH` | нет | bundled | Путь к CSV реестра OPR (см. ниже) |
 | `NODE_ENV` | в образе | `production` | Режим Next.js |
 
-> **Portainer:** в [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) проброшены только `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`. Переменные `EXTERNAL_API_KEY`, `IMPORT_SECRET`, `OPR_CSV_PATH` из [`portainer.env.example`](../portainer.env.example) **не попадают в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
+> **Portainer:** в compose проброшены `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`, `IMPORT_SECRET` (для app и scheduler). Переменная `EXTERNAL_API_KEY` из [`portainer.env.example`](../portainer.env.example) **не попадает в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
 
 ### Пул соединений PostgreSQL
 
@@ -373,6 +398,7 @@ Portainer stack использует `:latest`. Обновление на сер
 
 ## Связанные документы
 
+- [import-and-datasets.md](import-and-datasets.md) — импорт, cron, diff snapshots (опорный документ)
 - [security.md](security.md) — модель безопасности и секреты
 - [operations.md](operations.md) — backup, troubleshooting, OPR import
 - [user-guide.md](user-guide.md) — использование UI

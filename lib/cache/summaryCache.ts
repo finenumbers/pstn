@@ -1,3 +1,7 @@
+import {
+  datasetQueryKey,
+  type DatasetRef,
+} from "@/packages/shared/contracts/dataset.schema";
 import { normalizeFilters, type FiltersDTO } from "@/packages/shared/contracts/filters.schema";
 
 const SUMMARY_CACHE_TTL_MS = 60_000;
@@ -10,12 +14,19 @@ interface CacheEntry<T> {
 
 const summaryCache = new Map<string, CacheEntry<unknown>>();
 
-function summaryCacheKey(filters: FiltersDTO): string {
-  return JSON.stringify(normalizeFilters(filters));
+function summaryCacheKey(
+  filters: FiltersDTO,
+  dataset?: DatasetRef
+): string {
+  const datasetKey = dataset ? datasetQueryKey(dataset) : "current";
+  return `${datasetKey}:${JSON.stringify(normalizeFilters(filters))}`;
 }
 
-export function getCachedSummary<T>(filters: FiltersDTO): T | undefined {
-  const key = summaryCacheKey(filters);
+export function getCachedSummary<T>(
+  filters: FiltersDTO,
+  dataset?: DatasetRef
+): T | undefined {
+  const key = summaryCacheKey(filters, dataset);
   const entry = summaryCache.get(key) as CacheEntry<T> | undefined;
   if (!entry) return undefined;
   if (Date.now() > entry.expiresAt) {
@@ -25,8 +36,12 @@ export function getCachedSummary<T>(filters: FiltersDTO): T | undefined {
   return entry.value;
 }
 
-export function setCachedSummary<T>(filters: FiltersDTO, value: T): void {
-  const key = summaryCacheKey(filters);
+export function setCachedSummary<T>(
+  filters: FiltersDTO,
+  value: T,
+  dataset?: DatasetRef
+): void {
+  const key = summaryCacheKey(filters, dataset);
   if (summaryCache.size >= SUMMARY_CACHE_MAX_ENTRIES) {
     const oldestKey = summaryCache.keys().next().value;
     if (oldestKey) summaryCache.delete(oldestKey);

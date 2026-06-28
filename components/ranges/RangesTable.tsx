@@ -61,6 +61,7 @@ interface RangesTableProps {
   isFetchingNextPage?: boolean;
   errorMessage?: string;
   facetsError?: string;
+  isDiffView?: boolean;
 }
 
 const COLUMN_ORDER = [
@@ -114,6 +115,7 @@ export function RangesTable({
   isFetchingNextPage,
   errorMessage,
   facetsError,
+  isDiffView = false,
 }: RangesTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -295,18 +297,30 @@ export function RangesTable({
       row.original,
       prev
     );
+    const changeType = row.original.changeType;
 
     return (
       <TableRow
         key={`${row.original.id}-${rowIndex}`}
         className={cn(
-          isFrontirNetworkInn(row.original.inn) &&
+          isDiffView &&
+            changeType === "added" &&
+            "bg-green-600 text-white hover:bg-green-600/90",
+          isDiffView &&
+            changeType === "changed" &&
             "bg-yellow-400 hover:bg-yellow-400/90",
-          isNineSeriesAbc(row.original.abc) &&
+          isDiffView &&
+            changeType === "removed" &&
+            "bg-red-500 text-white hover:bg-red-500/90",
+          !isDiffView &&
+            isFrontirNetworkInn(row.original.inn) &&
+            "bg-yellow-400 hover:bg-yellow-400/90",
+          !isDiffView &&
+            isNineSeriesAbc(row.original.abc) &&
             !isFrontirNetworkInn(row.original.inn) &&
             "bg-green-100 hover:bg-green-100/90",
-          gapBefore && showGapMarkers && "range-gap-before",
-          gapAfter && showGapMarkers && "range-gap-after"
+          !isDiffView && gapBefore && showGapMarkers && "range-gap-before",
+          !isDiffView && gapAfter && showGapMarkers && "range-gap-after"
         )}
       >
         {COLUMN_ORDER.map((colId) => {
@@ -593,7 +607,7 @@ export function RangesTable({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <span className="text-muted-foreground">
           {totalRows < 0
             ? `Загружено ${formatNumber(data.length)}${hasMore ? "+" : ""}`
@@ -610,6 +624,13 @@ export function RangesTable({
           </button>
         )}
       </div>
+
+      {isDiffView && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+          Режим просмотра расхождений: зелёный — добавлено, жёлтый — изменено,
+          красный — удалено.
+        </div>
+      )}
     </div>
   );
 }

@@ -31,14 +31,17 @@ export function ImportProgressCard({
 
   const isActive =
     status.status === "pending" || status.status === "running";
-  const isSuccess = status.status === "completed";
+  const isSuccess =
+    status.status === "completed" || status.status === "skipped";
+  const isSkipped = status.status === "skipped";
   const isFailed = status.status === "failed";
 
   return (
     <Card
       className={cn(
         "border",
-        isSuccess && "border-green-200 bg-green-50/80",
+        isSuccess && !isSkipped && "border-green-200 bg-green-50/80",
+        isSkipped && "border-blue-200 bg-blue-50/80",
         isFailed && "border-red-200 bg-red-50/80",
         isActive && "border-blue-200 bg-blue-50/80"
       )}
@@ -50,18 +53,24 @@ export function ImportProgressCard({
               {isActive && (
                 <Loader2 className="h-4 w-4 animate-spin text-blue-700" />
               )}
-              {isSuccess && (
+              {isSuccess && !isSkipped && (
                 <CheckCircle2 className="h-4 w-4 text-green-700" />
+              )}
+              {isSkipped && (
+                <CheckCircle2 className="h-4 w-4 text-blue-700" />
               )}
               {isFailed && <XCircle className="h-4 w-4 text-red-700" />}
               <span
                 className={cn(
-                  isSuccess && "text-green-900",
+                  isSuccess && !isSkipped && "text-green-900",
+                  isSkipped && "text-blue-900",
                   isFailed && "text-red-900",
                   isActive && "text-blue-900"
                 )}
               >
-                {isSuccess
+                {isSkipped
+                  ? "Данные актуальны"
+                  : isSuccess
                   ? "Загрузка завершена"
                   : isFailed
                     ? "Загрузка не завершена"
@@ -71,7 +80,8 @@ export function ImportProgressCard({
             <p
               className={cn(
                 "text-sm",
-                isSuccess && "text-green-800",
+                isSuccess && !isSkipped && "text-green-800",
+                isSkipped && "text-blue-800",
                 isFailed && "text-red-800",
                 isActive && "text-blue-800"
               )}
@@ -102,22 +112,26 @@ export function ImportProgressCard({
           </div>
         )}
 
-        <ul className="grid grid-cols-4 gap-2">
-          {progress.files.map((file) => (
-            <FileProgressRow key={file.key} file={file} />
-          ))}
-        </ul>
+        {!isSkipped && (
+          <ul className="grid grid-cols-4 gap-2">
+            {progress.files.map((file) => (
+              <FileProgressRow key={file.key} file={file} />
+            ))}
+          </ul>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <p className="tabular-nums text-muted-foreground">
-            Всего загружено:{" "}
-            <span className="font-medium text-foreground">
-              {formatNumber(progress.rowsLoaded)}
-            </span>{" "}
-            {isSuccess && progress.filesTotal === progress.filesProcessed
-              ? `· ${progress.filesTotal}/${progress.filesTotal} файла`
-              : null}
-          </p>
+          {!isSkipped && (
+            <p className="tabular-nums text-muted-foreground">
+              Всего загружено:{" "}
+              <span className="font-medium text-foreground">
+                {formatNumber(progress.rowsLoaded)}
+              </span>{" "}
+              {isSuccess && progress.filesTotal === progress.filesProcessed
+                ? `· ${progress.filesTotal}/${progress.filesTotal} файла`
+                : null}
+            </p>
+          )}
 
           {isFailed && onRetry && (
             <Button size="sm" onClick={onRetry}>
@@ -125,6 +139,12 @@ export function ImportProgressCard({
             </Button>
           )}
         </div>
+
+        {isSkipped && (
+          <div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 text-sm text-blue-900">
+            Данные актуальны, обновление не требуется.
+          </div>
+        )}
 
         {isFailed && status.errorMessage && (
           <div className="rounded-md border border-red-200 bg-white/70 px-3 py-2 text-sm text-red-900">

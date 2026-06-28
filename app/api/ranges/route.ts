@@ -7,6 +7,9 @@ import {
   type SortableColumn,
 } from "@/packages/shared/contracts/filters.schema";
 import { decodeRangesCursor } from "@/lib/api/rangesCursor";
+import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
+import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import { listRanges } from "@/packages/db/queries/rangesQueries";
 import { shouldSkipPhoneRangeCount } from "@/lib/filters/phoneSearchLimits";
@@ -44,6 +47,11 @@ export async function GET(request: NextRequest) {
       return apiError("VALIDATION_ERROR", "Invalid cursor", 400);
     }
 
+    const dataset = parseDatasetOrError(params);
+    if (isDatasetParseError(dataset)) {
+      return dataset;
+    }
+
     const { data, totalRows, hasMore } = await listRanges({
       filters,
       sort,
@@ -51,6 +59,7 @@ export async function GET(request: NextRequest) {
       cursor,
       page: cursor ? undefined : parsed.data.page,
       skipCount: shouldSkipPhoneRangeCount(filters),
+      dataset,
     });
 
     withTiming("/api/ranges", startMs, {
@@ -72,6 +81,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof DatasetNotFoundError) {
+      return datasetNotFoundResponse(error);
+    }
     return internalServerError(error);
   }
 }

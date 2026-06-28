@@ -47,6 +47,7 @@ services:
       DB_POOL_MAX: ${DB_POOL_MAX:-10}
       DB_IMPORT_POOL_MAX: ${DB_IMPORT_POOL_MAX:-4}
       EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
+      IMPORT_SECRET: ${IMPORT_SECRET:-}
     volumes:
       - pstn_secrets:/app/.secrets
     depends_on:
@@ -65,6 +66,40 @@ services:
     networks:
       - pstn_internal
       - proxy
+
+  scheduler:
+    image: alpine:3.21
+    container_name: pstn_scheduler
+    restart: unless-stopped
+    environment:
+      APP_PORT: ${APP_PORT:-5555}
+      IMPORT_SECRET: ${IMPORT_SECRET:?Set IMPORT_SECRET for scheduler}
+      CRON_TZ: Europe/Moscow
+    depends_on:
+      app:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        cat > /usr/local/bin/pstn-cron-import.sh << 'SCRIPT'
+        #!/bin/sh
+        code=$(curl -s -o /tmp/pstn-import.json -w "%{http_code}" \
+          -X POST "http://app:${APP_PORT}/api/import" \
+          -H "X-Import-Secret: ${IMPORT_SECRET}" \
+          -H "Content-Type: application/json" \
+          -d '{"triggeredBy":"cron"}')
+        echo "[pstn-cron] HTTP ${code} $(cat /tmp/pstn-import.json 2>/dev/null)"
+        if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+          exit 1
+        fi
+        SCRIPT
+        chmod +x /usr/local/bin/pstn-cron-import.sh
+        echo "0 12 * * * /usr/local/bin/pstn-cron-import.sh" > /etc/crontabs/root
+        crond -f -l 8
+    networks:
+      - pstn_internal
 
 networks:
   pstn_internal:

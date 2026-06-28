@@ -2,6 +2,7 @@ import { and, inArray, lt } from "drizzle-orm";
 import { db, importPool } from "@/packages/db";
 import { importJobs } from "@/packages/db/schema";
 import { RANGES_STAGING_TABLE } from "@/packages/db/importTables";
+import { dropImportDiffOldTable } from "@/packages/import/diffSnapshot";
 import {
   STALE_IMPORT_JOB_MESSAGE,
   STALE_IMPORT_JOB_MS,
@@ -42,26 +43,7 @@ export async function recoverStaleImportJobs(): Promise<number> {
     );
 
   await importPool().query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
+  await dropImportDiffOldTable().catch(() => undefined);
 
   return stale.length;
-}
-
-export async function stagingTableExists(): Promise<boolean> {
-  const result = await importPool().query<{ exists: boolean }>(
-    `
-    SELECT EXISTS (
-      SELECT 1
-      FROM information_schema.tables
-      WHERE table_schema = 'public'
-        AND table_name = $1
-    ) AS exists
-  `,
-    [RANGES_STAGING_TABLE]
-  );
-  return result.rows[0]?.exists ?? false;
-}
-
-export async function truncateStagingIfExists(): Promise<void> {
-  if (!(await stagingTableExists())) return;
-  await importPool().query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
 }

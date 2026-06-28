@@ -8,7 +8,8 @@ export type ImportJobStatus =
   | "pending"
   | "running"
   | "completed"
-  | "failed";
+  | "failed"
+  | "skipped";
 
 export type ImportFileStatus = "pending" | "loading" | "done" | "failed";
 
@@ -40,16 +41,22 @@ export interface ImportProgressDisplay {
 const POST_LOAD_PHASES = [
   { id: "validating", label: "Проверка полноты данных" },
   { id: "computing_gaps", label: "Расчёт пропусков в диапазонах" },
+  { id: "computing_diff", label: "Анализ расхождений по диапазонам" },
   { id: "swapping", label: "Обновление таблицы и справочников" },
+  { id: "saving_diff_snapshot", label: "Сохранение расхождений" },
   { id: "binding_uvr_antifraud", label: "Привязка УВр Антифрод" },
   { id: "completed", label: "Готово" },
 ] as const;
 
 const PHASE_LABELS: Record<string, string> = {
   pending: "Ожидание запуска…",
+  checking_sources: "Сравнение с текущим датасетом…",
+  skipped_unchanged: "Данные актуальны, обновление не требуется",
   clearing_staging: "Подготовка к загрузке…",
   validating: "Проверка полноты данных…",
   computing_gaps: "Расчёт пропусков в диапазонах…",
+  computing_diff: "Анализ расхождений по диапазонам…",
+  saving_diff_snapshot: "Сохранение расхождений…",
   swapping: "Обновление таблицы и справочников…",
   binding_uvr_antifraud: "Привязка УВр Антифрод по ИНН…",
   completed: "Загрузка завершена",
@@ -71,6 +78,14 @@ export function buildImportFileProgress(
   filesProcessed = 0,
   filesTotal: number = SOURCE_FILES.length
 ): ImportFileProgress[] {
+  if (jobStatus === "skipped") {
+    return SOURCE_FILES.map((file) => ({
+      key: file.key,
+      status: "done" as const,
+      rows: null,
+    }));
+  }
+
   const loadingKey = loadingPhaseKey(phase);
   const hasFileBreakdown = SOURCE_FILES.some(
     (file) => (fileRows[file.key] ?? 0) > 0
@@ -124,6 +139,7 @@ export function computeImportPercent(
   filesTotal: number,
   jobStatus: ImportJobStatus
 ): number {
+  if (jobStatus === "skipped") return 100;
   if (jobStatus === "completed") return 100;
   if (jobStatus === "failed") {
     return Math.min(
@@ -133,22 +149,26 @@ export function computeImportPercent(
   }
 
   if (phase === "pending") return 1;
-  if (phase === "clearing_staging") return 3;
+  if (phase === "checking_sources") return 2;
+  if (phase === "skipped_unchanged") return 100;
+  if (phase === "clearing_staging") return 4;
 
   if (phase.startsWith("loading_")) {
-    const base = 5 + (filesProcessed / filesTotal) * 70;
-    return Math.min(78, Math.round(base + 4));
+    const base = 8 + (filesProcessed / filesTotal) * 62;
+    return Math.min(72, Math.round(base + 4));
   }
 
   if (phase.startsWith("loaded_")) {
-    const base = 5 + (filesProcessed / filesTotal) * 70;
-    return Math.min(80, Math.round(base + 8));
+    const base = 8 + (filesProcessed / filesTotal) * 62;
+    return Math.min(74, Math.round(base + 8));
   }
 
   const postPercent: Record<string, number> = {
-    validating: 84,
-    computing_gaps: 88,
-    swapping: 92,
+    validating: 78,
+    computing_gaps: 82,
+    computing_diff: 86,
+    swapping: 89,
+    saving_diff_snapshot: 92,
     binding_uvr_antifraud: 97,
     completed: 100,
   };
@@ -160,11 +180,41 @@ export function buildImportSteps(
   phase: string,
   jobStatus: ImportJobStatus
 ): ImportStepProgress[] {
+  if (jobStatus === "skipped") {
+    return [
+      {
+        id: "checking_sources",
+        label: "Сравнение с текущим датасетом",
+        status: "done",
+      },
+      {
+        id: "skipped_unchanged",
+        label: "Данные актуальны",
+        status: "done",
+      },
+    ];
+  }
+
   const fileStep: ImportStepProgress = {
     id: "files",
     label: "Загрузка файлов Минцифры",
     status: "pending",
   };
+
+  if (phase === "checking_sources") {
+    return [
+      {
+        id: "checking_sources",
+        label: "Сравнение с текущим датасетом",
+        status: "active",
+      },
+      ...POST_LOAD_PHASES.map((step) => ({
+        id: step.id,
+        label: step.label,
+        status: "pending" as ImportStepStatus,
+      })),
+    ];
+  }
 
   if (phase === "clearing_staging" || phase === "pending") {
     fileStep.status = phase === "clearing_staging" ? "active" : "pending";
@@ -214,6 +264,7 @@ export function resolvePhaseLabel(
   phase: string,
   jobStatus: ImportJobStatus
 ): string {
+  if (jobStatus === "skipped") return PHASE_LABELS.skipped_unchanged;
   if (jobStatus === "completed") return PHASE_LABELS.completed;
   if (jobStatus === "failed") return PHASE_LABELS.failed;
 

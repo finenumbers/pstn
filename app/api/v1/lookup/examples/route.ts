@@ -5,13 +5,21 @@ import {
   buildLookupCurlExamples,
   resolveLookupExampleOrigin,
 } from "@/lib/api/lookupApiExample";
+import { parseDatasetFromSearchParams } from "@/lib/api/datasetParam";
+import { serializeDatasetParam } from "@/packages/shared/contracts/dataset.schema";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const apiKey = getExternalApiKey();
   const configuredBaseUrl = getExternalApiBaseUrl() ?? null;
-  const phoneMask = request.nextUrl.searchParams.get("phoneMask") ?? "";
+  const params = request.nextUrl.searchParams;
+  const phoneMask = params.get("phoneMask") ?? "";
+  const dataset = parseDatasetFromSearchParams(params);
+  if (dataset instanceof NextResponse) {
+    return dataset;
+  }
+  const datasetParam = serializeDatasetParam(dataset);
 
   if (!apiKey) {
     return NextResponse.json(
@@ -38,7 +46,8 @@ export async function GET(request: NextRequest) {
   const { exactCurl, searchCurl } = buildLookupCurlExamples(
     origin,
     apiKey,
-    phoneMask
+    phoneMask,
+    datasetParam
   );
 
   return NextResponse.json({

@@ -38,6 +38,21 @@ describe("lookupApiExample", () => {
     expect(curl).toContain("pageSize=50");
   });
 
+  it("includes dataset param in search curl when not current", () => {
+    const snapshotId = "550e8400-e29b-41d4-a716-446655440000";
+    const curl = buildLookupSearchCurlExample(
+      "https://api.pstn.example.com",
+      "test-api-key",
+      LOOKUP_DEFAULT_MASK,
+      1,
+      50,
+      `diff:${snapshotId}`
+    );
+    expect(curl).toContain(
+      encodeURIComponent(`diff:${snapshotId}`)
+    );
+  });
+
   it("returns null for incomplete phone mask", () => {
     expect(phoneQueryFromMask("3012110000")).toBe("3012110000");
     expect(phoneQueryFromMask("301______")).toBeNull();

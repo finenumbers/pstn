@@ -1,4 +1,5 @@
 import type { FiltersDTO, NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
+import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import {
   listRangesForExport,
 } from "@/packages/db/queries/rangesQueries";
@@ -70,16 +71,31 @@ function exportRowToNumberRangeRow(
     uvrAntifraud: row.uvrAntifraud,
     abcRangeGapBefore: row.abcRangeGapBefore,
     abcRangeGapAfter: row.abcRangeGapAfter,
+    changeType: row.changeType as NumberRangeRow["changeType"],
   };
 }
 
+const CHANGE_TYPE_LABELS: Record<string, string> = {
+  added: "Добавлено",
+  changed: "Изменено",
+  removed: "Удалено",
+};
+
 export async function createRangesXlsxExport(
   filters: FiltersDTO,
-  totalRows: number
+  totalRows: number,
+  dataset?: DatasetRef
 ): Promise<{
   body: ReadableStream<Uint8Array>;
   totalRows: number;
 }> {
+  const isDiff = dataset?.kind === "diff";
+  const columns: Partial<ExcelJS.Column>[] = isDiff
+    ? [
+        { header: "Тип изменения", key: "changeType", width: 14 },
+        ...EXPORT_XLS_COLUMNS,
+      ]
+    : EXPORT_XLS_COLUMNS;
   const passThrough = new PassThrough();
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
     stream: passThrough,
@@ -87,12 +103,12 @@ export async function createRangesXlsxExport(
     useSharedStrings: false,
   });
   const worksheet = workbook.addWorksheet("Диапазоны");
-  worksheet.columns = EXPORT_XLS_COLUMNS.map(({ key, width }) => ({ key, width }));
-  const columnCount = EXPORT_XLS_COLUMNS.length;
+  worksheet.columns = columns.map(({ key, width }) => ({ key, width }));
+  const columnCount = columns.length;
 
   const writeTask = (async () => {
     const headerRow = worksheet.addRow(
-      EXPORT_XLS_COLUMNS.map((col) => col.header ?? "")
+      columns.map((col) => col.header ?? "")
     );
     applyRowBorders(headerRow, columnCount);
     headerRow.commit();
@@ -104,7 +120,8 @@ export async function createRangesXlsxExport(
       const batch = await listRangesForExport(
         filters,
         EXPORT_BATCH_SIZE,
-        cursor
+        cursor,
+        dataset
       );
       if (batch.length === 0) break;
 
@@ -115,6 +132,11 @@ export async function createRangesXlsxExport(
           prevRow
         );
         const exportRow = {
+          ...(isDiff
+            ? {
+                changeType: CHANGE_TYPE_LABELS[row.changeType ?? ""] ?? "",
+              }
+            : {}),
           abc: sanitizeSpreadsheetCell(row.abc),
           rangeStart: row.rangeStart,
           rangeEnd: row.rangeEnd,
@@ -134,7 +156,12 @@ export async function createRangesXlsxExport(
       }
 
       if (batch.length < EXPORT_BATCH_SIZE) break;
-      cursor = rowToRangesCursor(batch[batch.length - 1]);
+      cursor = rowToRangesCursor({
+        ...batch[batch.length - 1],
+        changeType:
+          (batch[batch.length - 1].changeType as NumberRangeRow["changeType"]) ??
+          null,
+      });
     }
 
     await worksheet.commit();

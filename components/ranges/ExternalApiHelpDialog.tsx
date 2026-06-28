@@ -13,9 +13,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  serializeDatasetParam,
+  type DatasetRef,
+} from "@/packages/shared/contracts/dataset.schema";
 
 interface ExternalApiHelpDialogProps {
   phoneMask?: string;
+  dataset?: DatasetRef;
   disabled?: boolean;
 }
 
@@ -68,6 +73,7 @@ function ExampleBlock({
 
 export function ExternalApiHelpDialog({
   phoneMask = "",
+  dataset = { kind: "current" },
   disabled,
 }: ExternalApiHelpDialogProps) {
   const [open, setOpen] = useState(false);
@@ -83,6 +89,10 @@ export function ExternalApiHelpDialog({
       const params = new URLSearchParams();
       if (phoneMask.trim()) {
         params.set("phoneMask", phoneMask.trim());
+      }
+      const datasetParam = serializeDatasetParam(dataset);
+      if (datasetParam !== "current") {
+        params.set("dataset", datasetParam);
       }
       const query = params.toString();
       const response = await fetch(
@@ -113,7 +123,7 @@ export function ExternalApiHelpDialog({
     } finally {
       setLoading(false);
     }
-  }, [phoneMask]);
+  }, [phoneMask, dataset]);
 
   useEffect(() => {
     if (open) {

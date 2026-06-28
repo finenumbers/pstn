@@ -89,7 +89,9 @@ describe("importProgressView", () => {
       "files",
       "validating",
       "computing_gaps",
+      "computing_diff",
       "swapping",
+      "saving_diff_snapshot",
       "binding_uvr_antifraud",
       "completed",
     ]);
@@ -102,11 +104,34 @@ describe("importProgressView", () => {
   });
 
   it("returns 100% only for completed jobs", () => {
-    expect(computeImportPercent("swapping", 4, 4, "running")).toBe(92);
+    expect(computeImportPercent("swapping", 4, 4, "running")).toBe(89);
+    expect(computeImportPercent("saving_diff_snapshot", 4, 4, "running")).toBe(
+      92
+    );
     expect(computeImportPercent("binding_uvr_antifraud", 4, 4, "running")).toBe(
       97
     );
     expect(computeImportPercent("completed", 4, 4, "completed")).toBe(100);
+  });
+
+  it("builds skipped import progress display", () => {
+    const display = buildImportProgressDisplay({
+      status: "skipped",
+      phase: "skipped_unchanged",
+      fileRows: {},
+      filesProcessed: 0,
+      filesTotal: 4,
+      rowsLoaded: 0,
+    });
+
+    expect(display.percent).toBe(100);
+    expect(display.phaseLabel).toBe(
+      "Данные актуальны, обновление не требуется"
+    );
+    expect(display.steps.map((step) => step.id)).toEqual([
+      "checking_sources",
+      "skipped_unchanged",
+    ]);
   });
 
   it("builds full progress display payload", () => {

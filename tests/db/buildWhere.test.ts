@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWhere } from "@/packages/db/queries/buildWhere";
+import { numberRangeDiffs } from "@/packages/db/schema";
 import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 
 describe("buildWhere", () => {
@@ -43,5 +44,25 @@ describe("buildWhere", () => {
     expect(single).toBeDefined();
     expect(multi).toBeDefined();
     expect(multi).not.toEqual(single);
+  });
+
+  it("applies snapshot filter in diff context for coverage AND", () => {
+    const snapshotId = "550e8400-e29b-41d4-a716-446655440000";
+    const diffContext = {
+      table: numberRangeDiffs,
+      snapshotId,
+      isDiff: true,
+    };
+    const current = buildWhere(
+      { ...DEFAULT_FILTERS, abc: ["301", "353"] },
+      diffContext
+    );
+    const production = buildWhere({
+      ...DEFAULT_FILTERS,
+      abc: ["301", "353"],
+    });
+    expect(current).toBeDefined();
+    expect(production).toBeDefined();
+    expect(current).not.toEqual(production);
   });
 });

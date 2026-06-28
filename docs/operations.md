@@ -44,6 +44,91 @@ git push -u origin main
 
 ---
 
+## Автоимпорт (cron)
+
+При деплое с [`docker-compose.prod.yml`](../docker-compose.prod.yml) или Portainer stack поднимается контейнер **`pstn_scheduler`**. Он ежедневно в **12:00 Europe/Moscow** вызывает `POST /api/import` с `triggeredBy=cron`.
+
+> **Локальная разработка** (`docker-compose.yml`, `docker-compose.dev.yml`) **не включает** scheduler — import только вручную.
+
+### Поведение
+
+1. **SHA256** четырёх CSV сравнивается с `dataset_meta.source_hashes`.
+2. Если файлы **не изменились** — job получает статус `skipped`, production не трогается.
+3. Если **изменились** — полный pipeline: staging → validate → diff → swap → snapshot (если есть сегменты) → OPR/UVR.
+4. При наличии расхождений создаётся snapshot **«Расхождения DD.MM.YYYY»** (таблицы `dataset_snapshots`, `number_range_diffs`).
+
+### Scheduler container
+
+- Образ: `alpine:3.21` + `curl` + `crond`
+- Скрипт: `/usr/local/bin/pstn-cron-import.sh`
+- Лог успеха/ошибки: `[pstn-cron] HTTP <code> <json body>`
+- Non-2xx HTTP → exit code 1 (crond зафиксирует ошибку)
+
+### Требования
+
+- `IMPORT_SECRET` задан в env **app** и **scheduler** (compose validation)
+- Исходящий HTTPS до `opendata.digital.gov.ru`
+
+### Проверка
+
+```bash
+docker compose -f docker-compose.prod.yml logs scheduler --tail 50
+docker compose -f docker-compose.prod.yml exec postgres psql -U pstn -d pstn -c \
+  "SELECT status, skip_reason, triggered_by, progress_phase, finished_at FROM import_jobs ORDER BY created_at DESC LIMIT 5;"
+```
+
+Ожидаемый лог scheduler при успехе:
+
+```
+[pstn-cron] HTTP 200 {"jobId":"...","status":"pending"}
+```
+
+или при skip (после завершения job):
+
+```
+[pstn-cron] HTTP 200 {"jobId":"...","status":"skipped"}
+```
+
+Подробнее: [import-and-datasets.md](import-and-datasets.md).
+
+---
+
+## Diff snapshots: эксплуатация
+
+### Что хранится
+
+| Таблица | Содержание |
+|---------|------------|
+| `dataset_snapshots` | Метаданные: MSK `load_date`, counts added/changed/removed |
+| `number_range_diffs` | Строки расхождений с `change_type` и optional `prev_*` |
+
+Snapshot создаётся **только если** diff algorithm нашёл сегменты. Повторный import с diff в тот же MSK-день перезаписывает snapshot (UNIQUE на `load_date`).
+
+### Retention
+
+**Автоматического удаления** старых snapshots нет. Backup PostgreSQL (`./scripts/backup-db.sh`) включает snapshots.
+
+### Audit SQL
+
+```sql
+-- Список snapshots
+SELECT id, load_date, added_count, changed_count, removed_count, created_at
+FROM dataset_snapshots ORDER BY load_date DESC;
+
+-- Diff по типам
+SELECT s.load_date, d.change_type, COUNT(*)
+FROM dataset_snapshots s
+JOIN number_range_diffs d ON d.snapshot_id = s.id
+GROUP BY s.load_date, d.change_type
+ORDER BY s.load_date DESC, d.change_type;
+```
+
+### API для UI
+
+`GET /api/datasets` — список для селектора. UUID из `items[].id` (kind=diff) передаётся в query как `dataset=diff:<uuid>`.
+
+---
+
 ## Обновление приложения
 
 ### CLI (VPS)
@@ -109,13 +194,14 @@ gunzip -c /var/backups/pstn/pstn_20260622_120000.sql.gz | \
 
 ## Восстановление данных
 
-Автоимпортов и point-in-time recovery в проекте нет.
+**Point-in-time recovery (PITR) и восстановление «на момент вчерашнего cron» в проекте не реализованы.** Cron-импорт обновляет production in-place; diff snapshots — это журнал расхождений, а не полный backup.
 
 | Ситуация | Действие |
 |----------|----------|
-| KPI неверные / данные повреждены | `/ranges` → **«Загрузить данные»** (full reload) |
+| KPI неверные / данные повреждены | `/ranges` → **«Загрузить данные»** (full reload) или curl с `X-Import-Secret` |
 | Потеря volume `pstn_pg_data` | Восстановить backup + при необходимости re-import |
-| Import failed mid-way | Production не изменён; повторите import |
+| Import failed mid-way (до swap) | Production не изменён; повторите import |
+| Нужна история «что изменилось» | Селектор «Расхождения DD.MM.YYYY» или `GET /api/ranges?dataset=diff:<uuid>` |
 
 ---
 
@@ -142,7 +228,12 @@ npx tsx scripts/migrate.ts
 | App + DB | `curl -sf http://127.0.0.1:5555/api/health` | Локально на VPS |
 | Containers | `docker compose ps` | VPS / Portainer |
 | App logs | `docker compose logs -f app` | VPS |
+| **Scheduler logs** | `docker compose logs scheduler --tail 50` | Проверка cron; ищите `[pstn-cron] HTTP` |
 | Import status | UI progress card или `GET /api/import/status?jobId=` | При import |
+| Datasets list | `curl -s http://127.0.0.1:5555/api/datasets` | Проверка snapshots после import |
+| Import jobs SQL | `SELECT status, skip_reason, triggered_by FROM import_jobs ORDER BY created_at DESC LIMIT 5` | Audit |
+
+**Рекомендация:** настройте алерт, если scheduler log содержит `HTTP 401`, `HTTP 5xx` или отсутствует успешный cron-запуск более 25 часов.
 
 **Не рекомендуется** expose `/api/health` публично без rate limit.
 
@@ -225,10 +316,23 @@ tsx scripts/import-opr-csv.ts data/opr/OPR_2026_06_18_00_00_00.csv
 
 ### UI import не работает при `IMPORT_SECRET`
 
-UI не отправляет `X-Import-Secret`. Варианты:
+Production stack с scheduler **всегда** задаёт `IMPORT_SECRET` на app и scheduler. UI **не отправляет** заголовок `X-Import-Secret` → кнопка «Загрузить данные» возвращает **401**.
 
-- Уберите `IMPORT_SECRET`, полагайтесь на NPM Access List
-- Или вызывайте import через curl с заголовком
+**Workarounds:**
+
+1. **Manual import через curl** (рекомендуется):
+
+```bash
+curl -X POST "https://pstn.example.com/api/import" \
+  -H "X-Import-Secret: YOUR_SECRET" \
+  -H "Content-Type: application/json"
+```
+
+2. **NPM inject header** — добавить `X-Import-Secret` на POST `/api/import` для доверенных IP (осторожно с rate limit и ACL).
+
+3. **Убрать `IMPORT_SECRET` только на app** — cron продолжит работать (secret в scheduler env), manual UI заработает, но app не проверяет secret для POST import. Менее строго.
+
+Подробнее: [import-and-datasets.md](import-and-datasets.md), [security.md](security.md).
 
 ### External lookup 401
 
@@ -315,6 +419,7 @@ tsx scripts/import-opr-csv.ts ./opr.csv
 
 ## Связанные документы
 
+- [import-and-datasets.md](import-and-datasets.md) — импорт, cron, diff snapshots (опорный документ)
 - [deployment.md](deployment.md) — деплой, Portainer
 - [npm.md](npm.md) — NGINX Proxy Manager
 - [security.md](security.md) — секреты и auth

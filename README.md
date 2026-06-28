@@ -20,16 +20,20 @@ flowchart LR
   user[Пользователь / API-клиент]
   npm[NGINX Proxy Manager]
   app[pstn_app :5555]
+  sched[pstn_scheduler cron]
   pg[(PostgreSQL)]
 
   user --> npm
   npm --> app
+  sched --> app
   app --> pg
 ```
 
-В production приложение рассчитано на работу **за reverse proxy** (NGINX Proxy Manager). Встроенной авторизации (логин/пароль, сессии) **нет** — доступ к UI и internal API защищается на периметре (Access List, Basic Auth, VPN). Подробнее: [docs/security.md](docs/security.md).
+В production compose (`docker-compose.prod.yml`, Portainer) к postgres и app добавляется **scheduler** — ежедневный cron-импорт в 12:00 MSK. Локальные compose — только postgres + app.
 
-Compose-стек проекта содержит **только** PostgreSQL и приложение. NPM, Portainer и SSL настраиваются отдельно.
+Compose-стек проекта **не включает** NPM, Portainer и SSL — они настраиваются отдельно.
+
+В production приложение рассчитано на работу **за reverse proxy** (NGINX Proxy Manager). Встроенной авторизации (логин/пароль, сессии) **нет** — доступ к UI и internal API защищается на периметре (Access List, Basic Auth, VPN). Подробнее: [docs/security.md](docs/security.md).
 
 | Compose-файл | Назначение |
 |--------------|------------|
@@ -44,6 +48,7 @@ Compose-стек проекта содержит **только** PostgreSQL и 
 
 | Раздел | Содержание |
 |--------|------------|
+| [docs/import-and-datasets.md](docs/import-and-datasets.md) | **Импорт, cron, diff snapshots** — опорный документ |
 | [docs/deployment.md](docs/deployment.md) | Деплой: dev, Docker, VPS, Portainer, переменные окружения |
 | [docs/npm.md](docs/npm.md) | **NGINX Proxy Manager:** сценарии, Forward, 502, SSL, чеклист |
 | [docs/security.md](docs/security.md) | Модель безопасности, секреты, заголовки, threat model |
@@ -103,4 +108,15 @@ npm run audit              # npm audit --audit-level=high
 
 ## Данные
 
-Импорт — **только вручную** через UI («Загрузить данные») или `POST /api/import`. Автоимпортов и расписаний в проекте нет. Источник: четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Колонки **«Регион»** и **«Территория ГАР»** хранятся 1:1 из CSV; KPI **«Регионы / Территории ГАР»** показывает `N(M) / N(M)` (уникальные регионы и территории ГАР). Реестр OPR для колонки «УВр Антифрод» встроен в образ (`data/opr/OPR_2026_06_18_00_00_00.csv`) и загружается автоматически — см. [docs/operations.md](docs/operations.md).
+Источник — четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Колонки **«Регион»** и **«Территория ГАР»** хранятся 1:1 из CSV.
+
+| Режим | Описание |
+|-------|----------|
+| **Ручной import** | UI «Загрузить данные» или `POST /api/import` |
+| **Автоimport (production)** | Cron `pstn_scheduler` — ежедневно 12:00 MSK; требует `IMPORT_SECRET` |
+| **Skip** | При неизменных CSV (SHA256) job `skipped`, production не меняется |
+| **Diff snapshots** | После import с изменениями — просмотр расхождений в UI (`?dataset=diff:<uuid>`) |
+
+Реестр OPR для колонки «УВр Антифрод» встроен в образ (`data/opr/`) и загружается автоматически.
+
+**Подробно:** [docs/import-and-datasets.md](docs/import-and-datasets.md) · эксплуатация: [docs/operations.md](docs/operations.md)

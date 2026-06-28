@@ -32,10 +32,10 @@ flowchart TB
 | Компонент | Защита | Примечание |
 |-----------|--------|------------|
 | UI `/ranges` | NPM Access List | Нет in-app auth |
-| Internal API (`/api/ranges`, `/api/summary`, `/api/export`, `/api/import`, `/api/v1/lookup/examples`) | NPM | Полный доступ к данным при обходе периметра |
+| Internal API (`/api/ranges`, `/api/summary`, `/api/export`, `/api/import`, `/api/datasets`, `/api/v1/lookup/examples`) | NPM | Полный доступ к данным при обходе периметра |
 | External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`) | Bearer / `X-Api-Key` | Timing-safe compare |
 | PostgreSQL | Docker internal network | Не публикуется в prod compose |
-| Import API | NPM + опционально `IMPORT_SECRET` | UI import без secret работает только за NPM |
+| Import API | NPM + `IMPORT_SECRET` (prod) | Cron требует secret; UI manual import ломается при secret на app — см. [import-and-datasets.md](import-and-datasets.md) |
 | Secrets on disk | Volume `pstn_secrets`, chmod 600 | Ключ не в логах entrypoint |
 
 ---
@@ -44,8 +44,8 @@ flowchart TB
 
 Следующие endpoints **не проверяют** credentials на уровне приложения:
 
-- `GET /api/ranges`, `/api/ranges/facets`, `/api/summary`
-- `GET /api/export/ranges`
+- `GET /api/ranges`, `/api/ranges/facets`, `/api/summary`, `/api/export/ranges`
+- `GET /api/datasets`
 - `POST /api/import`, `GET /api/import/status`
 - `GET /api/v1/lookup/examples`, `/api/v1/lookup/config`
 - `GET /api/health`
@@ -106,14 +106,25 @@ X-Api-Key: <EXTERNAL_API_KEY>
 
 `POST /api/import`, `GET /api/import/status`
 
-### Опциональный `IMPORT_SECRET`
+### Модель аутентификации import
 
-Если задан `IMPORT_SECRET` в env:
+| Сценарий | Проверка | `IMPORT_SECRET` |
+|----------|----------|-----------------|
+| UI «Загрузить данные» (`triggeredBy: manual`) | `checkImportAuthorization` | Если **не задан** — OK. Если задан — UI **не шлёт header** → **401** |
+| Cron scheduler (`triggeredBy: cron`) | `requireImportSecret` | **Обязателен**; без secret cron всегда 401 |
+| `GET /api/import/status` | `checkImportAuthorization` | Как manual |
 
-- Запросы должны содержать заголовок `X-Import-Secret: <value>`
-- Проверка — timing-safe ([`lib/api/importAuth.ts`](../lib/api/importAuth.ts))
+Реализация: [`lib/api/importAuth.ts`](../lib/api/importAuth.ts), timing-safe compare через [`lib/api/safeEqual.ts`](../lib/api/safeEqual.ts).
 
-**Важно:** кнопка «Загрузить данные» в UI **не** отправляет этот заголовок. При включённом `IMPORT_SECRET` UI-import перестанет работать — используйте NPM Access List вместо secret или вызывайте import через curl с заголовком.
+### Конфликт production (scheduler + UI)
+
+Standard prod stack задаёт `IMPORT_SECRET` на **app** и **scheduler** (compose validation). Cron работает; кнопка «Загрузить данные» в UI — **нет**.
+
+Workarounds: curl с `X-Import-Secret`, NPM inject header, убрать secret только на app. Подробнее: [import-and-datasets.md](import-and-datasets.md), [operations.md](operations.md).
+
+### Diff snapshots и perimeter
+
+Diff snapshots (`GET /api/datasets`, `?dataset=diff:<uuid>`) содержат исторические данные диапазонов. Защита — **тот же perimeter**, что для `/api/ranges` (NPM Access List). Отдельной auth на уровне app нет.
 
 ---
 
@@ -197,7 +208,8 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 - [ ] App слушает только `127.0.0.1:5555` или доступен только из docker-сети NPM
 - [ ] Сильный `POSTGRES_PASSWORD`, не default
 - [ ] `EXTERNAL_API_BASE_URL` задан для корректных curl-примеров
-- [ ] Rate limits на export, lookup, import
+- [ ] Rate limits на export, lookup, **import** (cron + manual curl)
+- [ ] При `IMPORT_SECRET` на app: manual UI import не работает — используйте curl или workaround ([operations.md](operations.md))
 - [ ] `/api/health` не exposed публично без необходимости
 - [ ] Backup БД настроен ([operations.md](operations.md))
 - [ ] Ключ lookup сохранён в password manager после первого deploy
@@ -206,6 +218,7 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 
 ## Связанные документы
 
+- [import-and-datasets.md](import-and-datasets.md) — импорт, cron, diff snapshots (опорный документ)
 - [deployment.md](deployment.md) — NPM, Portainer, env vars
 - [npm.md](npm.md) — NGINX Proxy Manager
 - [api-reference.md](api-reference.md) — endpoints и auth

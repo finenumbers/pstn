@@ -5,6 +5,9 @@ import {
 } from "@/packages/shared/contracts/filters.schema";
 import { countRanges } from "@/packages/db/queries/rangesQueries";
 import { createRangesXlsxExport } from "@/lib/export/writeRangesXlsx";
+import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
+import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { EXPORT_ROW_MAX } from "@/lib/export/exportLimits";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
@@ -18,7 +21,12 @@ export async function GET(request: NextRequest) {
       return validationError(filtersParsed.error);
     }
 
-    const totalRows = await countRanges(filtersParsed.data);
+    const dataset = parseDatasetOrError(params);
+    if (isDatasetParseError(dataset)) {
+      return dataset;
+    }
+
+    const totalRows = await countRanges(filtersParsed.data, dataset);
     if (totalRows > EXPORT_ROW_MAX) {
       return apiError(
         "EXPORT_TOO_LARGE",
@@ -29,7 +37,8 @@ export async function GET(request: NextRequest) {
 
     const { body } = await createRangesXlsxExport(
       filtersParsed.data,
-      totalRows
+      totalRows,
+      dataset
     );
 
     withTiming("/api/export/ranges", startMs, { rows: totalRows, format: "xlsx" });
@@ -43,6 +52,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof DatasetNotFoundError) {
+      return datasetNotFoundResponse(error);
+    }
     return internalServerError(error, "Export failed");
   }
 }

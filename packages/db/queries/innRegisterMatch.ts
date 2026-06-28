@@ -1,10 +1,11 @@
 import { sql, type SQL } from "drizzle-orm";
 import { numberRanges, operatorsRegister } from "../schema";
+import type { RangeFilterTable } from "./rangeFilterTable";
 
-const rangeInnDigits = sql<string>`regexp_replace(${numberRanges.inn}, '\\D', '', 'g')`;
-const registerInnDigits = sql<string>`regexp_replace(${operatorsRegister.inn}, '\\D', '', 'g')`;
-
-/** Join / filter condition: number_ranges.inn matches operators_register.inn (digits only). */
-export function innRegisterMatchSql(): SQL {
+export function innRegisterMatchSql(
+  innColumn: RangeFilterTable["inn"] = numberRanges.inn
+): SQL {
+  const rangeInnDigits = sql<string>`regexp_replace(${innColumn}, '\\D', '', 'g')`;
+  const registerInnDigits = sql<string>`regexp_replace(${operatorsRegister.inn}, '\\D', '', 'g')`;
   return sql`${rangeInnDigits} = ${registerInnDigits} AND ${rangeInnDigits} <> ''`;
 }

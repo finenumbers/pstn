@@ -107,6 +107,8 @@ export interface NumberRangeRow {
   abcRangeGapBefore: boolean;
   /** Red separator below: gap vs full-data successor in same ABC. */
   abcRangeGapAfter: boolean;
+  /** Present in diff snapshot view only. */
+  changeType?: "added" | "changed" | "removed" | null;
 }
 
 /** Keyset cursor for infinite scroll (sort column values + id). */
@@ -201,7 +203,8 @@ export interface ImportStepProgress {
 
 export interface ImportStatusResponse {
   jobId: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  skipReason?: string;
   progress?: ImportProgress;
   loadedAt: string | null;
   errorMessage?: string;
