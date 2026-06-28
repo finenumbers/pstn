@@ -182,7 +182,8 @@ export function ExternalApiHelpDialog({
               Примеры ниже — готовые curl с ключом и адресом внешнего API
               {apiBaseUrl ? "" : " (задайте EXTERNAL_API_BASE_URL для публичного IP или домена)"}.
               Маска в примере search подставляется из поля «Найти номер», если там
-              есть цифры.
+              есть цифры. Полный 10-значный номер в поле «Найти номер» подставляется
+              также в пример точного lookup; иначе — номер по умолчанию.
             </p>
             {loading ? (
               <div className="space-y-3">
@@ -191,14 +192,7 @@ export function ExternalApiHelpDialog({
               </div>
             ) : configured && searchCurl ? (
               <div className="space-y-4">
-                {exactCurl ? (
-                  <ExampleBlock title="Точный номер" curlExample={exactCurl} />
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Пример точного lookup доступен только для полного 10-значного
-                    номера в поле «Найти номер».
-                  </p>
-                )}
+                <ExampleBlock title="Точный номер" curlExample={exactCurl} />
                 <ExampleBlock title="Поиск по маске" curlExample={searchCurl} />
               </div>
             ) : (

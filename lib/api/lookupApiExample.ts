@@ -56,13 +56,15 @@ export function buildLookupCurlExamples(
   apiKey: string,
   phoneMask = "",
   dataset = "current"
-): { exactCurl: string | null; searchCurl: string } {
+): { exactCurl: string; searchCurl: string } {
   const exactPhone = phoneQueryFromMask(phoneMask);
   const searchMask = maskSearchQueryFromMask(phoneMask);
   return {
-    exactCurl: exactPhone
-      ? buildLookupCurlExample(origin, apiKey, exactPhone)
-      : null,
+    exactCurl: buildLookupCurlExample(
+      origin,
+      apiKey,
+      exactPhone ?? LOOKUP_DEFAULT_PHONE
+    ),
     searchCurl: buildLookupSearchCurlExample(
       origin,
       apiKey,

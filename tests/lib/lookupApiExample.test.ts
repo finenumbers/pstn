@@ -64,13 +64,14 @@ describe("lookupApiExample", () => {
     expect(maskSearchQueryFromMask("")).toBe(LOOKUP_DEFAULT_MASK);
   });
 
-  it("omits exact curl when mask is incomplete", () => {
+  it("uses default phone in exact curl when mask is incomplete", () => {
     const { exactCurl, searchCurl } = buildLookupCurlExamples(
       "https://api.pstn.example.com",
       "secret-key-123",
       "301______"
     );
-    expect(exactCurl).toBeNull();
+    expect(exactCurl).toContain(`phone=${LOOKUP_DEFAULT_PHONE}`);
+    expect(exactCurl).toContain("Bearer secret-key-123");
     expect(searchCurl).toContain(encodeURIComponent("301XXXXXXX"));
   });
 
