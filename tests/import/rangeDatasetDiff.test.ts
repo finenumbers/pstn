@@ -91,13 +91,15 @@ describe("rangeDatasetDiff", () => {
   });
 
   it("handles many added segments without stack overflow", () => {
-    const newRanges = Array.from({ length: 50_000 }, (_, index) =>
-      range("900", index * 10 + 1, index * 10 + 5)
+    // One segment per unique ABC — exercises appendAll with >65k total segments
+    // without O(n²) findCoveringRange cost of a single large ABC bucket.
+    const newRanges = Array.from({ length: 70_000 }, (_, index) =>
+      range(String(800 + index), 100, 200)
     );
 
     const segments = diffRangeDatasets([], newRanges);
 
-    expect(segments).toHaveLength(50_000);
+    expect(segments).toHaveLength(70_000);
     expect(segments.every((segment) => segment.changeType === "added")).toBe(
       true
     );
