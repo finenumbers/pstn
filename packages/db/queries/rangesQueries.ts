@@ -1,8 +1,7 @@
-import type {
-  FiltersDTO,
-  RangesCursor,
-  SortableColumn,
-} from "@/packages/shared/contracts/filters.schema";
+import type { FiltersDTO, RangesCursor, SortableColumn } from "@/packages/shared/contracts/filters.schema";
+import { getCachedSummary, setCachedSummary } from "@/lib/cache/summaryCache";
+import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
+import { PHONE_CAPACITY_SUMMARY_LIMIT } from "@/lib/filters/phoneSearchLimits";
 import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
 import {
   asc,
@@ -17,13 +16,35 @@ import { db } from "../index";
 import { datasetMeta, numberRanges, operatorsRegister } from "../schema";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 import { buildWhere } from "./buildWhere";
-import { hasActiveFilters } from "@/lib/filters/hasActiveFilters";
 import { getUvrAntifraudBindingCached } from "./refreshUvrAntifraudBinding";
 import { phoneNumberPartialMatchCountExpr } from "./phoneNumberMatchCount";
 import {
   buildKeysetWhere,
   mergeKeysetWhere,
 } from "./rangesKeyset";
+
+export type SummaryRangesResult = {
+  loadedAt: string | null;
+  filtered: {
+    rangeCount: number;
+    totalCapacity: number;
+    totalCapacityPending?: boolean;
+    uniqueRegions: number;
+    uniqueGarTerritories: number;
+    uniqueOperators: number;
+  };
+  global: {
+    rangeCount: number;
+    totalCapacity: number;
+    uniqueRegions: number;
+    uniqueGarTerritories: number;
+    uniqueOperators: number;
+  };
+  uvrBinding: {
+    registryOperators: number;
+    matchedDistinctInns: number;
+  };
+};
 
 const COLUMN_MAP = {
   abc: numberRanges.abc,
@@ -60,6 +81,7 @@ export async function listRanges(params: {
   pageSize: number;
   cursor?: RangesCursor | null;
   page?: number;
+  skipCount?: boolean;
 }) {
   const baseWhere = buildWhere(params.filters);
   const orderBy = buildOrderBy(params.sort);
@@ -97,8 +119,14 @@ export async function listRanges(params: {
     .limit(params.pageSize)
     .offset(useOffset ? offset : 0);
 
+  const resolveTotalRows = (): Promise<number> => {
+    if (params.cursor) return Promise.resolve(0);
+    if (params.skipCount) return Promise.resolve(-1);
+    return countRanges(params.filters);
+  };
+
   const [totalRows, data] = await Promise.all([
-    params.cursor ? Promise.resolve(0) : countRanges(params.filters),
+    resolveTotalRows(),
     dataQuery,
   ]);
 
@@ -183,7 +211,14 @@ function globalSummaryFromMeta(
   };
 }
 
-export async function summaryRanges(filters: FiltersDTO) {
+export async function summaryRanges(
+  filters: FiltersDTO
+): Promise<SummaryRangesResult> {
+  const cached = getCachedSummary<SummaryRangesResult>(filters);
+  if (cached) {
+    return cached;
+  }
+
   const metaRows = await db
     .select()
     .from(datasetMeta)
@@ -195,7 +230,7 @@ export async function summaryRanges(filters: FiltersDTO) {
     const globalFromMeta = globalSummaryFromMeta(metaRow);
     const global = globalFromMeta ?? (await loadGlobalSummaryFromTable());
 
-    return {
+    const result = {
       loadedAt: metaRow?.lastSuccessAt?.toISOString() ?? null,
       filtered: {
         rangeCount: global.rangeCount,
@@ -207,6 +242,8 @@ export async function summaryRanges(filters: FiltersDTO) {
       global,
       uvrBinding,
     };
+    setCachedSummary(filters, result);
+    return result;
   }
 
   const filteredWhere = buildWhere(filters);
@@ -214,14 +251,9 @@ export async function summaryRanges(filters: FiltersDTO) {
     ? parsePhoneNumberMask(filters.phoneNumber)
     : null;
 
-  const filteredCapacityExpr = phoneParts
-    ? phoneNumberPartialMatchCountExpr(phoneParts)
-    : numberRanges.capacity;
-
   const filteredResult = await db
     .select({
       rangeCount: count(),
-      totalCapacity: sum(filteredCapacityExpr),
       uniqueRegions: countDistinct(numberRanges.region),
       uniqueGarTerritories: countDistinct(numberRanges.garTerritory),
       uniqueOperators: countDistinct(numberRanges.operator),
@@ -230,15 +262,43 @@ export async function summaryRanges(filters: FiltersDTO) {
     .where(filteredWhere);
 
   const filtered = filteredResult[0];
+  const rangeCount = Number(filtered?.rangeCount ?? 0);
+
+  let totalCapacity = 0;
+  let totalCapacityPending = false;
+
+  if (phoneParts) {
+    if (rangeCount > PHONE_CAPACITY_SUMMARY_LIMIT) {
+      totalCapacityPending = true;
+    } else {
+      const capacityResult = await db
+        .select({
+          totalCapacity: sum(phoneNumberPartialMatchCountExpr(phoneParts)),
+        })
+        .from(numberRanges)
+        .where(filteredWhere);
+      totalCapacity = Number(capacityResult[0]?.totalCapacity ?? 0);
+    }
+  } else {
+    const capacityResult = await db
+      .select({
+        totalCapacity: sum(numberRanges.capacity),
+      })
+      .from(numberRanges)
+      .where(filteredWhere);
+    totalCapacity = Number(capacityResult[0]?.totalCapacity ?? 0);
+  }
+
   const globalFromMeta = globalSummaryFromMeta(metaRow);
   const global =
     globalFromMeta ?? (await loadGlobalSummaryFromTable());
 
-  return {
+  const result = {
     loadedAt: metaRow?.lastSuccessAt?.toISOString() ?? null,
     filtered: {
-      rangeCount: Number(filtered?.rangeCount ?? 0),
-      totalCapacity: Number(filtered?.totalCapacity ?? 0),
+      rangeCount,
+      totalCapacity,
+      totalCapacityPending,
       uniqueRegions: Number(filtered?.uniqueRegions ?? 0),
       uniqueGarTerritories: Number(filtered?.uniqueGarTerritories ?? 0),
       uniqueOperators: Number(filtered?.uniqueOperators ?? 0),
@@ -252,6 +312,8 @@ export async function summaryRanges(filters: FiltersDTO) {
     },
     uvrBinding,
   };
+  setCachedSummary(filters, result);
+  return result;
 }
 
 export async function listRangesForExport(

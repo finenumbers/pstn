@@ -3,6 +3,7 @@ import {
   abcMatchesPhoneMask,
   countMatchingNumbersInRange,
   EMPTY_PHONE_SLOT,
+  expandAbcMask,
   formatPhoneMaskHint,
   normalizePhoneMask,
   parsePhoneNumberMask,
@@ -46,6 +47,37 @@ describe("parsePhoneNumberMask", () => {
     expect(parts.subscriberMax).toBe(3993999);
     expect(abcMatchesPhoneMask("983", parts)).toBe(true);
     expect(abcMatchesPhoneMask("301", parts)).toBe(false);
+  });
+});
+
+describe("expandAbcMask", () => {
+  it("returns single code when all ABC digits are fixed", () => {
+    expect(expandAbcMask(["3", "8", "3"])).toEqual(["383"]);
+  });
+
+  it("expands one wildcard into ten codes", () => {
+    expect(expandAbcMask(["4", "9", "_"])).toEqual([
+      "490",
+      "491",
+      "492",
+      "493",
+      "494",
+      "495",
+      "496",
+      "497",
+      "498",
+      "499",
+    ]);
+  });
+
+  it("returns null when all ABC slots are wildcards", () => {
+    expect(expandAbcMask(["_", "_", "_"])).toBeNull();
+  });
+
+  it("expands two wildcards into one hundred codes", () => {
+    expect(expandAbcMask(["4", "_", "_"])).toHaveLength(100);
+    expect(expandAbcMask(["4", "_", "_"])).toContain("401");
+    expect(expandAbcMask(["4", "_", "_"])).toContain("499");
   });
 });
 

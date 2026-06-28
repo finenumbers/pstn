@@ -9,6 +9,8 @@ import {
 import { decodeRangesCursor } from "@/lib/api/rangesCursor";
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import { listRanges } from "@/packages/db/queries/rangesQueries";
+import { shouldSkipPhoneRangeCount } from "@/lib/filters/phoneSearchLimits";
+import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
       pageSize: parsed.data.pageSize,
       cursor,
       page: cursor ? undefined : parsed.data.page,
+      skipCount: shouldSkipPhoneRangeCount(filters),
     });
 
     withTiming("/api/ranges", startMs, {
@@ -55,6 +58,8 @@ export async function GET(request: NextRequest) {
       totalRows,
       hasMore,
       cursor: Boolean(cursor),
+      skipCount: shouldSkipPhoneRangeCount(filters),
+      ...phoneFilterTimingMeta(filters),
     });
 
     return NextResponse.json({

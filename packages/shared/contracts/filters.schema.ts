@@ -153,6 +153,8 @@ export interface SummaryResponse {
   filtered: {
     rangeCount: number;
     totalCapacity: number;
+    /** True when masked capacity aggregate was skipped (too many matching ranges). */
+    totalCapacityPending?: boolean;
     uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;

@@ -162,14 +162,22 @@ export function KpiSummaryBar({
         />
         <KpiCard
           title="Суммарная ёмкость"
-          isLoading={isLoading}
+          isLoading={
+            isLoading ||
+            Boolean(filtered?.totalCapacityPending && filtered && global)
+          }
           compare={
-            filtered && global
+            filtered && global && !filtered.totalCapacityPending
               ? {
                   filtered: formatNumber(filtered.totalCapacity),
                   global: formatNumber(global.totalCapacity),
                 }
-              : undefined
+              : filtered && global && filtered.totalCapacityPending
+                ? {
+                    filtered: "…",
+                    global: formatNumber(global.totalCapacity),
+                  }
+                : undefined
           }
         />
         <PhoneNumberSearchCard

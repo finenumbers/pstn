@@ -9,9 +9,11 @@ import { queryKeys } from "@/lib/query/queryKeys";
 export function useSummaryQuery(filters: FiltersDTO, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.summary(filters),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const params = buildFilterParams(filters);
-      return fetchJson<SummaryResponse>(`/api/summary?${params.toString()}`);
+      return fetchJson<SummaryResponse>(`/api/summary?${params.toString()}`, {
+        signal,
+      });
     },
     placeholderData: keepPreviousData,
     staleTime: 60_000,

@@ -6,10 +6,30 @@ import { numberRanges, operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
-export async function lookupByPhone(phone: string) {
+export type LookupByPhoneResult =
+  | { status: "found"; row: LookupRangeRow }
+  | { status: "not_found" }
+  | { status: "ambiguous"; matchCount: number };
+
+export type LookupRangeRow = {
+  id: number;
+  abc: string;
+  rangeStart: number;
+  rangeEnd: number;
+  capacity: number;
+  operator: string;
+  garTerritory: string;
+  region: string;
+  inn: string;
+  uvrAntifraud: number | null;
+  abcRangeGapBefore: boolean;
+  abcRangeGapAfter: boolean;
+};
+
+export async function lookupByPhone(phone: string): Promise<LookupByPhoneResult> {
   const parts = parsePhoneNumberMask(phone);
   if (!parts) {
-    return null;
+    return { status: "not_found" };
   }
 
   const where = buildWhere({
@@ -39,14 +59,12 @@ export async function lookupByPhone(phone: string) {
     .limit(2);
 
   if (rows.length === 0) {
-    return null;
+    return { status: "not_found" };
   }
 
   if (rows.length > 1) {
-    console.warn(
-      `lookupByPhone: multiple ranges matched phone ${phone}, returning first by id`
-    );
+    return { status: "ambiguous", matchCount: rows.length };
   }
 
-  return rows[0];
+  return { status: "found", row: rows[0]! };
 }

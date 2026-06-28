@@ -79,12 +79,20 @@ export function RangesPageContent() {
   const urlSyncedRef = useRef(false);
   const urlHistoryInitializedRef = useRef(false);
 
-  const textDebounced = useDebouncedValue({
-    rangeStart: state.filters.rangeStart,
-    rangeEnd: state.filters.rangeEnd,
-    capacity: state.filters.capacity,
-    phoneNumber: state.filters.phoneNumber,
-  });
+  const otherTextDebounced = useDebouncedValue(
+    {
+      rangeStart: state.filters.rangeStart,
+      rangeEnd: state.filters.rangeEnd,
+      capacity: state.filters.capacity,
+    },
+    300
+  );
+  const phoneDebounced = useDebouncedValue(state.filters.phoneNumber, 500);
+
+  const textDebounced = {
+    ...otherTextDebounced,
+    phoneNumber: phoneDebounced,
+  };
 
   const debouncedFacetSearch = useDebouncedValue(facetSearch, 300);
 
@@ -115,10 +123,14 @@ export function RangesPageContent() {
   const rangesListKey = `${debouncedFiltersKey}:${serializeSort(sortingForQuery)}:${rangesResetKey}`;
 
   const globalSummaryQuery = useGlobalSummaryQuery();
+  const rangesReadyForSecondaryQueries =
+    !filtersActive || rangesQuery.isFetched || rangesQuery.isSuccess;
   const filteredSummaryQuery = useSummaryQuery(debouncedFilters, {
-    enabled: filtersActive,
+    enabled: filtersActive && rangesReadyForSecondaryQueries,
   });
-  const facetsQuery = useFacetsQuery(debouncedFilters, debouncedFacetSearch);
+  const facetsQuery = useFacetsQuery(debouncedFilters, debouncedFacetSearch, {
+    enabled: rangesReadyForSecondaryQueries,
+  });
 
   const importStart = useImportStart();
   const importStatus = useImportStatus(trackedJobId);
@@ -167,6 +179,7 @@ export function RangesPageContent() {
   const summaryLoading =
     (globalSummaryQuery.isLoading && !globalSummaryQuery.data) ||
     (filtersActive &&
+      rangesReadyForSecondaryQueries &&
       filteredSummaryQuery.isLoading &&
       !filteredSummaryQuery.data);
 
@@ -391,7 +404,7 @@ export function RangesPageContent() {
         onExport={handleExport}
         onResetFilters={handleResetAll}
         hasActiveFilters={canResetRangesTable(
-          state.filters,
+          debouncedFilters,
           rangesQuery.data?.pages.length ?? 0,
           state.sorting
         )}

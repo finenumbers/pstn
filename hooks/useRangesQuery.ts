@@ -22,7 +22,7 @@ export function useRangesInfiniteQuery(params: {
       sort,
       pageSize: params.pageSize,
     }),
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const filterParams = buildFilterParams(params.filters);
       filterParams.set("pageSize", String(params.pageSize));
       filterParams.set("sort", sort);
@@ -32,7 +32,8 @@ export function useRangesInfiniteQuery(params: {
         filterParams.set("page", "1");
       }
       return fetchJson<RangesListResponse>(
-        `/api/ranges?${filterParams.toString()}`
+        `/api/ranges?${filterParams.toString()}`,
+        { signal }
       );
     },
     initialPageParam: undefined as string | undefined,

@@ -245,3 +245,40 @@ export function abcMatchesPhoneMask(abc: string, parts: PhoneNumberMaskParts): b
   }
   return true;
 }
+
+const ABC_MASK_EXPAND_LIMIT = 1000;
+
+/** Expand partial ABC mask slots into concrete codes for index-friendly IN filters. */
+export function expandAbcMask(abcSlots: string[]): string[] | null {
+  if (abcSlots.length !== 3) return null;
+
+  const allWildcard = abcSlots.every((slot) => slot === EMPTY_PHONE_SLOT);
+  if (allWildcard) return null;
+
+  const allFixed = abcSlots.every((slot) => slot !== EMPTY_PHONE_SLOT);
+  if (allFixed) {
+    return [abcSlots.join("")];
+  }
+
+  const codes: string[] = [];
+
+  function expandAt(index: number, prefix: string) {
+    if (index === 3) {
+      codes.push(prefix);
+      return;
+    }
+
+    const slot = abcSlots[index];
+    if (slot !== EMPTY_PHONE_SLOT) {
+      expandAt(index + 1, prefix + slot);
+      return;
+    }
+
+    for (let digit = 0; digit <= 9; digit++) {
+      expandAt(index + 1, prefix + String(digit));
+    }
+  }
+
+  expandAt(0, "");
+  return codes.length <= ABC_MASK_EXPAND_LIMIT ? codes : null;
+}

@@ -9,7 +9,7 @@ import {
 export const LOOKUP_DEFAULT_PHONE = "4996660000";
 export const LOOKUP_DEFAULT_MASK = "499X66XXXX";
 
-export function phoneQueryFromMask(maskValue: string): string {
+export function phoneQueryFromMask(maskValue: string): string | null {
   const slots = normalizePhoneMask(maskValue);
   if (
     slots.length === 10 &&
@@ -17,7 +17,7 @@ export function phoneQueryFromMask(maskValue: string): string {
   ) {
     return slots.join("");
   }
-  return LOOKUP_DEFAULT_PHONE;
+  return null;
 }
 
 export function maskSearchQueryFromMask(maskValue: string): string {
@@ -53,11 +53,13 @@ export function buildLookupCurlExamples(
   origin: string,
   apiKey: string,
   phoneMask = ""
-): { exactCurl: string; searchCurl: string } {
+): { exactCurl: string | null; searchCurl: string } {
   const exactPhone = phoneQueryFromMask(phoneMask);
   const searchMask = maskSearchQueryFromMask(phoneMask);
   return {
-    exactCurl: buildLookupCurlExample(origin, apiKey, exactPhone),
+    exactCurl: exactPhone
+      ? buildLookupCurlExample(origin, apiKey, exactPhone)
+      : null,
     searchCurl: buildLookupSearchCurlExample(origin, apiKey, searchMask),
   };
 }

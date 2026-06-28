@@ -179,9 +179,16 @@ export function ExternalApiHelpDialog({
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
               </div>
-            ) : configured && exactCurl && searchCurl ? (
+            ) : configured && searchCurl ? (
               <div className="space-y-4">
-                <ExampleBlock title="Точный номер" curlExample={exactCurl} />
+                {exactCurl ? (
+                  <ExampleBlock title="Точный номер" curlExample={exactCurl} />
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Пример точного lookup доступен только для полного 10-значного
+                    номера в поле «Найти номер».
+                  </p>
+                )}
                 <ExampleBlock title="Поиск по маске" curlExample={searchCurl} />
               </div>
             ) : (

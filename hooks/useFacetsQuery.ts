@@ -18,7 +18,8 @@ function normalizeFacetSearch(
 
 export function useFacetsQuery(
   filters: FiltersDTO,
-  facetSearch: Record<string, string>
+  facetSearch: Record<string, string>,
+  options?: { enabled?: boolean }
 ) {
   const activeFacetSearch = normalizeFacetSearch(facetSearch);
   const normalizedFilters = normalizeFilters(filters);
@@ -26,17 +27,19 @@ export function useFacetsQuery(
 
   return useQuery({
     queryKey: queryKeys.facets(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const filterParams = buildFilterParams(normalizedFilters);
       filterParams.set("columns", FACET_COLUMNS.join(","));
       for (const [col, search] of Object.entries(activeFacetSearch)) {
         filterParams.set(`search.${col}`, search);
       }
       return fetchJson<FacetsResponse>(
-        `/api/ranges/facets?${filterParams.toString()}`
+        `/api/ranges/facets?${filterParams.toString()}`,
+        { signal }
       );
     },
     staleTime: 60_000,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }

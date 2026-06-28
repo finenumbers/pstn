@@ -1,5 +1,5 @@
 import type { FiltersDTO, FacetColumn } from "@/packages/shared/contracts/filters.schema";
-import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
+import { expandAbcMask, parsePhoneNumberMask } from "@/lib/phoneNumberMask";
 import {
   and,
   eq,
@@ -45,22 +45,39 @@ function capacityFilter(value: string): SQL | undefined {
   return sql`${numberRanges.capacity}::text ILIKE ${"%" + value + "%"}`;
 }
 
+function abcMaskFilter(parsed: ReturnType<typeof parsePhoneNumberMask>): SQL | undefined {
+  if (!parsed) return undefined;
+
+  const expanded = expandAbcMask(parsed.abcSlots);
+  if (expanded) {
+    if (expanded.length === 1) {
+      return eq(numberRanges.abc, expanded[0]!);
+    }
+    return inArray(numberRanges.abc, expanded);
+  }
+
+  const substringConditions: SQL[] = [];
+  for (let index = 0; index < 3; index++) {
+    const slot = parsed.abcSlots[index];
+    if (slot !== "_") {
+      substringConditions.push(
+        sql`substring(${numberRanges.abc}, ${index + 1}, 1) = ${slot}`
+      );
+    }
+  }
+
+  return substringConditions.length > 0 ? and(...substringConditions) : undefined;
+}
+
 function phoneNumberFilter(value: string): SQL | undefined {
   const parsed = parsePhoneNumberMask(value);
   if (!parsed) return undefined;
 
-  const conditions: SQL[] = [
-    sql`${numberRanges.rangeStart} <= ${numberRanges.rangeEnd}`,
-    phoneNumberOverlapSql(parsed),
-  ];
+  const conditions: SQL[] = [phoneNumberOverlapSql(parsed)];
 
-  for (let index = 0; index < 3; index++) {
-    const slot = parsed.abcSlots[index];
-    if (slot !== "_") {
-      conditions.push(
-        sql`substring(${numberRanges.abc}, ${index + 1}, 1) = ${slot}`
-      );
-    }
+  const abcCondition = abcMaskFilter(parsed);
+  if (abcCondition) {
+    conditions.push(abcCondition);
   }
 
   return and(...conditions);

@@ -8,6 +8,7 @@ import {
 } from "@/packages/shared/contracts/filters.schema";
 import { facetRanges } from "@/packages/db/queries/facetRanges";
 import { countFacetValue } from "@/packages/db/queries/countFacetValue";
+import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -95,7 +96,10 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    withTiming("/api/ranges/facets", startMs, { columns });
+    withTiming("/api/ranges/facets", startMs, {
+      columns,
+      ...phoneFilterTimingMeta(filters),
+    });
 
     return NextResponse.json({ facets });
   } catch (error) {

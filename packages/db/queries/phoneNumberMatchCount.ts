@@ -23,7 +23,7 @@ export function phoneNumberOverlapSql(parts: PhoneNumberMaskParts): SQL {
   return and(
     sql`${numberRanges.rangeStart} <= ${parts.subscriberMax}`,
     sql`${numberRanges.rangeEnd} >= ${parts.subscriberMin}`,
-    sql`phone_mask_match_count(${numberRanges.rangeStart}, ${numberRanges.rangeEnd}, ${mask}) > 0`
+    sql`phone_mask_overlaps(${numberRanges.rangeStart}, ${numberRanges.rangeEnd}, ${mask})`
   )!;
 }
 

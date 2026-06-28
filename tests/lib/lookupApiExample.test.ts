@@ -38,9 +38,9 @@ describe("lookupApiExample", () => {
     expect(curl).toContain("pageSize=50");
   });
 
-  it("uses complete phone mask digits in exact example", () => {
+  it("returns null for incomplete phone mask", () => {
     expect(phoneQueryFromMask("3012110000")).toBe("3012110000");
-    expect(phoneQueryFromMask("301______")).toBe(LOOKUP_DEFAULT_PHONE);
+    expect(phoneQueryFromMask("301______")).toBeNull();
   });
 
   it("uses mask from find-number field in search example", () => {
@@ -49,7 +49,17 @@ describe("lookupApiExample", () => {
     expect(maskSearchQueryFromMask("")).toBe(LOOKUP_DEFAULT_MASK);
   });
 
-  it("builds paired curl examples from phone mask input", () => {
+  it("omits exact curl when mask is incomplete", () => {
+    const { exactCurl, searchCurl } = buildLookupCurlExamples(
+      "https://api.pstn.example.com",
+      "secret-key-123",
+      "301______"
+    );
+    expect(exactCurl).toBeNull();
+    expect(searchCurl).toContain(encodeURIComponent("301XXXXXXX"));
+  });
+
+  it("builds paired curl examples from complete phone mask input", () => {
     const { exactCurl, searchCurl } = buildLookupCurlExamples(
       "https://api.pstn.example.com",
       "secret-key-123",

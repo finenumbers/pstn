@@ -1,7 +1,7 @@
 import { type FiltersDTO, filtersToSearchParams } from "@/packages/shared/contracts/filters.schema";
 
-export async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(

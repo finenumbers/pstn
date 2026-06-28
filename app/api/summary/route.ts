@@ -4,6 +4,7 @@ import {
   parseFiltersFromSearchParams,
 } from "@/packages/shared/contracts/filters.schema";
 import { summaryRanges } from "@/packages/db/queries/rangesQueries";
+import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
 import { internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
 
     const summary = await summaryRanges(filters);
 
-    withTiming("/api/summary", startMs, { filters: filtersRaw });
+    withTiming("/api/summary", startMs, {
+      ...phoneFilterTimingMeta(filters),
+    });
 
     return NextResponse.json(summary);
   } catch (error) {
