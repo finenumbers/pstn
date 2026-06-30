@@ -1,11 +1,10 @@
 # Portainer production stack — self-contained, no host bind mounts (как finenumbers/geoip).
 #
 # Portainer → Stacks → Repository → Compose path: docker-compose.portainer.yml
-# Образ app: ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG} — semver-тег из GHCR (не :latest).
-# Задайте PSTN_IMAGE_TAG в Environment stack (см. portainer.env.example) и меняйте при каждом релизе.
+# Образ app: ghcr.io/finenumbers/pstn:latest (публичный GHCR, всегда последний релиз).
 # NPM в Docker: Forward pstn_app:5555, сеть proxy — см. docs/npm.md
-# POSTGRES_PASSWORD — в Environment variables stack. Pull and redeploy после push в main.
-# app.pull_policy: always — pull образа при каждом redeploy (Compose v2.17+).
+# POSTGRES_PASSWORD — в Environment variables stack.
+# app.pull_policy: always — принудительный pull :latest при каждом redeploy (Compose v2.17+).
 
 name: pstn
 
@@ -34,7 +33,7 @@ services:
       - pstn_internal
 
   app:
-    image: ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG:?Set PSTN_IMAGE_TAG e.g. 0.3.6}
+    image: ghcr.io/finenumbers/pstn:latest
     pull_policy: always
     container_name: pstn_app
     restart: unless-stopped

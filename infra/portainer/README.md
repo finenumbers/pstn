@@ -6,11 +6,11 @@
 docker-compose.portainer.yml
 ```
 
-**Только** `docker-compose.portainer.yml` — без `build:`, без bind mounts, образ **`ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG}`** (semver из [Releases](https://github.com/finenumbers/pstn/releases), **не `:latest`**). Контейнер `pstn_app` подключается к сети **`proxy`** для NPM.
+**Только** `docker-compose.portainer.yml` — без `build:`, без bind mounts, образ **`ghcr.io/finenumbers/pstn:latest`**. Контейнер `pstn_app` подключается к сети **`proxy`** для NPM.
 
-> **Зелёная галочка** у stack в Portainer = контейнеры **запущены**, а не «образ актуален». Обновление — смена `PSTN_IMAGE_TAG` + Pull and redeploy; версия на сайте под заголовком должна совпадать с релизом.
+> **Зелёная галочка** у stack = контейнеры **запущены**, не «образ свежий». После релиза: **Pull and redeploy** (compose с `pull_policy: always`). Проверка: под заголовком на сайте «Версия X.Y.Z».
 
-> **Control: Limited?** Stack создан через SSH `docker compose up` — Portainer не управляет образами, индикатор «Images up to date» не работает. [Пересоздание stack](../../docs/deployment.md#stack-limited-created-outside-of-portainer)
+> **Control: Limited?** Stack создан через SSH — Portainer не тянет GHCR. [Пересоздание stack](../../docs/deployment.md#stack-limited-created-outside-of-portainer)
 
 ## Быстрый старт
 
@@ -19,9 +19,9 @@ docker-compose.portainer.yml
 | Repository URL | `https://github.com/finenumbers/pstn` |
 | Reference | `main` |
 | **Compose path** | **`docker-compose.portainer.yml`** |
-| Environment | [`portainer.env.example`](../../portainer.env.example) — **`POSTGRES_PASSWORD`** и **`PSTN_IMAGE_TAG`** (обязательны) |
+| Environment | [`portainer.env.example`](../../portainer.env.example) — достаточно `POSTGRES_PASSWORD` |
 
-Обновление после релиза: задайте `PSTN_IMAGE_TAG=<версия>` → **Pull and redeploy** (не rebuild на сервере). Проверка: под заголовком на сайте «Версия X.Y.Z» или `GET /api/health`.
+Обновление после push в `main`: дождитесь CI + GHCR → **Pull and redeploy** (не rebuild на сервере).
 
 Полная инструкция: **[docs/deployment.md](../../docs/deployment.md)** · NPM: **[docs/npm.md](../../docs/npm.md)**
 

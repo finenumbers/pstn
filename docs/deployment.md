@@ -165,7 +165,7 @@ docker compose -f docker-compose.prod.yml up -d --build
    - **Repository reference:** `main`
    - **Compose path:** `docker-compose.portainer.yml`
    
-   > **Только Git repository** — как у [`geoip`](https://github.com/finenumbers/geoip). Файл **без** `build:`; образ `ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG}` (semver-тег из GHCR, **не `:latest`**). Registries в Portainer **не нужны**.
+   > **Только Git repository** — как у [`geoip`](https://github.com/finenumbers/geoip). Файл **без** `build:`; образ `ghcr.io/finenumbers/pstn:latest` (публичный GHCR). Registries в Portainer **не нужны**.
 3. **Environment variables** — из [`portainer.env.example`](../portainer.env.example):
 
 | Переменная | Пример | Обязательна |
@@ -234,11 +234,9 @@ curl http://127.0.0.1:5555/api/health
 
 ### Шаг 3 — Обновление
 
-Portainer → Stacks → `pstn` → **Pull and redeploy** — подтягивает compose из Git и образ `ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG}` с GHCR.
+Portainer → Stacks → `pstn` → **Pull and redeploy** — подтягивает compose из Git и образ `ghcr.io/finenumbers/pstn:latest` с GHCR.
 
-**Обязательная переменная stack:** `PSTN_IMAGE_TAG=0.3.6` (актуальный semver из [Releases](https://github.com/finenumbers/pstn/releases)). Меняйте её при каждом деплое — иначе Docker может оставить старый слой образа, а Portainer покажет зелёную галочку «всё ок».
-
-В [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) для `app` задано **`pull_policy: always`** (Compose v2.17+).
+В [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) для `app` задано **`pull_policy: always`** — Docker принудительно тянет `:latest` при каждом redeploy (Compose v2.17+). Зелёная галочка у stack **не** означает, что pull прошёл — сверяйте «Версия X.Y.Z» на сайте или `GET /api/health`.
 
 Образ публикуется workflow **Publish Docker image** после успешного CI на `main`. Registries в Portainer не нужны (публичный GHCR).
 
@@ -385,11 +383,11 @@ User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/fi
 
 Push в `main` запускает [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (тесты, lint). После **успешного** CI workflow [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) публикует образ:
 
-- `ghcr.io/finenumbers/pstn:<version>` — **рекомендуется для Portainer** (`PSTN_IMAGE_TAG`)
-- `ghcr.io/finenumbers/pstn:latest` — для ручного pull; Portainer **не** показывает устаревание при неизменном теге
+- `ghcr.io/finenumbers/pstn:latest` — Portainer stack (с `pull_policy: always`)
+- `ghcr.io/finenumbers/pstn:<version>` — опционально для pin по semver
 - `ghcr.io/finenumbers/pstn:<commit-sha>`
 
-Portainer stack: **`PSTN_IMAGE_TAG`**, не `:latest`. Обновление: новый тег в env → **Pull and redeploy**.
+Portainer stack использует **`:latest`**. Обновление: CI + GHCR → **Pull and redeploy** → проверка версии на сайте.
 
 ---
 
