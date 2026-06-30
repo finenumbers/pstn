@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseDatasetParam,
+  getFirstDatasetLoadDate,
+  maskAsOfDisplayDateInput,
   parseAsOfDisplayDate,
+  parseDatasetParam,
   serializeDatasetParam,
   tryParseAsOfParam,
   tryParseDatasetParam,
@@ -37,6 +39,14 @@ describe("dataset.schema", () => {
     }
   });
 
+  it("masks display date input with dot separators", () => {
+    expect(maskAsOfDisplayDateInput("")).toBe("");
+    expect(maskAsOfDisplayDateInput("30")).toBe("30");
+    expect(maskAsOfDisplayDateInput("3006")).toBe("30.06");
+    expect(maskAsOfDisplayDateInput("30062026")).toBe("30.06.2026");
+    expect(maskAsOfDisplayDateInput("30.06.2026")).toBe("30.06.2026");
+  });
+
   it("parses display date DD.MM.YYYY to ISO", () => {
     expect(parseAsOfDisplayDate("15.06.2025")).toBe("2025-06-15");
     expect(parseAsOfDisplayDate("5.6.2025")).toBe("2025-06-05");
@@ -49,6 +59,25 @@ describe("dataset.schema", () => {
     expect(parseAsOfDisplayDate("29.02.2023")).toBeNull();
     expect(parseAsOfDisplayDate("not-a-date")).toBeNull();
     expect(parseAsOfDisplayDate("01.01.2099")).toBeNull();
+  });
+
+  it("rejects dates before first dataset load", () => {
+    expect(
+      parseAsOfDisplayDate("01.01.2024", { firstLoadDate: "2024-06-15" })
+    ).toBeNull();
+    expect(
+      parseAsOfDisplayDate("15.06.2024", { firstLoadDate: "2024-06-15" })
+    ).toBe("2024-06-15");
+  });
+
+  it("finds earliest load date for calendar bounds", () => {
+    expect(
+      getFirstDatasetLoadDate([
+        { loadDate: "2024-06-15" },
+        { loadDate: "2025-01-10" },
+      ])
+    ).toBe("2024-06-15");
+    expect(getFirstDatasetLoadDate([])).toBeNull();
   });
 
   it("rejects invalid diff snapshot id", () => {

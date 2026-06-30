@@ -66,6 +66,26 @@ export interface ChangeDatesResponse {
   items: DatasetChangeDateItem[];
 }
 
+/** Earliest full snapshot date (baseline / first import). */
+export function getFirstDatasetLoadDate(
+  items: readonly Pick<DatasetChangeDateItem, "loadDate">[]
+): string | null {
+  if (items.length === 0) return null;
+  let min = items[0]!.loadDate;
+  for (const item of items) {
+    if (item.loadDate < min) min = item.loadDate;
+  }
+  return min;
+}
+
+export function isSelectableAsOfDate(
+  isoDate: string,
+  firstLoadDate: string | null
+): boolean {
+  if (!firstLoadDate) return false;
+  return isoDate >= firstLoadDate;
+}
+
 export function parseDatasetParam(raw: string | null | undefined): DatasetRef {
   const parsed = datasetParamSchema.parse(raw ?? DATASET_CURRENT_ID);
   if (parsed === DATASET_CURRENT_ID) {
@@ -120,17 +140,41 @@ export function formatAsOfDisplayDate(isoDate: string): string {
   return `${day}.${month}.${year}`;
 }
 
-/** Parse DD.MM.YYYY (or D.M.YYYY) to ISO YYYY-MM-DD; null if invalid or future. */
-export function parseAsOfDisplayDate(input: string): string | null {
+/** Format typed digits as DD.MM.YYYY (auto-insert dots, max 8 digits). */
+export function maskAsOfDisplayDateInput(input: string): string {
+  const digits = input.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) {
+    return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  }
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
+}
+
+/** Parse DD.MM.YYYY (or D.M.YYYY) to ISO YYYY-MM-DD; null if invalid, future, or before first load. */
+export function parseAsOfDisplayDate(
+  input: string,
+  options?: { firstLoadDate?: string | null }
+): string | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return null;
+  let day: number;
+  let month: number;
+  let year: number;
 
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
+  const dotted = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dotted) {
+    day = Number(dotted[1]);
+    month = Number(dotted[2]);
+    year = Number(dotted[3]);
+  } else {
+    const normalized = maskAsOfDisplayDateInput(trimmed);
+    const match = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!match) return null;
+    day = Number(match[1]);
+    month = Number(match[2]);
+    year = Number(match[3]);
+  }
 
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
@@ -145,7 +189,15 @@ export function parseAsOfDisplayDate(input: string): string | null {
 
   if (parsed > new Date()) return null;
 
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (
+    options?.firstLoadDate &&
+    !isSelectableAsOfDate(iso, options.firstLoadDate)
+  ) {
+    return null;
+  }
+
+  return iso;
 }
 
 export function datasetQueryKey(ref: DatasetRef, asOf?: string | null): string {

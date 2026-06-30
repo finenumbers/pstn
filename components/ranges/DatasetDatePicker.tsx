@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarIcon } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfMonth, subMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import {
 import { useChangeDatesQuery } from "@/hooks/useChangeDatesQuery";
 import {
   formatAsOfDisplayDate,
+  getFirstDatasetLoadDate,
+  maskAsOfDisplayDateInput,
   parseAsOfDisplayDate,
 } from "@/packages/shared/contracts/dataset.schema";
 import { cn } from "@/lib/utils";
@@ -36,12 +38,19 @@ export function DatasetDatePicker({
   const [draft, setDraft] = useState("");
   const [invalid, setInvalid] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(new Date()));
   const changeDatesQuery = useChangeDatesQuery();
 
   useEffect(() => {
     setDraft(value ? formatAsOfDisplayDate(value) : "");
     setInvalid(false);
   }, [value]);
+
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const anchor = value ? parseISO(value) : new Date();
+    setCalendarMonth(startOfMonth(subMonths(anchor, 1)));
+  }, [calendarOpen, value]);
 
   const changeDateSet = useMemo(() => {
     const set = new Set<string>();
@@ -51,15 +60,16 @@ export function DatasetDatePicker({
     return set;
   }, [changeDatesQuery.data?.items]);
 
-  const baselineDates = useMemo(() => {
-    const set = new Set<string>();
-    for (const item of changeDatesQuery.data?.items ?? []) {
-      if (!item.hasDiff) {
-        set.add(item.loadDate);
-      }
-    }
-    return set;
-  }, [changeDatesQuery.data?.items]);
+  const firstLoadDate = useMemo(
+    () => getFirstDatasetLoadDate(changeDatesQuery.data?.items ?? []),
+    [changeDatesQuery.data?.items]
+  );
+
+  const isCalendarDateDisabled = (date: Date): boolean => {
+    if (date > new Date()) return true;
+    if (!firstLoadDate) return true;
+    return isoFromDate(date) < firstLoadDate;
+  };
 
   const selectedDate = value ? parseISO(value) : undefined;
 
@@ -71,7 +81,7 @@ export function DatasetDatePicker({
       return;
     }
 
-    const iso = parseAsOfDisplayDate(trimmed);
+    const iso = parseAsOfDisplayDate(trimmed, { firstLoadDate });
     if (!iso) {
       setInvalid(true);
       setDraft(value ? formatAsOfDisplayDate(value) : "");
@@ -95,15 +105,18 @@ export function DatasetDatePicker({
       )}
     >
       <Input
-        className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 shadow-none focus-visible:ring-0"
+        className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 font-mono tabular-nums shadow-none focus-visible:ring-0"
         placeholder="ДД.ММ.ГГГГ"
         value={draft}
         disabled={disabled}
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={10}
         aria-label="Дата датасета"
         aria-invalid={invalid}
         onChange={(event) => {
           setInvalid(false);
-          setDraft(event.target.value);
+          setDraft(maskAsOfDisplayDateInput(event.target.value));
         }}
         onBlur={commitDraft}
         onKeyDown={(event) => {
@@ -129,23 +142,23 @@ export function DatasetDatePicker({
         <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             mode="single"
+            numberOfMonths={3}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
             selected={selectedDate}
             onSelect={(date) => {
-              if (!date) return;
+              if (!date || isCalendarDateDisabled(date)) return;
               onChange?.(isoFromDate(date));
               setCalendarOpen(false);
             }}
             modifiers={{
               versionDay: (date) => changeDateSet.has(isoFromDate(date)),
-              baselineDay: (date) => baselineDates.has(isoFromDate(date)),
             }}
             modifiersClassNames={{
               versionDay:
                 "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600",
-              baselineDay:
-                "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-300",
             }}
-            disabled={(date) => date > new Date()}
+            disabled={isCalendarDateDisabled}
           />
           {value && (
             <div className="border-t p-2">
@@ -162,7 +175,8 @@ export function DatasetDatePicker({
             </div>
           )}
           <div className="border-t px-3 py-2 text-[11px] text-muted-foreground">
-            Синяя точка — день изменений; светлая — первая загрузка
+            Синяя точка — день версии датасета (первая загрузка или изменения).
+            Ранее первой загрузки даты недоступны.
           </div>
         </PopoverContent>
       </Popover>

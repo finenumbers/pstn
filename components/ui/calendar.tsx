@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker, getDefaultClassNames, type DayButton } from "react-day-picker";
 import { ru } from "react-day-picker/locale";
 import { cn } from "@/lib/utils";
@@ -47,34 +48,37 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{
-        months: cn("flex flex-col gap-2", defaultClassNames.months),
-        month: cn("flex flex-col gap-4", defaultClassNames.month),
+        months: cn(
+          "relative flex flex-row flex-nowrap gap-4 pt-10",
+          defaultClassNames.months
+        ),
+        month: cn("flex w-[calc(7*2rem)] flex-col gap-3", defaultClassNames.month),
         month_caption: cn(
-          "flex justify-center pt-1 relative items-center w-full",
+          "flex h-8 items-center justify-center",
           defaultClassNames.month_caption
         ),
         caption_label: cn("text-sm font-medium", defaultClassNames.caption_label),
         nav: cn(
-          "flex items-center gap-1 w-full absolute top-1 inset-x-0 justify-between px-1",
+          "pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between",
           defaultClassNames.nav
         ),
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+          "pointer-events-auto size-8 shrink-0 bg-background p-0 shadow-sm",
           defaultClassNames.button_previous
         ),
         button_next: cn(
           buttonVariants({ variant: "outline" }),
-          "size-7 bg-transparent p-0 opacity-50 hover:opacity-100",
+          "pointer-events-auto size-8 shrink-0 bg-background p-0 shadow-sm",
           defaultClassNames.button_next
         ),
         month_grid: cn("w-full border-collapse", defaultClassNames.month_grid),
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
+          "text-muted-foreground w-8 rounded-md text-[0.8rem] font-normal",
           defaultClassNames.weekday
         ),
-        week: cn("flex w-full mt-2", defaultClassNames.week),
+        week: cn("mt-2 flex w-full", defaultClassNames.week),
         day: cn(
           "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent",
           defaultClassNames.day
@@ -98,6 +102,12 @@ function Calendar({
       }}
       components={{
         DayButton: CalendarDayButton,
+        Chevron: ({ className, orientation, ...chevronProps }) => {
+          const Icon = orientation === "left" ? ChevronLeft : ChevronRight;
+          return (
+            <Icon className={cn("size-4", className)} {...chevronProps} />
+          );
+        },
       }}
       {...props}
     />
