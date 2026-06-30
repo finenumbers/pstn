@@ -13,13 +13,7 @@ const IMPORT_DIFF_OLD_TABLE = "import_diff_old";
 export async function prepareImportDiffOldTable(): Promise<void> {
   await importPool().query(`
     DROP TABLE IF EXISTS ${IMPORT_DIFF_OLD_TABLE};
-    CREATE UNLOGGED TABLE ${IMPORT_DIFF_OLD_TABLE} (
-      LIKE number_ranges INCLUDING DEFAULTS EXCLUDING IDENTITY
-    );
-    INSERT INTO ${IMPORT_DIFF_OLD_TABLE} (
-      abc, range_start, range_end, capacity, operator, region, gar_territory, inn,
-      abc_gap_before, abc_gap_after, source_file, created_at
-    )
+    CREATE UNLOGGED TABLE ${IMPORT_DIFF_OLD_TABLE} AS
     SELECT
       abc, range_start, range_end, capacity, operator, region, gar_territory, inn,
       abc_gap_before, abc_gap_after, source_file, created_at
