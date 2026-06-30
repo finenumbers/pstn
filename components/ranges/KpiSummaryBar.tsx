@@ -69,7 +69,6 @@ export function KpiSummaryBar({
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <DbSizeInfo />
           {onResetFilters && (
             <Button
               variant="outline"
@@ -93,6 +92,7 @@ export function KpiSummaryBar({
               disabled={isImporting}
             />
           )}
+          <DbSizeInfo />
           <ExternalApiHelpDialog
             phoneMask={phoneNumber}
             dataset={selectedDataset}

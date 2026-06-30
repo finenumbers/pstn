@@ -53,8 +53,8 @@ export function DatasetSelector({
 
   if (datasetsQuery.isLoading) {
     return (
-      <div className="flex h-9 items-center rounded-md border border-input bg-background px-3">
-        <Skeleton className="h-4 w-40" />
+      <div className="flex h-9 w-[196px] items-center rounded-md border border-input bg-background px-3">
+        <Skeleton className="h-4 w-full" />
       </div>
     );
   }
@@ -64,9 +64,9 @@ export function DatasetSelector({
   }
 
   return (
-    <label className="relative flex h-9 min-w-[220px] items-center rounded-md border border-input bg-background px-3 text-sm">
+    <label className="relative flex h-9 w-[196px] items-center rounded-md border border-input bg-background px-3 text-sm">
       <span className="sr-only">Выбор датасета</span>
-      <span className="pointer-events-none mr-2 truncate">
+      <span className="pointer-events-none whitespace-nowrap">
         {selectedItem ? (
           <DatasetLabel label={selectedItem.label} />
         ) : (
