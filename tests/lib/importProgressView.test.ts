@@ -91,7 +91,7 @@ describe("importProgressView", () => {
       "computing_gaps",
       "computing_diff",
       "swapping",
-      "saving_diff_snapshot",
+      "saving_version_snapshot",
       "binding_uvr_antifraud",
       "completed",
     ]);

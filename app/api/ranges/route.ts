@@ -7,7 +7,10 @@ import {
   type SortableColumn,
 } from "@/packages/shared/contracts/filters.schema";
 import { decodeRangesCursor } from "@/lib/api/rangesCursor";
-import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import {
+  isDatasetAndAsOfParseError,
+  parseDatasetAndAsOf,
+} from "@/lib/api/datasetAndAsOf";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
@@ -47,10 +50,11 @@ export async function GET(request: NextRequest) {
       return apiError("VALIDATION_ERROR", "Invalid cursor", 400);
     }
 
-    const dataset = parseDatasetOrError(params);
-    if (isDatasetParseError(dataset)) {
-      return dataset;
+    const parsedDataset = parseDatasetAndAsOf(params);
+    if (isDatasetAndAsOfParseError(parsedDataset)) {
+      return parsedDataset;
     }
+    const { dataset, asOf } = parsedDataset;
 
     const { data, totalRows, hasMore } = await listRanges({
       filters,
@@ -60,6 +64,7 @@ export async function GET(request: NextRequest) {
       page: cursor ? undefined : parsed.data.page,
       skipCount: shouldSkipPhoneRangeCount(filters),
       dataset,
+      asOf,
     });
 
     withTiming("/api/ranges", startMs, {

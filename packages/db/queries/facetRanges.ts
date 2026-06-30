@@ -14,6 +14,7 @@ export async function facetRanges(params: {
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
+  asOf?: string | null;
 }) {
   switch (params.column) {
     case "inn":

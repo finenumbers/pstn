@@ -22,8 +22,7 @@ import {
 } from "../schema";
 import { buildWhere, facetColumnForContext } from "./buildWhere";
 import {
-  CURRENT_RANGE_CONTEXT,
-  resolveRangeQueryContext,
+  resolveQueryContext,
 } from "./datasetContext";
 
 type FacetDictValue =
@@ -69,11 +68,10 @@ export async function facetRangesFromDict(params: {
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
+  asOf?: string | null;
 }) {
   const limit = params.limit ?? 200;
-  const context = params.dataset
-    ? await resolveRangeQueryContext(params.dataset)
-    : CURRENT_RANGE_CONTEXT;
+  const context = await resolveQueryContext(params.dataset, params.asOf);
 
   if (context.isDiff) {
     return facetRangesFromDiffTable({
@@ -133,7 +131,7 @@ async function facetRangesFromDiffTable(params: {
   filters: FiltersDTO;
   search?: string;
   limit?: number;
-  context: Awaited<ReturnType<typeof resolveRangeQueryContext>>;
+  context: Awaited<ReturnType<typeof resolveQueryContext>>;
 }) {
   const rangeColumn = facetColumnForContext(params.column, params.context);
   const rangeWhere = buildWhere(params.filters, params.context, params.column);

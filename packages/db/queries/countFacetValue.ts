@@ -4,14 +4,13 @@ import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { operatorsRegister } from "../schema";
 import { buildWhere, facetColumnForContext } from "./buildWhere";
-import {
-  CURRENT_RANGE_CONTEXT,
-  resolveRangeQueryContext,
-} from "./datasetContext";
+import { resolveQueryContext } from "./datasetContext";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
+import type { RangeFilterTable } from "./rangeFilterTable";
+
 function uvrAntifraudValueWhere(
-  table: (typeof CURRENT_RANGE_CONTEXT)["table"],
+  table: RangeFilterTable,
   value: string
 ): SQL {
   return sql`EXISTS (
@@ -27,11 +26,10 @@ export async function countFacetValue(
   column: FacetColumn,
   value: string,
   filters: FiltersDTO,
-  dataset?: DatasetRef
+  dataset?: DatasetRef,
+  asOf?: string | null
 ): Promise<number> {
-  const context = dataset
-    ? await resolveRangeQueryContext(dataset)
-    : CURRENT_RANGE_CONTEXT;
+  const context = await resolveQueryContext(dataset, asOf);
   const table = context.table;
   const baseWhere = buildWhere(filters, context);
   const valueWhere =

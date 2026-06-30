@@ -22,6 +22,10 @@ import {
 } from "@/components/ui/table";
 import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
 import {
+  formatDiffDisplayValue,
+  mapDiffOperatorInn,
+} from "@/lib/diff/diffOperatorInnDisplay";
+import {
   compactColumnStyle,
   computeAbcFilterColumnWidth,
   computeCompactColumnWidths,
@@ -76,7 +80,22 @@ const COLUMN_ORDER = [
   "inn",
 ] as const;
 
+const DIFF_COLUMN_ORDER = [
+  "abc",
+  "rangeStart",
+  "rangeEnd",
+  "capacity",
+  "prevOperator",
+  "newOperator",
+  "region",
+  "garTerritory",
+  "uvrAntifraud",
+  "prevInn",
+  "newInn",
+] as const;
+
 type TableColumnId = (typeof COLUMN_ORDER)[number];
+type DiffTableColumnId = (typeof DIFF_COLUMN_ORDER)[number];
 
 const COLUMN_LABELS: Record<TableColumnId, string> = {
   abc: "ABC",
@@ -89,6 +108,37 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
 };
+
+const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
+  abc: "ABC",
+  rangeStart: "Начало",
+  rangeEnd: "Конец",
+  capacity: "Емкость",
+  prevOperator: "Старый оператор связи",
+  newOperator: "Новый оператор связи",
+  region: "Регион",
+  garTerritory: "Территория ГАР",
+  uvrAntifraud: "УВр Антифрод",
+  prevInn: "Старый ИНН",
+  newInn: "Новый ИНН",
+};
+
+function renderInnCellValue(inn: string | null | undefined) {
+  const display = formatDiffDisplayValue(inn);
+  if (display === "—") return display;
+  const href = dadataPartyUrl(inn!);
+  if (!href) return display;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-inherit underline decoration-black underline-offset-2"
+    >
+      {display}
+    </a>
+  );
+}
 
 function isNineSeriesAbc(abc: string): boolean {
   return abc.startsWith("9");
@@ -118,8 +168,9 @@ export function RangesTable({
   isDiffView = false,
 }: RangesTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const columnOrder = isDiffView ? DIFF_COLUMN_ORDER : COLUMN_ORDER;
 
-  const columns = useMemo(
+  const standardColumns = useMemo(
     () => [
       { accessorKey: "abc", header: "ABC" },
       {
@@ -154,25 +205,81 @@ export function RangesTable({
       {
         accessorKey: "inn",
         header: "ИНН",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const inn = row.original.inn;
-          const href = dadataPartyUrl(inn);
-          if (!href) return inn || "—";
-          return (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-inherit underline decoration-black underline-offset-2"
-            >
-              {inn}
-            </a>
-          );
-        },
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          renderInnCellValue(row.original.inn),
       },
     ],
     []
   );
+
+  const diffColumns = useMemo(
+    () => [
+      { accessorKey: "abc", header: "ABC" },
+      {
+        accessorKey: "rangeStart",
+        header: "Начало",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatRangeSegment(row.original.rangeStart),
+      },
+      {
+        accessorKey: "rangeEnd",
+        header: "Конец",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatRangeSegment(row.original.rangeEnd),
+      },
+      {
+        accessorKey: "capacity",
+        header: "Емкость",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatNumber(row.original.capacity),
+      },
+      {
+        id: "prevOperator",
+        accessorKey: "prevOperator",
+        header: DIFF_COLUMN_LABELS.prevOperator,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(
+            mapDiffOperatorInn(row.original).oldOperator
+          ),
+      },
+      {
+        id: "newOperator",
+        accessorKey: "newOperator",
+        header: DIFF_COLUMN_LABELS.newOperator,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(
+            mapDiffOperatorInn(row.original).newOperator
+          ),
+      },
+      { accessorKey: "region", header: "Регион" },
+      { accessorKey: "garTerritory", header: "Территория ГАР" },
+      {
+        accessorKey: "uvrAntifraud",
+        header: "УВр Антифрод",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
+          const value = row.original.uvrAntifraud;
+          return value != null ? String(value) : "—";
+        },
+      },
+      {
+        id: "prevInn",
+        accessorKey: "prevInn",
+        header: DIFF_COLUMN_LABELS.prevInn,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          renderInnCellValue(mapDiffOperatorInn(row.original).oldInn),
+      },
+      {
+        id: "newInn",
+        accessorKey: "newInn",
+        header: DIFF_COLUMN_LABELS.newInn,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          renderInnCellValue(mapDiffOperatorInn(row.original).newInn),
+      },
+    ],
+    []
+  );
+
+  const columns = isDiffView ? diffColumns : standardColumns;
 
   const compactWidths = useMemo(
     () => computeCompactColumnWidths(data),
@@ -186,10 +293,18 @@ export function RangesTable({
 
   const getColumnWidthCh = (columnId: string): number | undefined => {
     if (columnId === "abc") return abcColumnWidthCh;
-    if (columnId === "inn") return INN_COLUMN_WIDTH_CH;
+    if (
+      columnId === "inn" ||
+      columnId === "prevInn" ||
+      columnId === "newInn"
+    ) {
+      return INN_COLUMN_WIDTH_CH;
+    }
     if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     if (
       columnId === "operator" ||
+      columnId === "newOperator" ||
+      columnId === "prevOperator" ||
       columnId === "garTerritory" ||
       columnId === "region"
     ) {
@@ -206,7 +321,11 @@ export function RangesTable({
         style: compactColumnStyle(abcColumnWidthCh),
       };
     }
-    if (columnId === "inn") {
+    if (
+      columnId === "inn" ||
+      columnId === "prevInn" ||
+      columnId === "newInn"
+    ) {
       return {
         className: "whitespace-nowrap tabular-nums",
         style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
@@ -231,6 +350,8 @@ export function RangesTable({
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
     if (
       columnId === "operator" ||
+      columnId === "newOperator" ||
+      columnId === "prevOperator" ||
       columnId === "garTerritory" ||
       columnId === "region"
     ) {
@@ -239,7 +360,11 @@ export function RangesTable({
     if (columnId === "abc") {
       return columnWidthStyle(abcColumnWidthCh);
     }
-    if (columnId === "inn") {
+    if (
+      columnId === "inn" ||
+      columnId === "prevInn" ||
+      columnId === "newInn"
+    ) {
       return compactColumnStyle(INN_COLUMN_WIDTH_CH);
     }
     if (columnId === "uvrAntifraud") {
@@ -324,7 +449,7 @@ export function RangesTable({
           gapAfter && showGapMarkers && "range-gap-after"
         )}
       >
-        {COLUMN_ORDER.map((colId) => {
+        {columnOrder.map((colId) => {
           const cell = row
             .getVisibleCells()
             .find((visibleCell) => visibleCell.column.id === colId);
@@ -404,7 +529,7 @@ export function RangesTable({
     </button>
   );
 
-  const renderHeaderCell = (colId: TableColumnId) => {
+  const renderHeaderCell = (colId: TableColumnId | DiffTableColumnId) => {
     switch (colId) {
       case "abc":
         return (
@@ -424,6 +549,25 @@ export function RangesTable({
       case "rangeEnd":
       case "capacity":
         return <SortHeader columnId={colId} />;
+      case "prevOperator":
+        return (
+          <span className="text-xs font-bold">
+            {DIFF_COLUMN_LABELS.prevOperator}
+          </span>
+        );
+      case "newOperator":
+        return (
+          <FacetCombobox
+            label={DIFF_COLUMN_LABELS.newOperator}
+            values={filters.operator}
+            search={facetSearch.operator ?? ""}
+            options={facets?.facets.operator?.options ?? []}
+            onChange={(v) => onFilterChange("operator", v)}
+            onSearchChange={(s) => onFacetSearchChange("operator", s)}
+            isLoading={facetsLoading}
+            placeholder={DIFF_COLUMN_LABELS.newOperator}
+          />
+        );
       case "operator":
         return (
           <FacetCombobox
@@ -463,6 +607,23 @@ export function RangesTable({
             placeholder="Регион"
           />
         );
+      case "prevInn":
+        return (
+          <span className="text-xs font-bold">{DIFF_COLUMN_LABELS.prevInn}</span>
+        );
+      case "newInn":
+        return (
+          <FacetCombobox
+            label={DIFF_COLUMN_LABELS.newInn}
+            values={filters.inn}
+            search={facetSearch.inn ?? ""}
+            options={facets?.facets.inn?.options ?? []}
+            onChange={(v) => onFilterChange("inn", v)}
+            onSearchChange={(s) => onFacetSearchChange("inn", s)}
+            isLoading={facetsLoading}
+            placeholder={DIFF_COLUMN_LABELS.newInn}
+          />
+        );
       case "inn":
         return (
           <FacetCombobox
@@ -494,6 +655,16 @@ export function RangesTable({
     }
   };
 
+  const hasFilterColumn = (colId: TableColumnId | DiffTableColumnId) =>
+    colId === "abc" ||
+    colId === "operator" ||
+    colId === "newOperator" ||
+    colId === "garTerritory" ||
+    colId === "region" ||
+    colId === "inn" ||
+    colId === "newInn" ||
+    colId === "uvrAntifraud";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {facetsError && (
@@ -507,7 +678,7 @@ export function RangesTable({
       >
         <Table className="table-fixed w-full border-separate border-spacing-0">
           <colgroup>
-            {COLUMN_ORDER.map((colId) => {
+            {columnOrder.map((colId) => {
               const ch = getColumnWidthCh(colId);
               return (
                 <col
@@ -519,22 +690,15 @@ export function RangesTable({
           </colgroup>
           <TableHeader className="sticky top-0 z-30 bg-background">
             <TableRow className="border-b hover:bg-transparent">
-              {COLUMN_ORDER.map((colId) => {
+              {columnOrder.map((colId) => {
                 const compact = getCompactCellProps(colId);
-                const hasFilter =
-                  colId === "abc" ||
-                  colId === "operator" ||
-                  colId === "garTerritory" ||
-                  colId === "region" ||
-                  colId === "inn" ||
-                  colId === "uvrAntifraud";
                 return (
                   <TableHead
                     key={colId}
                     className={cn(
                       "sticky top-0 z-30 h-10 px-1 py-0 align-middle",
                       "border-b bg-background shadow-[0_1px_0_0_var(--color-border)]",
-                      hasFilter && "bg-muted",
+                      hasFilterColumn(colId) && "bg-muted",
                       compact.className
                     )}
                     style={getHeaderStyle(colId) ?? compact.style}
@@ -549,7 +713,7 @@ export function RangesTable({
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  {COLUMN_ORDER.map((colId) => (
+                  {columnOrder.map((colId) => (
                     <TableCell key={colId}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
@@ -559,7 +723,7 @@ export function RangesTable({
             ) : errorMessage ? (
               <TableRow>
                 <TableCell
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={columnOrder.length}
                   className="h-24 text-center text-red-700"
                 >
                   Ошибка загрузки таблицы: {errorMessage}
@@ -568,7 +732,7 @@ export function RangesTable({
             ) : data.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={COLUMN_ORDER.length}
+                  colSpan={columnOrder.length}
                   className="h-24 text-center text-muted-foreground"
                 >
                   Нет данных. Нажмите «Загрузить данные» для загрузки.
@@ -579,7 +743,7 @@ export function RangesTable({
                 {paddingTop > 0 && (
                   <TableRow aria-hidden className="border-0 hover:bg-transparent">
                     <TableCell
-                      colSpan={COLUMN_ORDER.length}
+                      colSpan={columnOrder.length}
                       className="border-0 p-0"
                       style={{ height: paddingTop }}
                     />
@@ -596,7 +760,7 @@ export function RangesTable({
                 {paddingBottom > 0 && (
                   <TableRow aria-hidden className="border-0 hover:bg-transparent">
                     <TableCell
-                      colSpan={COLUMN_ORDER.length}
+                      colSpan={columnOrder.length}
                       className="border-0 p-0"
                       style={{ height: paddingBottom }}
                     />

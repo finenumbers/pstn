@@ -141,10 +141,38 @@ export const datasetSnapshots = pgTable("dataset_snapshots", {
   addedCount: integer("added_count").notNull().default(0),
   changedCount: integer("changed_count").notNull().default(0),
   removedCount: integer("removed_count").notNull().default(0),
+  hasFull: boolean("has_full").notNull().default(false),
+  hasDiff: boolean("has_diff").notNull().default(false),
+  rowCount: integer("row_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });
+
+export const numberRangeFullSnapshots = pgTable(
+  "number_range_full_snapshots",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    snapshotId: uuid("snapshot_id").notNull(),
+    abc: varchar("abc", { length: 3 }).notNull(),
+    rangeStart: bigint("range_start", { mode: "number" }).notNull(),
+    rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
+    capacity: integer("capacity").notNull(),
+    operator: text("operator").notNull(),
+    region: text("region").notNull(),
+    garTerritory: text("gar_territory").notNull(),
+    inn: varchar("inn", { length: 12 }).notNull().default(""),
+    abcGapBefore: boolean("abc_gap_before").notNull().default(false),
+    abcGapAfter: boolean("abc_gap_after").notNull().default(false),
+    sourceFile: varchar("source_file", { length: 16 }).notNull(),
+  },
+  (table) => [
+    check(
+      "number_range_full_snapshots_range_order",
+      sql`${table.rangeEnd} >= ${table.rangeStart}`
+    ),
+  ]
+);
 
 export const numberRangeDiffs = pgTable(
   "number_range_diffs",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseDatasetParam,
   serializeDatasetParam,
+  tryParseAsOfParam,
   tryParseDatasetParam,
 } from "@/packages/shared/contracts/dataset.schema";
 
@@ -17,6 +18,22 @@ describe("dataset.schema", () => {
       kind: "diff",
       snapshotId,
     });
+  });
+
+  it("parses full dataset with uuid", () => {
+    const snapshotId = "550e8400-e29b-41d4-a716-446655440000";
+    expect(parseDatasetParam(`full:${snapshotId}`)).toEqual({
+      kind: "full",
+      snapshotId,
+    });
+  });
+
+  it("parses asOf param", () => {
+    const parsed = tryParseAsOfParam("2025-06-15");
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data).toBe("2025-06-15");
+    }
   });
 
   it("rejects invalid diff snapshot id", () => {

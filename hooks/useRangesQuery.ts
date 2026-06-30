@@ -16,6 +16,7 @@ export function useRangesInfiniteQuery(params: {
   sorting: { id: SortableColumn; desc: boolean }[];
   pageSize: number;
   dataset: DatasetRef;
+  asOf?: string | null;
 }) {
   const sort = serializeSort(params.sorting);
   const datasetParam = serializeDatasetParam(params.dataset);
@@ -26,12 +27,16 @@ export function useRangesInfiniteQuery(params: {
       sort,
       pageSize: params.pageSize,
       dataset: datasetParam,
+      asOf: params.asOf ?? "",
     }),
     queryFn: async ({ pageParam, signal }) => {
       const filterParams = buildFilterParams(params.filters);
       filterParams.set("pageSize", String(params.pageSize));
       filterParams.set("sort", sort);
       filterParams.set("dataset", datasetParam);
+      if (params.asOf && params.dataset.kind === "current") {
+        filterParams.set("asOf", params.asOf);
+      }
       if (pageParam) {
         filterParams.set("cursor", pageParam);
       } else {

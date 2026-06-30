@@ -27,20 +27,14 @@ function range(
 }
 
 describe("rangeDatasetDiff", () => {
-  it("splits truncated range into changed and removed segments (383/399 example)", () => {
+  it("splits truncated range into removed tail only when overlap metadata matches (383/399, rule B)", () => {
     const oldRanges = [range("383", 3990000, 3999999)];
     const newRanges = [range("383", 3990000, 3998888)];
 
     const segments = diffRangesForAbc("383", oldRanges, newRanges);
 
-    expect(segments).toHaveLength(2);
+    expect(segments).toHaveLength(1);
     expect(segments[0]).toMatchObject({
-      changeType: "changed",
-      abc: "383",
-      rangeStart: 3990000,
-      rangeEnd: 3998888,
-    });
-    expect(segments[1]).toMatchObject({
       changeType: "removed",
       abc: "383",
       rangeStart: 3998889,
@@ -85,8 +79,63 @@ describe("rangeDatasetDiff", () => {
     );
     expect(countDiffSegments(segments)).toEqual({
       added: 0,
-      changed: 1,
+      changed: 0,
       removed: 1,
+    });
+  });
+
+  it("operator handoff and removal without spurious tail changed row (rule B)", () => {
+    const oldRanges = [range("800", 1000, 10999, "Op A", { inn: "111" })];
+    const newRanges = [
+      range("800", 1000, 4999, "Op A", { inn: "111" }),
+      range("800", 5000, 5099, "Op B", { inn: "222" }),
+      range("800", 5500, 10999, "Op A", { inn: "111" }),
+    ];
+
+    const segments = diffRangesForAbc("800", oldRanges, newRanges);
+
+    expect(segments).toHaveLength(2);
+    expect(segments[0]).toMatchObject({
+      changeType: "changed",
+      rangeStart: 5000,
+      rangeEnd: 5099,
+      operator: "Op B",
+      prevOperator: "Op A",
+      inn: "222",
+      prevInn: "111",
+    });
+    expect(segments[1]).toMatchObject({
+      changeType: "removed",
+      rangeStart: 5100,
+      rangeEnd: 5499,
+      operator: "Op A",
+    });
+  });
+
+  it("splits operator handoff at range boundaries", () => {
+    const oldRanges = [
+      range("495", 100, 300, "Op A"),
+      range("495", 301, 500, "Op B"),
+    ];
+    const newRanges = [range("495", 100, 500, "Op C")];
+
+    const segments = diffRangesForAbc("495", oldRanges, newRanges);
+
+    expect(segments).toHaveLength(2);
+    expect(segments.every((segment) => segment.changeType === "changed")).toBe(
+      true
+    );
+    expect(segments[0]).toMatchObject({
+      rangeStart: 100,
+      rangeEnd: 300,
+      operator: "Op C",
+      prevOperator: "Op A",
+    });
+    expect(segments[1]).toMatchObject({
+      rangeStart: 301,
+      rangeEnd: 500,
+      operator: "Op C",
+      prevOperator: "Op B",
     });
   });
 

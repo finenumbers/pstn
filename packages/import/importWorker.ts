@@ -35,8 +35,8 @@ import {
   mskLoadDateKey,
   prepareImportDiffOldTable,
   saveDatasetMetaAfterImport,
-  saveDiffSnapshot,
 } from "./diffSnapshot";
+import { saveVersionSnapshot } from "./versionSnapshot";
 import {
   countDiffSegments,
   diffRangeDatasets,
@@ -342,18 +342,22 @@ async function runImportJob(jobId: string): Promise<void> {
     await analyzeRanges();
     await touchImportJobHeartbeat(jobId);
 
-    if (diffSegments.length > 0) {
+    const loadDate = mskLoadDateKey(new Date());
+    const isFirstImport = oldRanges.length === 0;
+
+    if (isFirstImport || diffSegments.length > 0) {
       await db
         .update(importJobs)
-        .set({ progressPhase: "saving_diff_snapshot" })
+        .set({ progressPhase: "saving_version_snapshot" })
         .where(eq(importJobs.id, jobId));
 
       await assertImportJobStillRunning(jobId);
-      await saveDiffSnapshot({
+      await saveVersionSnapshot({
         jobId,
-        loadDate: mskLoadDateKey(new Date()),
-        segments: diffSegments,
-        counts: diffCounts,
+        loadDate,
+        mode: isFirstImport ? "baseline" : "full_and_diff",
+        segments: isFirstImport ? undefined : diffSegments,
+        counts: isFirstImport ? undefined : diffCounts,
       });
       await touchImportJobHeartbeat(jobId);
     }

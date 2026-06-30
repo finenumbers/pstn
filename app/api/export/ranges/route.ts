@@ -5,7 +5,10 @@ import {
 } from "@/packages/shared/contracts/filters.schema";
 import { countRanges } from "@/packages/db/queries/rangesQueries";
 import { createRangesXlsxExport } from "@/lib/export/writeRangesXlsx";
-import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import {
+  isDatasetAndAsOfParseError,
+  parseDatasetAndAsOf,
+} from "@/lib/api/datasetAndAsOf";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { EXPORT_ROW_MAX } from "@/lib/export/exportLimits";
@@ -21,12 +24,13 @@ export async function GET(request: NextRequest) {
       return validationError(filtersParsed.error);
     }
 
-    const dataset = parseDatasetOrError(params);
-    if (isDatasetParseError(dataset)) {
-      return dataset;
+    const parsedDataset = parseDatasetAndAsOf(params);
+    if (isDatasetAndAsOfParseError(parsedDataset)) {
+      return parsedDataset;
     }
+    const { dataset, asOf } = parsedDataset;
 
-    const totalRows = await countRanges(filtersParsed.data, dataset);
+    const totalRows = await countRanges(filtersParsed.data, dataset, asOf);
     if (totalRows > EXPORT_ROW_MAX) {
       return apiError(
         "EXPORT_TOO_LARGE",
@@ -38,7 +42,8 @@ export async function GET(request: NextRequest) {
     const { body } = await createRangesXlsxExport(
       filtersParsed.data,
       totalRows,
-      dataset
+      dataset,
+      asOf
     );
 
     withTiming("/api/export/ranges", startMs, { rows: totalRows, format: "xlsx" });

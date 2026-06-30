@@ -1,3 +1,6 @@
-import { numberRangeDiffs, numberRanges } from "../schema";
+import { numberRangeDiffs, numberRangeFullSnapshots, numberRanges } from "../schema";
 
-export type RangeFilterTable = typeof numberRanges | typeof numberRangeDiffs;
+export type RangeFilterTable =
+  | typeof numberRanges
+  | typeof numberRangeDiffs
+  | typeof numberRangeFullSnapshots;

@@ -3,7 +3,10 @@ import {
   filtersSchema,
   parseFiltersFromSearchParams,
 } from "@/packages/shared/contracts/filters.schema";
-import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import {
+  isDatasetAndAsOfParseError,
+  parseDatasetAndAsOf,
+} from "@/lib/api/datasetAndAsOf";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { summaryRanges } from "@/packages/db/queries/rangesQueries";
@@ -20,12 +23,13 @@ export async function GET(request: NextRequest) {
       return validationError(filtersParsed.error);
     }
     const filters = filtersParsed.data;
-    const dataset = parseDatasetOrError(params);
-    if (isDatasetParseError(dataset)) {
-      return dataset;
+    const parsedDataset = parseDatasetAndAsOf(params);
+    if (isDatasetAndAsOfParseError(parsedDataset)) {
+      return parsedDataset;
     }
+    const { dataset, asOf } = parsedDataset;
 
-    const summary = await summaryRanges(filters, dataset);
+    const summary = await summaryRanges(filters, dataset, asOf);
 
     withTiming("/api/summary", startMs, {
       ...phoneFilterTimingMeta(filters),

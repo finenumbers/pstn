@@ -82,7 +82,21 @@ X-Import-Secret: <IMPORT_SECRET>
 | Значение | Описание |
 |----------|----------|
 | `current` (default) | Актуальная production-таблица `number_ranges` |
+| `full:<uuid>` | Полная версия из `number_range_full_snapshots` |
 | `diff:<uuid>` | Снимок расхождений из `number_range_diffs` (snapshot id) |
+
+#### Параметр `asOf` (исторический full)
+
+При `dataset=current` (default) можно передать `asOf=YYYY-MM-DD` (MSK). API выберет последний snapshot с `has_full=true` и `load_date ≤ asOf` и вернёт полную таблицу из `number_range_full_snapshots`. Если `asOf` ≥ даты текущего import — читается production без snapshot.
+
+`asOf` **не сочетается** с `dataset=diff:*` или `dataset=full:*` (400).
+
+#### Endpoints
+
+| Endpoint | Описание |
+|----------|----------|
+| `GET /api/datasets/change-dates` | Даты версий для календаря (`loadDate`, `hasDiff`) |
+| `GET /api/storage` | `{ databaseBytes, formatted }` — размер БД |
 
 Невалидный формат (`diff:not-a-uuid`) → **400** `VALIDATION_ERROR`.  
 Неизвестный snapshot id → **404** `DATASET_NOT_FOUND`.
@@ -496,26 +510,31 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 | `uvrAntifraud` | number \| null | id_src OPR |
 | `abcRangeGapBefore` | boolean | Пропуск ABC сверху |
 | `abcRangeGapAfter` | boolean | Пропуск ABC снизу |
-| `changeType` | `"added"` \| `"changed"` \| `"removed"` \| null | Тип расхождения (только в diff-режиме) |
-| `prevRangeStart` | number \| null | Предыдущее начало (changed/removed) |
-| `prevRangeEnd` | number \| null | Предыдущий конец (changed/removed) |
-| `prevOperator` | string \| null | Предыдущий оператор (changed) |
+| `changeType` | `"added"` \| `"changed"` \| `"removed"` \| null | Тип расхождения (только в diff-режиме). `changed` — только при отличии метаданных на сегменте (см. [import-and-datasets.md](import-and-datasets.md#алгоритм-diff)) |
+| `prevRangeStart` | number \| null | Предыдущее начало (changed) |
+| `prevRangeEnd` | number \| null | Предыдущий конец (changed) |
+| `prevOperator` | string \| null | Предыдущий оператор (changed); в UI/XLSX — колонка «Старый оператор связи» |
 | `prevRegion` | string \| null | Предыдущий регион (changed) |
 | `prevGarTerritory` | string \| null | Предыдущая территория ГАР (changed) |
-| `prevInn` | string \| null | Предыдущий ИНН (changed) |
+| `prevInn` | string \| null | Предыдущий ИНН (changed); в UI/XLSX — колонка «Старый ИНН» |
 | `prevCapacity` | number \| null | Предыдущая ёмкость (changed) |
 
-Пример строки в diff mode:
+Поля `operator` и `inn` в diff rows — **новые** значения. Для отображения old/new в UI и XLSX используется единая семантика: `added` → старые колонки `—`, `removed` → новые `—`, `changed` → `prevOperator`/`prevInn` vs `operator`/`inn`.
+
+Пример строки в diff mode (`changed` — смена оператора на сегменте):
 
 ```json
 {
-  "abc": "383",
-  "rangeStart": 3990000,
-  "rangeEnd": 3998888,
+  "abc": "550",
+  "rangeStart": 5500,
+  "rangeEnd": 5599,
+  "operator": "ООО \"Новый оператор\"",
+  "inn": "7700000000",
   "changeType": "changed",
-  "prevRangeStart": 3990000,
-  "prevRangeEnd": 3999999,
-  "prevOperator": "ПАО \"Ростелеком\""
+  "prevRangeStart": 5500,
+  "prevRangeEnd": 5599,
+  "prevOperator": "ПАО \"Старый оператор\"",
+  "prevInn": "7700000001"
 }
 ```
 

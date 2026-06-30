@@ -3,21 +3,17 @@ import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { and, asc, count, countDistinct, desc, ilike, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { buildWhere } from "./buildWhere";
-import {
-  CURRENT_RANGE_CONTEXT,
-  resolveRangeQueryContext,
-} from "./datasetContext";
+import { resolveQueryContext } from "./datasetContext";
 
 export async function facetInnRanges(params: {
   filters: FiltersDTO;
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
+  asOf?: string | null;
 }) {
   const limit = params.limit ?? 200;
-  const context = params.dataset
-    ? await resolveRangeQueryContext(params.dataset)
-    : CURRENT_RANGE_CONTEXT;
+  const context = await resolveQueryContext(params.dataset, params.asOf);
   const table = context.table;
   const rangeWhere = buildWhere(params.filters, context, "inn");
   const conditions: SQL[] = [];

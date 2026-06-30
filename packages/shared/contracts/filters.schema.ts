@@ -109,6 +109,10 @@ export interface NumberRangeRow {
   abcRangeGapAfter: boolean;
   /** Present in diff snapshot view only. */
   changeType?: "added" | "changed" | "removed" | null;
+  /** Previous operator (diff changed/removed semantics). */
+  prevOperator?: string | null;
+  /** Previous INN (diff changed/removed semantics). */
+  prevInn?: string | null;
 }
 
 /** Keyset cursor for infinite scroll (sort column values + id). */

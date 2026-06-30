@@ -4,10 +4,7 @@ import { and, asc, count, countDistinct, desc, ilike, sql, type SQL } from "driz
 import { db } from "../index";
 import { operatorsRegister } from "../schema";
 import { buildWhere } from "./buildWhere";
-import {
-  CURRENT_RANGE_CONTEXT,
-  resolveRangeQueryContext,
-} from "./datasetContext";
+import { resolveQueryContext } from "./datasetContext";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
 export async function facetUvrAntifraudRanges(params: {
@@ -15,11 +12,10 @@ export async function facetUvrAntifraudRanges(params: {
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
+  asOf?: string | null;
 }) {
   const limit = params.limit ?? 200;
-  const context = params.dataset
-    ? await resolveRangeQueryContext(params.dataset)
-    : CURRENT_RANGE_CONTEXT;
+  const context = await resolveQueryContext(params.dataset, params.asOf);
   const table = context.table;
   const rangeWhere = buildWhere(params.filters, context, "uvrAntifraud");
   const conditions: SQL[] = [];

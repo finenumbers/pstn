@@ -21,9 +21,10 @@ function normalizeFacetSearch(
 export function useFacetsQuery(
   filters: FiltersDTO,
   facetSearch: Record<string, string>,
-  options?: { enabled?: boolean; dataset?: DatasetRef }
+  options?: { enabled?: boolean; dataset?: DatasetRef; asOf?: string | null }
 ) {
   const dataset = options?.dataset ?? { kind: "current" as const };
+  const asOf = options?.asOf ?? null;
   const datasetParam = serializeDatasetParam(dataset);
   const activeFacetSearch = normalizeFacetSearch(facetSearch);
   const normalizedFilters = normalizeFilters(filters);
@@ -31,6 +32,7 @@ export function useFacetsQuery(
     filters: normalizedFilters,
     facetSearch: activeFacetSearch,
     dataset: datasetParam,
+    asOf: asOf ?? "",
   };
 
   return useQuery({
@@ -39,6 +41,9 @@ export function useFacetsQuery(
       const filterParams = buildFilterParams(normalizedFilters);
       filterParams.set("columns", FACET_COLUMNS.join(","));
       filterParams.set("dataset", datasetParam);
+      if (asOf && dataset.kind === "current") {
+        filterParams.set("asOf", asOf);
+      }
       for (const [col, search] of Object.entries(activeFacetSearch)) {
         filterParams.set(`search.${col}`, search);
       }

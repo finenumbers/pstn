@@ -8,7 +8,10 @@ import {
   type FiltersDTO,
 } from "@/packages/shared/contracts/filters.schema";
 import { facetRanges } from "@/packages/db/queries/facetRanges";
-import { isDatasetParseError, parseDatasetOrError } from "@/lib/api/datasetQuery";
+import {
+  isDatasetAndAsOfParseError,
+  parseDatasetAndAsOf,
+} from "@/lib/api/datasetAndAsOf";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { countFacetValue } from "@/packages/db/queries/countFacetValue";
@@ -36,10 +39,11 @@ export async function GET(request: NextRequest) {
       return validationError(filtersParsed.error);
     }
     const filters = filtersParsed.data;
-    const dataset = parseDatasetOrError(params);
-    if (isDatasetParseError(dataset)) {
-      return dataset;
+    const parsedDataset = parseDatasetAndAsOf(params);
+    if (isDatasetAndAsOfParseError(parsedDataset)) {
+      return parsedDataset;
     }
+    const { dataset, asOf } = parsedDataset;
 
     const search: Record<string, string> = {};
     for (const col of columns) {
@@ -76,6 +80,7 @@ export async function GET(request: NextRequest) {
           search: search[column],
           limit: 200,
           dataset,
+          asOf,
         })
       )
     );
@@ -94,7 +99,7 @@ export async function GET(request: NextRequest) {
         const counts = await Promise.all(
           missingSelected.map(async (selected) => ({
             selected,
-            count: await countFacetValue(column, selected, filters, dataset),
+            count: await countFacetValue(column, selected, filters, dataset, asOf),
           }))
         );
         for (const { selected, count } of counts) {

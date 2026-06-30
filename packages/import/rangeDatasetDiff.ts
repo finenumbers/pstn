@@ -34,6 +34,10 @@ function rangesEqual(a: RangeRecord, b: RangeRecord): boolean {
   );
 }
 
+function sortRangesByStart(ranges: RangeRecord[]): RangeRecord[] {
+  return [...ranges].sort((a, b) => a.rangeStart - b.rangeStart);
+}
+
 function findCoveringRange(
   ranges: RangeRecord[],
   segmentStart: number,
@@ -126,7 +130,9 @@ function mergeAdjacentSegments(segments: DiffSegment[]): DiffSegment[] {
       current.prevOperator === next.prevOperator &&
       current.prevRegion === next.prevRegion &&
       current.prevGarTerritory === next.prevGarTerritory &&
-      current.prevInn === next.prevInn;
+      current.prevInn === next.prevInn &&
+      current.prevRangeStart === next.prevRangeStart &&
+      current.prevRangeEnd === next.prevRangeEnd;
 
     if (canMerge) {
       current = {
@@ -151,7 +157,9 @@ export function diffRangesForAbc(
   oldRanges: RangeRecord[],
   newRanges: RangeRecord[]
 ): DiffSegment[] {
-  const boundaries = collectBoundaries(oldRanges, newRanges);
+  const sortedOld = sortRangesByStart(oldRanges);
+  const sortedNew = sortRangesByStart(newRanges);
+  const boundaries = collectBoundaries(sortedOld, sortedNew);
   if (boundaries.length < 2) return [];
 
   const segments: DiffSegment[] = [];
@@ -161,8 +169,8 @@ export function diffRangesForAbc(
     const segmentEnd = boundaries[index + 1]! - 1;
     if (segmentStart > segmentEnd) continue;
 
-    const oldCover = findCoveringRange(oldRanges, segmentStart, segmentEnd);
-    const newCover = findCoveringRange(newRanges, segmentStart, segmentEnd);
+    const oldCover = findCoveringRange(sortedOld, segmentStart, segmentEnd);
+    const newCover = findCoveringRange(sortedNew, segmentStart, segmentEnd);
 
     if (!oldCover && newCover) {
       segments.push({
@@ -190,10 +198,7 @@ export function diffRangesForAbc(
     if (oldCover && newCover) {
       const oldDisplay = displayRecordFromOld(oldCover, segmentStart, segmentEnd);
       const newDisplay = displayRecordFromNew(newCover, segmentStart, segmentEnd);
-      const boundariesDiffer =
-        oldCover.rangeStart !== newCover.rangeStart ||
-        oldCover.rangeEnd !== newCover.rangeEnd;
-      if (rangesEqual(oldDisplay, newDisplay) && !boundariesDiffer) {
+      if (rangesEqual(oldDisplay, newDisplay)) {
         continue;
       }
 

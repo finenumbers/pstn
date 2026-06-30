@@ -52,6 +52,7 @@ describe("buildWhere", () => {
       table: numberRangeDiffs,
       snapshotId,
       isDiff: true,
+      isFull: false,
     };
     const current = buildWhere(
       { ...DEFAULT_FILTERS, abc: ["301", "353"] },

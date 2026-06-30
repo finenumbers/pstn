@@ -9,6 +9,7 @@ import {
 import {
   DATASET_CURRENT_ID,
   serializeDatasetParam,
+  tryParseAsOfParam,
   tryParseDatasetParam,
   type DatasetRef,
 } from "@/packages/shared/contracts/dataset.schema";
@@ -21,6 +22,16 @@ export function parseDatasetFromSearchParams(
   const parsed = tryParseDatasetParam(params.get("dataset"));
   if (!parsed.success) {
     return { kind: "current" };
+  }
+  return parsed.data;
+}
+
+export function parseAsOfFromSearchParams(
+  params: URLSearchParams
+): string | null {
+  const parsed = tryParseAsOfParam(params.get("asOf"));
+  if (!parsed.success) {
+    return null;
   }
   return parsed.data;
 }
@@ -45,12 +56,16 @@ export function parseRangesTableFromSearchParams(
 export function buildRangesPageSearchParams(
   filters: FiltersDTO,
   sorting: { id: SortableColumn; desc: boolean }[],
-  dataset: DatasetRef = { kind: "current" }
+  dataset: DatasetRef = { kind: "current" },
+  asOf?: string | null
 ): URLSearchParams {
   const params = filtersToSearchParams(filters);
   const datasetParam = serializeDatasetParam(dataset);
   if (datasetParam !== DATASET_CURRENT_ID) {
     params.set("dataset", datasetParam);
+  }
+  if (asOf && dataset.kind === "current") {
+    params.set("asOf", asOf);
   }
   const sortStr = sorting
     .map((s) => `${s.id}:${s.desc ? "desc" : "asc"}`)

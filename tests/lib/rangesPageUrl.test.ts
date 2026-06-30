@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRangesPageSearchParams,
+  parseAsOfFromSearchParams,
   parseDatasetFromSearchParams,
   parseRangesTableFromSearchParams,
 } from "@/lib/url/rangesPageUrl";
@@ -57,5 +58,17 @@ describe("rangesPageUrl", () => {
   it("falls back to current for invalid dataset param", () => {
     const params = new URLSearchParams({ dataset: "diff:not-a-uuid" });
     expect(parseDatasetFromSearchParams(params)).toEqual({ kind: "current" });
+  });
+
+  it("round-trips asOf for current dataset", () => {
+    const params = buildRangesPageSearchParams(
+      DEFAULT_FILTERS,
+      [{ id: "abc", desc: false }, { id: "rangeStart", desc: false }],
+      { kind: "current" },
+      "2025-06-15"
+    );
+
+    expect(params.get("asOf")).toBe("2025-06-15");
+    expect(parseAsOfFromSearchParams(params)).toBe("2025-06-15");
   });
 });
