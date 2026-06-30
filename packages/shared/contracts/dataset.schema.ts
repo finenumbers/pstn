@@ -120,6 +120,34 @@ export function formatAsOfDisplayDate(isoDate: string): string {
   return `${day}.${month}.${year}`;
 }
 
+/** Parse DD.MM.YYYY (or D.M.YYYY) to ISO YYYY-MM-DD; null if invalid or future. */
+export function parseAsOfDisplayDate(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  if (parsed > new Date()) return null;
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function datasetQueryKey(ref: DatasetRef, asOf?: string | null): string {
   const base = serializeDatasetParam(ref);
   if (!asOf || ref.kind !== "current") return base;

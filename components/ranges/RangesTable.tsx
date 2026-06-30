@@ -240,12 +240,13 @@ export function RangesTable({
     if (columnId === "inn") {
       return INN_COLUMN_WIDTH_CH;
     }
-    if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
+    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
+      return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
+    }
     if (
       columnId === "operator" ||
       columnId === "garTerritory" ||
-      columnId === "region" ||
-      columnId === "changedFields"
+      columnId === "region"
     ) {
       return undefined;
     }
@@ -266,7 +267,7 @@ export function RangesTable({
         style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
       };
     }
-    if (columnId === "uvrAntifraud") {
+    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
       return {
         className: "whitespace-nowrap tabular-nums",
         style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
@@ -286,8 +287,7 @@ export function RangesTable({
     if (
       columnId === "operator" ||
       columnId === "garTerritory" ||
-      columnId === "region" ||
-      columnId === "changedFields"
+      columnId === "region"
     ) {
       return undefined;
     }
@@ -297,7 +297,7 @@ export function RangesTable({
     if (columnId === "inn") {
       return compactColumnStyle(INN_COLUMN_WIDTH_CH);
     }
-    if (columnId === "uvrAntifraud") {
+    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
       return compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH);
     }
     if (isCompactColumn(columnId)) {

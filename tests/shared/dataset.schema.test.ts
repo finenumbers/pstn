@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseDatasetParam,
+  parseAsOfDisplayDate,
   serializeDatasetParam,
   tryParseAsOfParam,
   tryParseDatasetParam,
@@ -34,6 +35,20 @@ describe("dataset.schema", () => {
     if (parsed.success) {
       expect(parsed.data).toBe("2025-06-15");
     }
+  });
+
+  it("parses display date DD.MM.YYYY to ISO", () => {
+    expect(parseAsOfDisplayDate("15.06.2025")).toBe("2025-06-15");
+    expect(parseAsOfDisplayDate("5.6.2025")).toBe("2025-06-05");
+    expect(parseAsOfDisplayDate("29.02.2024")).toBe("2024-02-29");
+  });
+
+  it("rejects invalid or future display dates", () => {
+    expect(parseAsOfDisplayDate("")).toBeNull();
+    expect(parseAsOfDisplayDate("32.01.2025")).toBeNull();
+    expect(parseAsOfDisplayDate("29.02.2023")).toBeNull();
+    expect(parseAsOfDisplayDate("not-a-date")).toBeNull();
+    expect(parseAsOfDisplayDate("01.01.2099")).toBeNull();
   });
 
   it("rejects invalid diff snapshot id", () => {

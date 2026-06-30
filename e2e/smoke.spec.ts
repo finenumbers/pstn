@@ -6,7 +6,7 @@ test.describe("PSTN ranges page", () => {
     page.on("pageerror", (err) => errors.push(err.message));
 
     await page.goto("/ranges", { waitUntil: "networkidle" });
-    await expect(page.getByRole("heading", { name: /Телефонный план/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /PSTN Analytics/i })).toBeVisible();
     await expect(page.getByText("Application error")).toHaveCount(0);
     expect(errors).toEqual([]);
   });
