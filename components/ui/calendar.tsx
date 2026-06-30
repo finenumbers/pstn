@@ -16,18 +16,33 @@ function CalendarDayButton({
   ...props
 }: React.ComponentProps<typeof DayButton>) {
   const defaultClassNames = getDefaultClassNames();
+  const mod = modifiers as Record<string, boolean | undefined>;
+  const isVersionDay = Boolean(mod.versionDay);
+
+  const versionDayStyle =
+    isVersionDay && !modifiers.selected
+      ? {
+          backgroundColor: "var(--color-blue-100)",
+          color: "var(--color-blue-950)",
+        }
+      : undefined;
 
   return (
     <button
       {...props}
       data-day={day.date.toLocaleDateString()}
+      data-version-day={isVersionDay ? "true" : undefined}
+      style={{ ...props.style, ...versionDayStyle }}
       className={cn(
         buttonVariants({ variant: "ghost" }),
         "size-8 p-0 font-normal aria-selected:opacity-100",
         modifiers.selected &&
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-        modifiers.today && !modifiers.selected && "bg-accent text-accent-foreground",
-        modifiers.versionDay &&
+        modifiers.today &&
+          !modifiers.selected &&
+          !isVersionDay &&
+          "bg-accent text-accent-foreground",
+        isVersionDay &&
           !modifiers.selected &&
           "!bg-blue-100 font-medium !text-blue-950 hover:!bg-blue-200 hover:!text-blue-950",
         defaultClassNames.day_button,

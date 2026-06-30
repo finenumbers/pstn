@@ -5,7 +5,6 @@ import { CalendarIcon } from "lucide-react";
 import { parseISO, startOfMonth, subMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -34,8 +33,14 @@ function isoFromDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Input width for full DD.MM.YYYY (e.g. 30.06.2026) in mono. */
-const DATE_INPUT_CLASS = "h-9 w-[7rem] shrink-0 border-0 bg-transparent px-2 font-mono text-sm tabular-nums shadow-none focus-visible:ring-0";
+function loadDateToLocalDate(loadDate: string): Date {
+  const [y, m, d] = loadDate.split("-").map(Number);
+  return new Date(y!, m! - 1, d!);
+}
+
+/** Text column before calendar icon: fixed 100px, date centered. */
+const DATE_INPUT_CLASS =
+  "h-9 w-[100px] shrink-0 rounded-none rounded-l-md border-0 bg-transparent px-0.5 py-0 text-center font-mono text-sm tabular-nums shadow-none focus-visible:outline-none focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-center";
 
 export function DatasetDatePicker({
   value,
@@ -67,6 +72,11 @@ export function DatasetDatePicker({
     return set;
   }, [changeDatesQuery.data?.items]);
 
+  const versionDayDates = useMemo(
+    () => [...changeDateSet].map(loadDateToLocalDate),
+    [changeDateSet]
+  );
+
   const firstLoadDate = useMemo(
     () => getFirstDatasetLoadDate(changeDatesQuery.data?.items ?? []),
     [changeDatesQuery.data?.items]
@@ -79,6 +89,7 @@ export function DatasetDatePicker({
   };
 
   const selectedDate = value ? parseISO(value) : undefined;
+  const calendarDataKey = `${changeDatesQuery.status}:${changeDateSet.size}`;
 
   const commitDraft = () => {
     const trimmed = draft.trim();
@@ -106,12 +117,12 @@ export function DatasetDatePicker({
   return (
     <div
       className={cn(
-        "inline-flex h-9 w-auto items-center rounded-md border border-input bg-background",
+        "inline-flex h-9 w-max items-stretch rounded-md border border-input bg-background",
         invalid && "border-destructive ring-1 ring-destructive",
         disabled && "opacity-50"
       )}
     >
-      <Input
+      <input
         className={DATE_INPUT_CLASS}
         placeholder="ДД.ММ.ГГГГ"
         value={draft}
@@ -139,7 +150,7 @@ export function DatasetDatePicker({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-9 w-9 shrink-0 rounded-l-none"
+            className="h-9 w-9 shrink-0 rounded-none rounded-r-md border-l border-input"
             disabled={disabled}
             aria-label="Открыть календарь"
           >
@@ -147,26 +158,38 @@ export function DatasetDatePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            numberOfMonths={3}
-            month={calendarMonth}
-            onMonthChange={setCalendarMonth}
-            selected={selectedDate}
-            onSelect={(date) => {
-              if (!date || isCalendarDateDisabled(date)) return;
-              onChange?.(isoFromDate(date));
-              setCalendarOpen(false);
-            }}
-            modifiers={{
-              versionDay: (date) => changeDateSet.has(isoFromDate(date)),
-            }}
-            modifiersClassNames={{
-              versionDay:
-                "[&>button:not([disabled])]:!bg-blue-100 [&>button:not([disabled])]:font-medium [&>button:not([disabled])]:!text-blue-950 [&>button:not([disabled])]:hover:!bg-blue-200",
-            }}
-            disabled={isCalendarDateDisabled}
-          />
+          {changeDatesQuery.isPending ? (
+            <div className="px-4 py-6 text-sm text-muted-foreground">
+              Загрузка дат версий…
+            </div>
+          ) : (
+            <Calendar
+              key={calendarDataKey}
+              mode="single"
+              numberOfMonths={3}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              selected={selectedDate}
+              onSelect={(date) => {
+                if (!date || isCalendarDateDisabled(date)) return;
+                onChange?.(isoFromDate(date));
+                setCalendarOpen(false);
+              }}
+              modifiers={{
+                versionDay: versionDayDates,
+              }}
+              modifiersClassNames={{
+                versionDay:
+                  "[&>button:not([disabled])]:!bg-blue-100 [&>button:not([disabled])]:font-medium [&>button:not([disabled])]:!text-blue-950 [&>button:not([disabled])]:hover:!bg-blue-200",
+              }}
+              modifiersStyles={{
+                versionDay: {
+                  backgroundColor: "var(--color-blue-100)",
+                },
+              }}
+              disabled={isCalendarDateDisabled}
+            />
+          )}
           {value && (
             <div className="border-t p-2">
               <Button

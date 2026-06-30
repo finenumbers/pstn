@@ -69,11 +69,25 @@ export async function listChangeDates(): Promise<DatasetChangeDateItem[]> {
     .where(eq(datasetSnapshots.hasFull, true))
     .orderBy(desc(datasetSnapshots.loadDate));
 
-  return rows.map((row) => ({
+  const items: DatasetChangeDateItem[] = rows.map((row) => ({
     loadDate: row.loadDate,
     snapshotId: row.snapshotId,
     hasDiff: row.hasDiff,
   }));
+
+  const currentLoadDate = await getCurrentLoadDate();
+  if (
+    currentLoadDate &&
+    !items.some((item) => item.loadDate === currentLoadDate)
+  ) {
+    items.unshift({
+      loadDate: currentLoadDate,
+      snapshotId: DATASET_CURRENT_ID,
+      hasDiff: false,
+    });
+  }
+
+  return items;
 }
 
 export async function listChangeDatesResponse(): Promise<ChangeDatesResponse> {

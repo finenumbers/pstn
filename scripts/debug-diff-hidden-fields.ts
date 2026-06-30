@@ -4,14 +4,7 @@
  *   DATABASE_URL='postgresql://...' npx tsx scripts/debug-diff-hidden-fields.ts
  *   DATABASE_URL='...' npx tsx scripts/debug-diff-hidden-fields.ts --load-date=2026-06-30 --abc=343
  */
-import { appendFileSync } from "node:fs";
 import pg from "pg";
-
-const LOG_PATH =
-  "/Users/dvpershin/Work/PSTN/.cursor/debug-bcdc45.log";
-const INGEST =
-  "http://127.0.0.1:7812/ingest/db1027e1-b60b-480f-a94e-2c390e7035f8";
-const SESSION = "bcdc45";
 
 function arg(name: string, fallback: string): string {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
@@ -38,13 +31,6 @@ type DiffRow = {
 };
 
 function analyze(row: DiffRow) {
-  const uiOldOperator = row.prev_operator ?? row.operator;
-  const uiNewOperator = row.operator;
-  const uiOldInn = row.prev_inn ?? row.inn;
-  const uiNewInn = row.inn;
-  const uiOperatorInnSame =
-    uiOldOperator === uiNewOperator && uiOldInn === uiNewInn;
-
   const differingFields: string[] = [];
   if (row.region !== row.prev_region) differingFields.push("region");
   if (row.gar_territory !== row.prev_gar_territory) {
@@ -57,61 +43,7 @@ function analyze(row: DiffRow) {
     differingFields.push("rangeEnd");
   }
 
-  const hypothesisIds = [
-    differingFields.length > 0 ? "H-A" : null,
-    row.prev_operator == null || row.prev_inn == null ? "H-B" : null,
-    row.operator !== (row.prev_operator ?? row.operator) ||
-    row.inn !== (row.prev_inn ?? row.inn)
-      ? "H-C"
-      : null,
-    differingFields.length === 0 && uiOperatorInnSame ? "H-E" : null,
-  ].filter(Boolean);
-
-  return {
-    uiOperatorInnSame,
-    differingFields,
-    hypothesisId: hypothesisIds.join(","),
-    region: row.region,
-    prevRegion: row.prev_region,
-    garTerritory: row.gar_territory,
-    prevGarTerritory: row.prev_gar_territory,
-    prevOperatorNull: row.prev_operator == null,
-    prevInnNull: row.prev_inn == null,
-  };
-}
-
-async function emitLog(row: DiffRow, analysis: ReturnType<typeof analyze>) {
-  const payload = {
-    sessionId: SESSION,
-    runId: "pre-fix",
-    hypothesisId: analysis.hypothesisId,
-    location: "scripts/debug-diff-hidden-fields.ts",
-    message: "diff row DB inspection",
-    data: {
-      loadDate: row.load_date,
-      abc: row.abc,
-      rangeStart: Number(row.range_start),
-      rangeEnd: Number(row.range_end),
-      capacity: row.capacity,
-      changeType: row.change_type,
-      operator: row.operator,
-      prevOperator: row.prev_operator,
-      inn: row.inn,
-      prevInn: row.prev_inn,
-      ...analysis,
-    },
-    timestamp: Date.now(),
-  };
-
-  appendFileSync(LOG_PATH, `${JSON.stringify(payload)}\n`);
-  await fetch(INGEST, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": SESSION,
-    },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
+  return { differingFields };
 }
 
 async function main() {
@@ -167,7 +99,6 @@ async function main() {
     console.log(`Found ${result.rows.length} changed row(s):\n`);
     for (const row of result.rows) {
       const analysis = analyze(row);
-      await emitLog(row, analysis);
       console.log(
         `ABC ${row.abc} ${row.range_start}-${row.range_end} | differing: [${analysis.differingFields.join(", ") || "NONE"}]`
       );
@@ -178,11 +109,8 @@ async function main() {
       console.log(
         `  operator:   "${row.prev_operator ?? row.operator}" → "${row.operator}"`
       );
-      console.log(`  inn:        "${row.prev_inn ?? row.inn}" → "${row.inn}"`);
-      console.log(`  hypotheses: ${analysis.hypothesisId || "—"}\n`);
+      console.log(`  inn:        "${row.prev_inn ?? row.inn}" → "${row.inn}"\n`);
     }
-
-    console.log(`Logs written to ${LOG_PATH}`);
   } finally {
     await client.end();
   }
