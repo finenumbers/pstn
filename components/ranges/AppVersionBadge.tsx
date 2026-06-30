@@ -28,7 +28,11 @@ export function AppVersionBadge() {
   }, []);
 
   if (!health?.version || health.version === "unknown") {
-    return null;
+    return (
+      <p className="text-xs text-amber-700">
+        Версия не определена — образ устарел, нужен Pull and redeploy
+      </p>
+    );
   }
 
   const revision =

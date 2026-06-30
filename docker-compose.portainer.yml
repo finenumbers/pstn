@@ -37,6 +37,11 @@ services:
     pull_policy: always
     container_name: pstn_app
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pstn_image_sync:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${APP_PORT:-5555}:${APP_PORT:-5555}"
     environment:
@@ -52,9 +57,6 @@ services:
       IMPORT_SECRET: ${IMPORT_SECRET:-}
     volumes:
       - pstn_secrets:/app/.secrets
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test:
         [
@@ -68,6 +70,15 @@ services:
     networks:
       - pstn_internal
       - proxy
+
+  # Pull :latest before app on every stack deploy (Portainer git diff stays green).
+  pstn_image_sync:
+    image: ghcr.io/finenumbers/pstn:latest
+    pull_policy: always
+    restart: "no"
+    entrypoint: ["sh", "-c", "echo pstn_image_sync ok"]
+    networks:
+      - pstn_internal
 
   scheduler:
     image: alpine:3.21

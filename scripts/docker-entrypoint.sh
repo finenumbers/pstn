@@ -84,5 +84,7 @@ done
 
 ensure_external_api_key
 
+echo "[pstn] APP_VERSION=${APP_VERSION:-unknown} APP_REVISION=${APP_REVISION:-unknown} hostname=$(hostname)"
+
 echo "Starting PSTN Analytics on port ${PORT:-5555}..."
 exec su-exec nextjs env EXTERNAL_API_KEY="${EXTERNAL_API_KEY}" node server.js
