@@ -29,8 +29,8 @@ function CalendarDayButton({
         modifiers.today && !modifiers.selected && "bg-accent text-accent-foreground",
         modifiers.versionDay &&
           !modifiers.selected &&
-          "bg-blue-100 font-medium text-blue-950 hover:bg-blue-200 hover:text-blue-950",
-        defaultClassNames.day,
+          "!bg-blue-100 font-medium !text-blue-950 hover:!bg-blue-200 hover:!text-blue-950",
+        defaultClassNames.day_button,
         className
       )}
     />

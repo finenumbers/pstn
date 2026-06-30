@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarIcon } from "lucide-react";
-import { format, parseISO, startOfMonth, subMonths } from "date-fns";
+import { parseISO, startOfMonth, subMonths } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,9 +26,16 @@ interface DatasetDatePickerProps {
   disabled?: boolean;
 }
 
+/** Local calendar date as YYYY-MM-DD (matches snapshot loadDate keys). */
 function isoFromDate(date: Date): string {
-  return format(date, "yyyy-MM-dd");
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
+
+/** Input width for full DD.MM.YYYY (e.g. 30.06.2026) in mono. */
+const DATE_INPUT_CLASS = "h-9 w-[7rem] shrink-0 border-0 bg-transparent px-2 font-mono text-sm tabular-nums shadow-none focus-visible:ring-0";
 
 export function DatasetDatePicker({
   value,
@@ -105,9 +112,8 @@ export function DatasetDatePicker({
       )}
     >
       <Input
-        className="h-9 w-[10ch] shrink-0 border-0 bg-transparent px-2 font-mono tabular-nums shadow-none focus-visible:ring-0"
+        className={DATE_INPUT_CLASS}
         placeholder="ДД.ММ.ГГГГ"
-        size={10}
         value={draft}
         disabled={disabled}
         inputMode="numeric"
@@ -154,6 +160,10 @@ export function DatasetDatePicker({
             }}
             modifiers={{
               versionDay: (date) => changeDateSet.has(isoFromDate(date)),
+            }}
+            modifiersClassNames={{
+              versionDay:
+                "[&>button:not([disabled])]:!bg-blue-100 [&>button:not([disabled])]:font-medium [&>button:not([disabled])]:!text-blue-950 [&>button:not([disabled])]:hover:!bg-blue-200",
             }}
             disabled={isCalendarDateDisabled}
           />
