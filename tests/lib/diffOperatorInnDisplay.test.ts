@@ -1,6 +1,7 @@
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
+  mapDiffRegionGar,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 import { describe, expect, it } from "vitest";
@@ -75,5 +76,26 @@ describe("mapDiffOperatorInn", () => {
     expect(formatDiffDisplayValue(null)).toBe("—");
     expect(formatDiffDisplayValue("")).toBe("—");
     expect(formatDiffDisplayValue("123")).toBe("123");
+  });
+});
+
+describe("mapDiffRegionGar", () => {
+  it("maps changed row to prev and current region/gar", () => {
+    expect(
+      mapDiffRegionGar(
+        diffRow({
+          changeType: "changed",
+          region: "-",
+          garTerritory: "г.о. город Екатеринбург|Свердловская область",
+          prevRegion: "г. Екатеринбург|Свердловская обл.",
+          prevGarTerritory: "г.о. город Екатеринбург|Свердловская область",
+        })
+      )
+    ).toEqual({
+      oldRegion: "г. Екатеринбург|Свердловская обл.",
+      newRegion: "-",
+      oldGarTerritory: "г.о. город Екатеринбург|Свердловская область",
+      newGarTerritory: "г.о. город Екатеринбург|Свердловская область",
+    });
   });
 });

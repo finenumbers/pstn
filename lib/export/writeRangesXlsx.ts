@@ -9,6 +9,7 @@ import { sanitizeSpreadsheetCell } from "@/lib/export/sanitizeSpreadsheetCell";
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
+  mapDiffRegionGar,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import ExcelJS from "exceljs";
 import { PassThrough } from "node:stream";
@@ -36,8 +37,10 @@ export const EXPORT_DIFF_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Старый оператор связи", key: "prevOperator", width: 36 },
   { header: "Новый оператор связи", key: "newOperator", width: 36 },
-  { header: "Регион", key: "region", width: 28 },
-  { header: "Территория ГАР", key: "garTerritory", width: 36 },
+  { header: "Старый регион", key: "prevRegion", width: 28 },
+  { header: "Новый регион", key: "newRegion", width: 28 },
+  { header: "Старая территория ГАР", key: "prevGarTerritory", width: 36 },
+  { header: "Новая территория ГАР", key: "newGarTerritory", width: 36 },
   { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
   { header: "Старый ИНН", key: "prevInn", width: 15 },
   { header: "Новый ИНН", key: "newInn", width: 15 },
@@ -93,6 +96,8 @@ function exportRowToNumberRangeRow(
     changeType: row.changeType as NumberRangeRow["changeType"],
     prevOperator: row.prevOperator,
     prevInn: row.prevInn,
+    prevRegion: row.prevRegion,
+    prevGarTerritory: row.prevGarTerritory,
   };
 }
 
@@ -151,6 +156,7 @@ export async function createRangesXlsxExport(
           ? { gapBefore: false, gapAfter: false }
           : effectiveAbcRangeGapMarkers(numberRow, prevRow);
         const diffDisplay = isDiff ? mapDiffOperatorInn(numberRow) : null;
+        const diffRegionGar = isDiff ? mapDiffRegionGar(numberRow) : null;
         const exportRow = isDiff
           ? {
               changeType: CHANGE_TYPE_LABELS[row.changeType ?? ""] ?? "",
@@ -164,8 +170,18 @@ export async function createRangesXlsxExport(
               newOperator: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.newOperator)
               ),
-              garTerritory: sanitizeSpreadsheetCell(row.garTerritory),
-              region: sanitizeSpreadsheetCell(row.region),
+              prevRegion: sanitizeSpreadsheetCell(
+                formatDiffDisplayValue(diffRegionGar!.oldRegion)
+              ),
+              newRegion: sanitizeSpreadsheetCell(
+                formatDiffDisplayValue(diffRegionGar!.newRegion)
+              ),
+              prevGarTerritory: sanitizeSpreadsheetCell(
+                formatDiffDisplayValue(diffRegionGar!.oldGarTerritory)
+              ),
+              newGarTerritory: sanitizeSpreadsheetCell(
+                formatDiffDisplayValue(diffRegionGar!.newGarTerritory)
+              ),
               uvrAntifraud: sanitizeSpreadsheetCell(
                 row.uvrAntifraud != null ? String(row.uvrAntifraud) : ""
               ),

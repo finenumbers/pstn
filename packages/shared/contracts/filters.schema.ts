@@ -113,6 +113,10 @@ export interface NumberRangeRow {
   prevOperator?: string | null;
   /** Previous INN (diff changed/removed semantics). */
   prevInn?: string | null;
+  /** Previous region (diff changed/removed semantics). */
+  prevRegion?: string | null;
+  /** Previous GAR territory (diff changed/removed semantics). */
+  prevGarTerritory?: string | null;
 }
 
 /** Keyset cursor for infinite scroll (sort column values + id). */

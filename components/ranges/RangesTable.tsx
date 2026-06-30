@@ -24,6 +24,7 @@ import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
+  mapDiffRegionGar,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import {
   compactColumnStyle,
@@ -87,8 +88,10 @@ const DIFF_COLUMN_ORDER = [
   "capacity",
   "prevOperator",
   "newOperator",
-  "region",
-  "garTerritory",
+  "prevRegion",
+  "newRegion",
+  "prevGarTerritory",
+  "newGarTerritory",
   "uvrAntifraud",
   "prevInn",
   "newInn",
@@ -116,8 +119,10 @@ const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
   capacity: "Емкость",
   prevOperator: "Старый оператор связи",
   newOperator: "Новый оператор связи",
-  region: "Регион",
-  garTerritory: "Территория ГАР",
+  prevRegion: "Старый регион",
+  newRegion: "Новый регион",
+  prevGarTerritory: "Старая территория ГАР",
+  newGarTerritory: "Новая территория ГАР",
   uvrAntifraud: "УВр Антифрод",
   prevInn: "Старый ИНН",
   newInn: "Новый ИНН",
@@ -251,8 +256,38 @@ export function RangesTable({
             mapDiffOperatorInn(row.original).newOperator
           ),
       },
-      { accessorKey: "region", header: "Регион" },
-      { accessorKey: "garTerritory", header: "Территория ГАР" },
+      {
+        id: "prevRegion",
+        accessorKey: "prevRegion",
+        header: DIFF_COLUMN_LABELS.prevRegion,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(mapDiffRegionGar(row.original).oldRegion),
+      },
+      {
+        id: "newRegion",
+        accessorKey: "newRegion",
+        header: DIFF_COLUMN_LABELS.newRegion,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(mapDiffRegionGar(row.original).newRegion),
+      },
+      {
+        id: "prevGarTerritory",
+        accessorKey: "prevGarTerritory",
+        header: DIFF_COLUMN_LABELS.prevGarTerritory,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(
+            mapDiffRegionGar(row.original).oldGarTerritory
+          ),
+      },
+      {
+        id: "newGarTerritory",
+        accessorKey: "newGarTerritory",
+        header: DIFF_COLUMN_LABELS.newGarTerritory,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          formatDiffDisplayValue(
+            mapDiffRegionGar(row.original).newGarTerritory
+          ),
+      },
       {
         accessorKey: "uvrAntifraud",
         header: "УВр Антифрод",
@@ -302,11 +337,12 @@ export function RangesTable({
     }
     if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     if (
-      columnId === "operator" ||
-      columnId === "newOperator" ||
       columnId === "prevOperator" ||
-      columnId === "garTerritory" ||
-      columnId === "region"
+      columnId === "newOperator" ||
+      columnId === "prevRegion" ||
+      columnId === "newRegion" ||
+      columnId === "prevGarTerritory" ||
+      columnId === "newGarTerritory"
     ) {
       return undefined;
     }
@@ -349,11 +385,12 @@ export function RangesTable({
 
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
     if (
-      columnId === "operator" ||
-      columnId === "newOperator" ||
       columnId === "prevOperator" ||
-      columnId === "garTerritory" ||
-      columnId === "region"
+      columnId === "newOperator" ||
+      columnId === "prevRegion" ||
+      columnId === "newRegion" ||
+      columnId === "prevGarTerritory" ||
+      columnId === "newGarTerritory"
     ) {
       return undefined;
     }
@@ -566,6 +603,44 @@ export function RangesTable({
             onSearchChange={(s) => onFacetSearchChange("operator", s)}
             isLoading={facetsLoading}
             placeholder={DIFF_COLUMN_LABELS.newOperator}
+          />
+        );
+      case "prevRegion":
+        return (
+          <span className="text-xs font-bold">
+            {DIFF_COLUMN_LABELS.prevRegion}
+          </span>
+        );
+      case "newRegion":
+        return (
+          <FacetCombobox
+            label={DIFF_COLUMN_LABELS.newRegion}
+            values={filters.region}
+            search={facetSearch.region ?? ""}
+            options={facets?.facets.region?.options ?? []}
+            onChange={(v) => onFilterChange("region", v)}
+            onSearchChange={(s) => onFacetSearchChange("region", s)}
+            isLoading={facetsLoading}
+            placeholder={DIFF_COLUMN_LABELS.newRegion}
+          />
+        );
+      case "prevGarTerritory":
+        return (
+          <span className="text-xs font-bold">
+            {DIFF_COLUMN_LABELS.prevGarTerritory}
+          </span>
+        );
+      case "newGarTerritory":
+        return (
+          <FacetCombobox
+            label={DIFF_COLUMN_LABELS.newGarTerritory}
+            values={filters.garTerritory}
+            search={facetSearch.garTerritory ?? ""}
+            options={facets?.facets.garTerritory?.options ?? []}
+            onChange={(v) => onFilterChange("garTerritory", v)}
+            onSearchChange={(s) => onFacetSearchChange("garTerritory", s)}
+            isLoading={facetsLoading}
+            placeholder={DIFF_COLUMN_LABELS.newGarTerritory}
           />
         );
       case "operator":

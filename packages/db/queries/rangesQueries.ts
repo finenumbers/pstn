@@ -157,6 +157,10 @@ export async function listRanges(params: {
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,
+      prevRegion: context.isDiff ? numberRangeDiffs.prevRegion : sql<null>`null`,
+      prevGarTerritory: context.isDiff
+        ? numberRangeDiffs.prevGarTerritory
+        : sql<null>`null`,
     })
     .from(table)
     .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
@@ -182,6 +186,8 @@ export async function listRanges(params: {
       changeType: row.changeType as "added" | "changed" | "removed" | null | undefined,
       prevOperator: context.isDiff ? row.prevOperator ?? null : undefined,
       prevInn: context.isDiff ? row.prevInn ?? null : undefined,
+      prevRegion: context.isDiff ? row.prevRegion ?? null : undefined,
+      prevGarTerritory: context.isDiff ? row.prevGarTerritory ?? null : undefined,
       abcRangeGapBefore: context.isDiff ? false : Boolean(row.abcRangeGapBefore),
       abcRangeGapAfter: context.isDiff ? false : Boolean(row.abcRangeGapAfter),
     })),
@@ -536,6 +542,10 @@ export async function listRangesForExport(
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,
+      prevRegion: context.isDiff ? numberRangeDiffs.prevRegion : sql<null>`null`,
+      prevGarTerritory: context.isDiff
+        ? numberRangeDiffs.prevGarTerritory
+        : sql<null>`null`,
     })
     .from(table)
     .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
