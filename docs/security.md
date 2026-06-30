@@ -10,7 +10,7 @@
 
 - TLS (Let's Encrypt)
 - Access List / Basic Auth / IP whitelist
-- Rate limiting на прокси
+- Rate limiting на прокси **и** in-app (см. ниже)
 
 ```mermaid
 flowchart TB
@@ -20,9 +20,12 @@ flowchart TB
   subgraph app_layer [Приложение]
     internal[Internal API без auth]
     lookup[External lookup API Bearer key]
+    rl[In-app rate limit middleware]
   end
   npm --> internal
   npm --> lookup
+  internal --> rl
+  lookup --> rl
 ```
 
 ---
@@ -35,7 +38,7 @@ flowchart TB
 | Internal API (`/api/ranges`, `/api/summary`, `/api/export`, `/api/import`, `/api/datasets`, `/api/v1/lookup/examples`) | NPM | Полный доступ к данным при обходе периметра |
 | External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`) | Bearer / `X-Api-Key` | Timing-safe compare |
 | PostgreSQL | Docker internal network | Не публикуется в prod compose |
-| Import API | NPM + `IMPORT_SECRET` (prod) | Cron требует secret; UI manual import ломается при secret на app — см. [import-and-datasets.md](import-and-datasets.md) |
+| Import API | NPM; `IMPORT_SECRET` опционален | Без secret импорт доступен на уровне приложения — защита периметром NPM |
 | Secrets on disk | Volume `pstn_secrets`, chmod 600 | Ключ не в логах entrypoint |
 
 ---
@@ -50,7 +53,38 @@ flowchart TB
 - `GET /api/v1/lookup/examples`, `/api/v1/lookup/config`
 - `GET /api/health`
 
-**Mitigation:** NPM Access List, VPN, bind app на `127.0.0.1:5555`, rate limits.
+**Mitigation:** NPM Access List, VPN, bind app на `127.0.0.1:5555`, rate limits (NPM + in-app middleware).
+
+---
+
+## In-app rate limiting
+
+Дополнение к NPM, не замена. Реализация: [`middleware.ts`](../middleware.ts), [`lib/api/rateLimit.ts`](../lib/api/rateLimit.ts). Лимит **per IP per process** (in-memory; сбрасывается при рестарте контейнера).
+
+| Endpoint | Лимит по умолчанию | Env override |
+|----------|-------------------|--------------|
+| `POST /api/import` | 3 req / 10 min | `RATE_LIMIT_IMPORT=3/600000` |
+| `GET /api/export/ranges` | 10 req / min | `RATE_LIMIT_EXPORT=10/60000` |
+| `GET /api/ranges/facets` | 60 req / min | `RATE_LIMIT_FACETS=60/60000` |
+| `/api/v1/lookup*` | 120 req / min | `RATE_LIMIT_LOOKUP=120/60000` |
+
+Формат env: `maxRequests/windowMs`. При превышении: **429** + заголовок `Retry-After`, тело `{ "error": "Too many requests" }`.
+
+IP берётся из `X-Forwarded-For` (первый hop) или `X-Real-IP`.
+
+---
+
+## HTTP security headers
+
+В [`next.config.ts`](../next.config.ts): `Content-Security-Policy`, `Strict-Transport-Security` (только production), плюс `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`.
+
+---
+
+## Health endpoint
+
+`GET /api/health` в **production** возвращает минимальный JSON: `{ "status": "ok", "database": "ok" }` — без hostname и revision (снижение reconnaissance).
+
+Verbose (`version`, `uptimeSec`, …): `HEALTH_VERBOSE=1` или `NODE_ENV !== production`.
 
 Invalid filters на `/api/ranges` возвращают **400** (не silent fallback) — снижает риск некорректных запросов, но не заменяет auth.
 
@@ -192,9 +226,9 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 | Угроза | Риск | Mitigation |
 |--------|------|------------|
 | Несанкционированный доступ к UI/API | Высокий | NPM Access List, VPN, localhost bind |
-| Scraping lookup/export | Средний | Rate limits на NPM |
-| Утечка EXTERNAL_API_KEY | Средний | Ключ в curl `/examples` только за NPM; `/config` без ключа; не в logs |
-| DoS через import reload | Средний | Rate limit `/api/import`, один job за раз (advisory lock) |
+| Scraping lookup/export | Средний | In-app rate limits + NPM |
+| Утечка EXTERNAL_API_KEY | Средний | Ключ в curl `/examples` **намеренно** (только за NPM); `/config` без ключа |
+| DoS через import reload | Средний | In-app rate limit `/api/import`, advisory lock (один job) |
 | SQL injection | Низкий | Drizzle parameterization, контролируемый `sql.raw` |
 | Утечка stack trace в prod | Низкий | `internalServerError()` sanitization |
 | Excel formula injection | Низкий | `sanitizeSpreadsheetCell` |
@@ -208,7 +242,7 @@ CSP, HSTS — настраиваются на NPM (рекомендуется HS
 - [ ] App слушает только `127.0.0.1:5555` или доступен только из docker-сети NPM
 - [ ] Сильный `POSTGRES_PASSWORD`, не default
 - [ ] `EXTERNAL_API_BASE_URL` задан для корректных curl-примеров
-- [ ] Rate limits на export, lookup, **import** (cron + manual curl)
+- [ ] Rate limits на NPM **и** проверка in-app 429 на export/lookup/import
 - [ ] При `IMPORT_SECRET` на app: manual UI import не работает — используйте curl или workaround ([operations.md](operations.md))
 - [ ] `/api/health` не exposed публично без необходимости
 - [ ] Backup БД настроен ([operations.md](operations.md))

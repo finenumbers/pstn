@@ -235,7 +235,7 @@ npx tsx scripts/migrate.ts
 
 **Рекомендация:** настройте алерт, если scheduler log содержит `HTTP 401`, `HTTP 5xx` или отсутствует успешный cron-запуск более 25 часов.
 
-**Не рекомендуется** expose `/api/health` публично без rate limit.
+**Не рекомендуется** expose `/api/health` публично без rate limit. В production ответ минимальный (`status`, `database`); подробности — только при `HEALTH_VERBOSE=1` или в dev.
 
 ---
 
@@ -351,7 +351,7 @@ curl -X POST "https://pstn.example.com/api/import" \
 
 **Зелёный статус stack** = контейнеры running/healthy. Это **не** «образ с GHCR обновлён».
 
-**Решение:** Stacks → `pstn` → **Pull and redeploy** (compose с `pull_policy: always`). Проверка: под заголовком «Версия X.Y.Z» или `curl /api/health`. Если версия не меняется — stack **Control: Limited** или старый compose без `pull_policy`; см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
+**Решение:** Stacks → `pstn` → **Pull and redeploy** (compose с `pull_policy: always`). Проверка: «Версия X.Y.Z» в UI или `/api/health` с `HEALTH_VERBOSE=1` на app. Если версия не меняется — stack **Control: Limited** или старый compose без `pull_policy`; см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
 
 ### Portainer: прочерк в «Images up to date»
 
@@ -360,6 +360,9 @@ curl -X POST "https://pstn.example.com/api/import" \
 Если **Control = Limited** (stack поднимали через SSH) — индикатор устаревшего образа **не работает**, Pull and redeploy может не подтягивать GHCR. Пересоздайте stack через Portainer, см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
 
 **Проверка версии на сервере:**
+
+- В UI `/ranges` — строка «Версия X.Y.Z» под заголовком.
+- Через API: в dev или при `HEALTH_VERBOSE=1` в env контейнера app:
 
 ```bash
 curl -s http://127.0.0.1:5555/api/health | jq .

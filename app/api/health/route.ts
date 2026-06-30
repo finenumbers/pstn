@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { pool } from "@/packages/db";
-import os from "os";
+
+function isHealthVerbose(): boolean {
+  return (
+    process.env.HEALTH_VERBOSE === "1" || process.env.NODE_ENV !== "production"
+  );
+}
 
 export async function GET() {
-  const deployInfo = {
-    version: process.env.APP_VERSION ?? "unknown",
-    revision: process.env.APP_REVISION ?? "unknown",
-    hostname: os.hostname(),
-    nodeEnv: process.env.NODE_ENV ?? "unknown",
-    uptimeSec: Math.round(process.uptime()),
-  };
+  const verbose = isHealthVerbose();
+  const deployInfo = verbose
+    ? {
+        version: process.env.APP_VERSION ?? "unknown",
+        revision: process.env.APP_REVISION ?? "unknown",
+        nodeEnv: process.env.NODE_ENV ?? "unknown",
+        uptimeSec: Math.round(process.uptime()),
+      }
+    : undefined;
 
   let client;
   try {
