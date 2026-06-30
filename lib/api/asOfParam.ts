@@ -1,3 +1,7 @@
+/**
+ * Strict API parser for `asOf` query param.
+ * Invalid values → 400 JSON (see `lib/url/rangesPageUrl.ts` for lenient UI twin).
+ */
 import { NextResponse } from "next/server";
 import { tryParseAsOfParam } from "@/packages/shared/contracts/dataset.schema";
 import { validationError } from "@/lib/api/errors";

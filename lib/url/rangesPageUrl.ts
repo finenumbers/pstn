@@ -1,3 +1,10 @@
+/**
+ * Client-side URL parsing for `/ranges` (browser history, share links).
+ *
+ * Intentionally **lenient**: invalid `dataset` / `asOf` fall back to safe defaults
+ * so the page stays usable. For strict validation use server parsers in
+ * `lib/api/datasetParam.ts` and `lib/api/asOfParam.ts` (400 on bad input).
+ */
 import {
   DEFAULT_SORT,
   filtersToSearchParams,
@@ -16,6 +23,7 @@ import {
 import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import type { RangesTableState } from "@/lib/table/rangesTableState";
 
+/** Lenient UI parser — invalid param → current dataset (no error surface). */
 export function parseDatasetFromSearchParams(
   params: URLSearchParams
 ): DatasetRef {
@@ -26,6 +34,7 @@ export function parseDatasetFromSearchParams(
   return parsed.data;
 }
 
+/** Lenient UI parser — invalid param → null (no as-of filter). */
 export function parseAsOfFromSearchParams(
   params: URLSearchParams
 ): string | null {

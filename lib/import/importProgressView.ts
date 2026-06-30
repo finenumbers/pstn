@@ -3,40 +3,15 @@ import {
   type LoadedRowsBySource,
   type SourceFileKey,
 } from "@/packages/import/constants";
+import type {
+  ImportFileProgress,
+  ImportJobStatus,
+  ImportProgress,
+  ImportStepProgress,
+  ImportStepStatus,
+} from "@/packages/shared/contracts/import.schema";
 
-export type ImportJobStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped";
-
-export type ImportFileStatus = "pending" | "loading" | "done" | "failed";
-
-export type ImportStepStatus = "pending" | "active" | "done";
-
-export interface ImportFileProgress {
-  key: SourceFileKey;
-  status: ImportFileStatus;
-  rows: number | null;
-}
-
-export interface ImportStepProgress {
-  id: string;
-  label: string;
-  status: ImportStepStatus;
-}
-
-export interface ImportProgressDisplay {
-  phase: string;
-  phaseLabel: string;
-  percent: number;
-  filesProcessed: number;
-  filesTotal: number;
-  rowsLoaded: number;
-  files: ImportFileProgress[];
-  steps: ImportStepProgress[];
-}
+export type { ImportProgress as ImportProgressDisplay } from "@/packages/shared/contracts/import.schema";
 
 const POST_LOAD_PHASES = [
   { id: "validating", label: "Проверка полноты данных" },
@@ -290,7 +265,7 @@ export function buildImportProgressDisplay(input: {
   filesProcessed: number;
   filesTotal: number;
   rowsLoaded: number;
-}): ImportProgressDisplay {
+}): ImportProgress {
   const phase = input.phase || (input.status === "pending" ? "pending" : "");
   const files = buildImportFileProgress(
     phase,

@@ -175,42 +175,15 @@ export interface SummaryResponse {
   };
 }
 
-export interface ImportProgress {
-  phase: string;
-  phaseLabel: string;
-  percent: number;
-  filesProcessed: number;
-  filesTotal: number;
-  rowsLoaded: number;
-  files: ImportFileProgress[];
-  steps: ImportStepProgress[];
-}
-
-export type ImportFileStatus = "pending" | "loading" | "done" | "failed";
-
-export type ImportStepStatus = "pending" | "active" | "done";
-
-export interface ImportFileProgress {
-  key: string;
-  status: ImportFileStatus;
-  rows: number | null;
-}
-
-export interface ImportStepProgress {
-  id: string;
-  label: string;
-  status: ImportStepStatus;
-}
-
-export interface ImportStatusResponse {
-  jobId: string;
-  status: "pending" | "running" | "completed" | "failed" | "skipped";
-  skipReason?: string;
-  progress?: ImportProgress;
-  loadedAt: string | null;
-  errorMessage?: string;
-  rowsLoaded?: number;
-}
+export type {
+  ImportFileProgress,
+  ImportFileStatus,
+  ImportJobStatus,
+  ImportProgress,
+  ImportStatusResponse,
+  ImportStepProgress,
+  ImportStepStatus,
+} from "./import.schema";
 
 export const DEFAULT_FILTERS: FiltersDTO = {
   abc: [],

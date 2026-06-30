@@ -21,7 +21,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:explain-phone-search": "tsx scripts/explain-phone-search.ts",
     "db:rebuild-dicts": "tsx scripts/rebuild-dictionaries.ts",
-    "db:push": "drizzle-kit push",
+    "db:push": "echo 'Deprecated for production — use npm run db:migrate. Running drizzle-kit push for local dev only…' && drizzle-kit push",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "audit": "npm audit --audit-level=high",

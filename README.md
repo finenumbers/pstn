@@ -72,6 +72,9 @@ npm run db:migrate
 npm run dev              # http://localhost:5555/ranges
 ```
 
+> **Миграции БД:** в production и CI используйте только `npm run db:migrate` (SQL в `packages/db/migrations/`).
+> `npm run db:push` (drizzle-kit push) — только для локальных эксперiments; **не** применяйте на prod.
+
 ### Docker Desktop (полный стек)
 
 ```bash

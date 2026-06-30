@@ -1,3 +1,7 @@
+/**
+ * Strict API parser for `dataset` query param.
+ * Invalid values → 400 JSON (see `lib/url/rangesPageUrl.ts` for lenient UI twin).
+ */
 import { NextResponse } from "next/server";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import {
