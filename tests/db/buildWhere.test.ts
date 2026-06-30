@@ -66,4 +66,20 @@ describe("buildWhere", () => {
     expect(production).toBeDefined();
     expect(current).not.toEqual(production);
   });
+
+  it("applies changedFields filter only in diff context", () => {
+    const diffContext = {
+      table: numberRangeDiffs,
+      snapshotId: "550e8400-e29b-41d4-a716-446655440000",
+      isDiff: true,
+      isFull: false,
+    };
+    const filters = { ...DEFAULT_FILTERS, changedFields: ["region"] };
+    expect(buildWhere(filters)).toBeUndefined();
+    const inDiff = buildWhere(filters, diffContext);
+    expect(inDiff).toBeDefined();
+    const excludeSelf = buildWhere(filters, diffContext, "changedFields");
+    expect(excludeSelf).toBeDefined();
+    expect(excludeSelf).not.toEqual(inDiff);
+  });
 });

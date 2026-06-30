@@ -4,6 +4,7 @@ import { and, count, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { operatorsRegister } from "../schema";
 import { buildWhere, facetColumnForContext } from "./buildWhere";
+import { sqlForChangedFieldKey } from "./changedFieldsFilter";
 import { resolveQueryContext } from "./datasetContext";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
@@ -35,7 +36,9 @@ export async function countFacetValue(
   const valueWhere =
     column === "uvrAntifraud"
       ? uvrAntifraudValueWhere(table, value)
-      : eq(facetColumnForContext(column, context), value);
+      : column === "changedFields"
+        ? sqlForChangedFieldKey(value as Parameters<typeof sqlForChangedFieldKey>[0])
+        : eq(facetColumnForContext(column, context), value);
   const where = baseWhere ? and(baseWhere, valueWhere) : valueWhere;
 
   const result = await db

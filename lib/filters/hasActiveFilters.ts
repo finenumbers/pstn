@@ -9,6 +9,7 @@ export function hasActiveFilters(filters: FiltersDTO): boolean {
     filters.region.length > 0 ||
     filters.inn.length > 0 ||
     filters.uvrAntifraud.length > 0 ||
+    filters.changedFields.length > 0 ||
     filters.rangeStart !== "" ||
     filters.rangeEnd !== "" ||
     filters.capacity !== "" ||

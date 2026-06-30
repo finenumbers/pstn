@@ -15,5 +15,8 @@ describe("hasActiveFilters", () => {
     expect(
       hasActiveFilters({ ...DEFAULT_FILTERS, uvrAntifraud: ["11012"] })
     ).toBe(true);
+    expect(
+      hasActiveFilters({ ...DEFAULT_FILTERS, changedFields: ["region"] })
+    ).toBe(true);
   });
 });

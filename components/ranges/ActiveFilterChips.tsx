@@ -7,6 +7,7 @@ import {
   isPhoneMaskEmpty,
   normalizePhoneMask,
 } from "@/lib/phoneNumberMask";
+import { DIFF_CHANGED_FIELD_LABELS } from "@/lib/diff/diffChangedFields";
 import type { FiltersDTO } from "@/packages/shared/contracts/filters.schema";
 
 const FILTER_LABELS: Record<string, string> = {
@@ -16,6 +17,7 @@ const FILTER_LABELS: Record<string, string> = {
   region: "Регион",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
+  changedFields: "Изменения",
   phoneNumber: "Номер",
   rangeStart: "Начало",
   rangeEnd: "Конец",
@@ -42,7 +44,8 @@ function pushFacetChips(
     | "garTerritory"
     | "region"
     | "inn"
-    | "uvrAntifraud",
+    | "uvrAntifraud"
+    | "changedFields",
   values: string[],
   formatDisplay?: (value: string) => string
 ) {
@@ -70,6 +73,15 @@ export function ActiveFilterChips({
 
   pushFacetChips(chips, "inn", filters.inn);
   pushFacetChips(chips, "uvrAntifraud", filters.uvrAntifraud);
+  pushFacetChips(
+    chips,
+    "changedFields",
+    filters.changedFields,
+    (value) =>
+      DIFF_CHANGED_FIELD_LABELS[
+        value as keyof typeof DIFF_CHANGED_FIELD_LABELS
+      ] ?? value
+  );
 
   if (!isPhoneMaskEmpty(filters.phoneNumber)) {
     chips.push({

@@ -39,7 +39,11 @@ export function useFacetsQuery(
     queryKey: queryKeys.facets(params),
     queryFn: async ({ signal }) => {
       const filterParams = buildFilterParams(normalizedFilters);
-      filterParams.set("columns", FACET_COLUMNS.join(","));
+      const facetColumns =
+        dataset.kind === "diff"
+          ? FACET_COLUMNS
+          : FACET_COLUMNS.filter((column) => column !== "changedFields");
+      filterParams.set("columns", facetColumns.join(","));
       filterParams.set("dataset", datasetParam);
       if (asOf && dataset.kind === "current") {
         filterParams.set("asOf", asOf);

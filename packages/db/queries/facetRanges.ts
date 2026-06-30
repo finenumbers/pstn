@@ -5,6 +5,7 @@ import type {
 } from "@/packages/shared/contracts/filters.schema";
 import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { facetInnRanges } from "./facetInnRanges";
+import { facetChangedFieldsRanges } from "./facetChangedFieldsRanges";
 import { facetRangesFromDict } from "./facetRangesFromDict";
 import { facetUvrAntifraudRanges } from "./facetUvrAntifraudRanges";
 
@@ -21,6 +22,8 @@ export async function facetRanges(params: {
       return facetInnRanges(params);
     case "uvrAntifraud":
       return facetUvrAntifraudRanges(params);
+    case "changedFields":
+      return facetChangedFieldsRanges(params);
     default:
       return facetRangesFromDict({
         ...params,

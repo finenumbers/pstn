@@ -29,6 +29,20 @@ describe("parseFiltersFromSearchParams", () => {
     });
     expect(cleared.has("filters.garTerritory")).toBe(false);
   });
+
+  it("round-trips changedFields filter in URL", () => {
+    const params = new URLSearchParams();
+    params.set("filters.changedFields", "region|||added");
+    expect(parseFiltersFromSearchParams(params).changedFields).toEqual([
+      "added",
+      "region",
+    ]);
+    const serialized = filtersToSearchParams({
+      ...DEFAULT_FILTERS,
+      changedFields: ["region", "added"],
+    });
+    expect(serialized.get("filters.changedFields")).toBe("region|||added");
+  });
 });
 
 describe("buildWhere garTerritory", () => {

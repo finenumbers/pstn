@@ -9,8 +9,9 @@ import {
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { FacetCombobox } from "@/components/ranges/FacetCombobox";
+import { DiffChangeDetailDialog } from "@/components/ranges/DiffChangeDetailDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -22,10 +23,9 @@ import {
 } from "@/components/ui/table";
 import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
 import {
-  formatDiffDisplayValue,
-  mapDiffOperatorInn,
-  mapDiffRegionGar,
-} from "@/lib/diff/diffOperatorInnDisplay";
+  DIFF_CHANGED_FIELD_LABELS,
+  formatChangedFieldsLabel,
+} from "@/lib/diff/diffChangedFields";
 import {
   compactColumnStyle,
   computeAbcFilterColumnWidth,
@@ -82,23 +82,12 @@ const COLUMN_ORDER = [
 ] as const;
 
 const DIFF_COLUMN_ORDER = [
-  "abc",
-  "rangeStart",
-  "rangeEnd",
-  "capacity",
-  "prevOperator",
-  "newOperator",
-  "prevRegion",
-  "newRegion",
-  "prevGarTerritory",
-  "newGarTerritory",
-  "uvrAntifraud",
-  "prevInn",
-  "newInn",
+  ...COLUMN_ORDER,
+  "changedFields",
 ] as const;
 
-type TableColumnId = (typeof COLUMN_ORDER)[number];
 type DiffTableColumnId = (typeof DIFF_COLUMN_ORDER)[number];
+type TableColumnId = (typeof COLUMN_ORDER)[number];
 
 const COLUMN_LABELS: Record<TableColumnId, string> = {
   abc: "ABC",
@@ -113,23 +102,12 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
 };
 
 const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
-  abc: "ABC",
-  rangeStart: "Начало",
-  rangeEnd: "Конец",
-  capacity: "Емкость",
-  prevOperator: "Старый оператор связи",
-  newOperator: "Новый оператор связи",
-  prevRegion: "Старый регион",
-  newRegion: "Новый регион",
-  prevGarTerritory: "Старая территория ГАР",
-  newGarTerritory: "Новая территория ГАР",
-  uvrAntifraud: "УВр Антифрод",
-  prevInn: "Старый ИНН",
-  newInn: "Новый ИНН",
+  ...COLUMN_LABELS,
+  changedFields: "Изменения",
 };
 
 function renderInnCellValue(inn: string | null | undefined) {
-  const display = formatDiffDisplayValue(inn);
+  const display = inn && inn.length > 0 ? inn : "—";
   if (display === "—") return display;
   const href = dadataPartyUrl(inn!);
   if (!href) return display;
@@ -173,6 +151,8 @@ export function RangesTable({
   isDiffView = false,
 }: RangesTableProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [detailRow, setDetailRow] = useState<NumberRangeRow | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const columnOrder = isDiffView ? DIFF_COLUMN_ORDER : COLUMN_ORDER;
 
   const standardColumns = useMemo(
@@ -217,104 +197,33 @@ export function RangesTable({
     []
   );
 
-  const diffColumns = useMemo(
-    () => [
-      { accessorKey: "abc", header: "ABC" },
+  const columns = useMemo(() => {
+    if (!isDiffView) return standardColumns;
+    return [
+      ...standardColumns,
       {
-        accessorKey: "rangeStart",
-        header: "Начало",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatRangeSegment(row.original.rangeStart),
-      },
-      {
-        accessorKey: "rangeEnd",
-        header: "Конец",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatRangeSegment(row.original.rangeEnd),
-      },
-      {
-        accessorKey: "capacity",
-        header: "Емкость",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatNumber(row.original.capacity),
-      },
-      {
-        id: "prevOperator",
-        accessorKey: "prevOperator",
-        header: DIFF_COLUMN_LABELS.prevOperator,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(
-            mapDiffOperatorInn(row.original).oldOperator
-          ),
-      },
-      {
-        id: "newOperator",
-        accessorKey: "newOperator",
-        header: DIFF_COLUMN_LABELS.newOperator,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(
-            mapDiffOperatorInn(row.original).newOperator
-          ),
-      },
-      {
-        id: "prevRegion",
-        accessorKey: "prevRegion",
-        header: DIFF_COLUMN_LABELS.prevRegion,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(mapDiffRegionGar(row.original).oldRegion),
-      },
-      {
-        id: "newRegion",
-        accessorKey: "newRegion",
-        header: DIFF_COLUMN_LABELS.newRegion,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(mapDiffRegionGar(row.original).newRegion),
-      },
-      {
-        id: "prevGarTerritory",
-        accessorKey: "prevGarTerritory",
-        header: DIFF_COLUMN_LABELS.prevGarTerritory,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(
-            mapDiffRegionGar(row.original).oldGarTerritory
-          ),
-      },
-      {
-        id: "newGarTerritory",
-        accessorKey: "newGarTerritory",
-        header: DIFF_COLUMN_LABELS.newGarTerritory,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatDiffDisplayValue(
-            mapDiffRegionGar(row.original).newGarTerritory
-          ),
-      },
-      {
-        accessorKey: "uvrAntifraud",
-        header: "УВр Антифрод",
+        id: "changedFields",
+        accessorKey: "changedFields",
+        header: DIFF_COLUMN_LABELS.changedFields,
         cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const value = row.original.uvrAntifraud;
-          return value != null ? String(value) : "—";
+          const label = formatChangedFieldsLabel(row.original);
+          if (label === "—") return label;
+          return (
+            <button
+              type="button"
+              className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
+              onClick={() => {
+                setDetailRow(row.original);
+                setDetailOpen(true);
+              }}
+            >
+              {label}
+            </button>
+          );
         },
       },
-      {
-        id: "prevInn",
-        accessorKey: "prevInn",
-        header: DIFF_COLUMN_LABELS.prevInn,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          renderInnCellValue(mapDiffOperatorInn(row.original).oldInn),
-      },
-      {
-        id: "newInn",
-        accessorKey: "newInn",
-        header: DIFF_COLUMN_LABELS.newInn,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          renderInnCellValue(mapDiffOperatorInn(row.original).newInn),
-      },
-    ],
-    []
-  );
-
-  const columns = isDiffView ? diffColumns : standardColumns;
+    ];
+  }, [isDiffView, standardColumns]);
 
   const compactWidths = useMemo(
     () => computeCompactColumnWidths(data),
@@ -328,21 +237,15 @@ export function RangesTable({
 
   const getColumnWidthCh = (columnId: string): number | undefined => {
     if (columnId === "abc") return abcColumnWidthCh;
-    if (
-      columnId === "inn" ||
-      columnId === "prevInn" ||
-      columnId === "newInn"
-    ) {
+    if (columnId === "inn") {
       return INN_COLUMN_WIDTH_CH;
     }
     if (columnId === "uvrAntifraud") return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     if (
-      columnId === "prevOperator" ||
-      columnId === "newOperator" ||
-      columnId === "prevRegion" ||
-      columnId === "newRegion" ||
-      columnId === "prevGarTerritory" ||
-      columnId === "newGarTerritory"
+      columnId === "operator" ||
+      columnId === "garTerritory" ||
+      columnId === "region" ||
+      columnId === "changedFields"
     ) {
       return undefined;
     }
@@ -357,11 +260,7 @@ export function RangesTable({
         style: compactColumnStyle(abcColumnWidthCh),
       };
     }
-    if (
-      columnId === "inn" ||
-      columnId === "prevInn" ||
-      columnId === "newInn"
-    ) {
+    if (columnId === "inn") {
       return {
         className: "whitespace-nowrap tabular-nums",
         style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
@@ -385,23 +284,17 @@ export function RangesTable({
 
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
     if (
-      columnId === "prevOperator" ||
-      columnId === "newOperator" ||
-      columnId === "prevRegion" ||
-      columnId === "newRegion" ||
-      columnId === "prevGarTerritory" ||
-      columnId === "newGarTerritory"
+      columnId === "operator" ||
+      columnId === "garTerritory" ||
+      columnId === "region" ||
+      columnId === "changedFields"
     ) {
       return undefined;
     }
     if (columnId === "abc") {
       return columnWidthStyle(abcColumnWidthCh);
     }
-    if (
-      columnId === "inn" ||
-      columnId === "prevInn" ||
-      columnId === "newInn"
-    ) {
+    if (columnId === "inn") {
       return compactColumnStyle(INN_COLUMN_WIDTH_CH);
     }
     if (columnId === "uvrAntifraud") {
@@ -586,61 +479,22 @@ export function RangesTable({
       case "rangeEnd":
       case "capacity":
         return <SortHeader columnId={colId} />;
-      case "prevOperator":
-        return (
-          <span className="text-xs font-bold">
-            {DIFF_COLUMN_LABELS.prevOperator}
-          </span>
-        );
-      case "newOperator":
+      case "changedFields":
         return (
           <FacetCombobox
-            label={DIFF_COLUMN_LABELS.newOperator}
-            values={filters.operator}
-            search={facetSearch.operator ?? ""}
-            options={facets?.facets.operator?.options ?? []}
-            onChange={(v) => onFilterChange("operator", v)}
-            onSearchChange={(s) => onFacetSearchChange("operator", s)}
+            label={DIFF_COLUMN_LABELS.changedFields}
+            values={filters.changedFields}
+            search={facetSearch.changedFields ?? ""}
+            options={facets?.facets.changedFields?.options ?? []}
+            onChange={(v) => onFilterChange("changedFields", v)}
+            onSearchChange={(s) => onFacetSearchChange("changedFields", s)}
             isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.newOperator}
-          />
-        );
-      case "prevRegion":
-        return (
-          <span className="text-xs font-bold">
-            {DIFF_COLUMN_LABELS.prevRegion}
-          </span>
-        );
-      case "newRegion":
-        return (
-          <FacetCombobox
-            label={DIFF_COLUMN_LABELS.newRegion}
-            values={filters.region}
-            search={facetSearch.region ?? ""}
-            options={facets?.facets.region?.options ?? []}
-            onChange={(v) => onFilterChange("region", v)}
-            onSearchChange={(s) => onFacetSearchChange("region", s)}
-            isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.newRegion}
-          />
-        );
-      case "prevGarTerritory":
-        return (
-          <span className="text-xs font-bold">
-            {DIFF_COLUMN_LABELS.prevGarTerritory}
-          </span>
-        );
-      case "newGarTerritory":
-        return (
-          <FacetCombobox
-            label={DIFF_COLUMN_LABELS.newGarTerritory}
-            values={filters.garTerritory}
-            search={facetSearch.garTerritory ?? ""}
-            options={facets?.facets.garTerritory?.options ?? []}
-            onChange={(v) => onFilterChange("garTerritory", v)}
-            onSearchChange={(s) => onFacetSearchChange("garTerritory", s)}
-            isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.newGarTerritory}
+            placeholder={DIFF_COLUMN_LABELS.changedFields}
+            formatOption={(value) =>
+              DIFF_CHANGED_FIELD_LABELS[
+                value as keyof typeof DIFF_CHANGED_FIELD_LABELS
+              ] ?? value
+            }
           />
         );
       case "operator":
@@ -682,23 +536,6 @@ export function RangesTable({
             placeholder="Регион"
           />
         );
-      case "prevInn":
-        return (
-          <span className="text-xs font-bold">{DIFF_COLUMN_LABELS.prevInn}</span>
-        );
-      case "newInn":
-        return (
-          <FacetCombobox
-            label={DIFF_COLUMN_LABELS.newInn}
-            values={filters.inn}
-            search={facetSearch.inn ?? ""}
-            options={facets?.facets.inn?.options ?? []}
-            onChange={(v) => onFilterChange("inn", v)}
-            onSearchChange={(s) => onFacetSearchChange("inn", s)}
-            isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.newInn}
-          />
-        );
       case "inn":
         return (
           <FacetCombobox
@@ -733,12 +570,11 @@ export function RangesTable({
   const hasFilterColumn = (colId: TableColumnId | DiffTableColumnId) =>
     colId === "abc" ||
     colId === "operator" ||
-    colId === "newOperator" ||
     colId === "garTerritory" ||
     colId === "region" ||
     colId === "inn" ||
-    colId === "newInn" ||
-    colId === "uvrAntifraud";
+    colId === "uvrAntifraud" ||
+    colId === "changedFields";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -868,8 +704,19 @@ export function RangesTable({
       {isDiffView && (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
           Режим просмотра расхождений: зелёный — добавлено, жёлтый — изменено,
-          красный — удалено.
+          красный — удалено. Нажмите на «Изменения», чтобы увидеть было / стало.
         </div>
+      )}
+
+      {isDiffView && (
+        <DiffChangeDetailDialog
+          row={detailRow}
+          open={detailOpen}
+          onOpenChange={(open) => {
+            setDetailOpen(open);
+            if (!open) setDetailRow(null);
+          }}
+        />
       )}
     </div>
   );

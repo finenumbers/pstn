@@ -9,6 +9,7 @@ import {
   type AnyColumn,
 } from "drizzle-orm";
 import { operatorsRegister } from "../schema";
+import { sqlForChangedFieldKeys } from "./changedFieldsFilter";
 import {
   CURRENT_RANGE_CONTEXT,
   mergeSnapshotFilter,
@@ -232,6 +233,15 @@ export function collectWhereConditions(
   }
   if (filters.phoneNumber) {
     const cond = phoneNumberFilter(table, filters.phoneNumber);
+    if (cond) conditions.push(cond);
+  }
+
+  if (
+    context.isDiff &&
+    excludeColumn !== "changedFields" &&
+    filters.changedFields.length > 0
+  ) {
+    const cond = sqlForChangedFieldKeys(filters.changedFields);
     if (cond) conditions.push(cond);
   }
 

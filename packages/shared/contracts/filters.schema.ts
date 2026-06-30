@@ -17,6 +17,7 @@ export const FACET_COLUMNS = [
   ...DICT_FACET_COLUMNS,
   "inn",
   "uvrAntifraud",
+  "changedFields",
 ] as const;
 export type FacetColumn = (typeof FACET_COLUMNS)[number];
 
@@ -56,6 +57,8 @@ export const filtersSchema = z.object({
   region: coverageArraySchema.default([]),
   inn: orMultiArraySchema.default([]),
   uvrAntifraud: orMultiArraySchema.default([]),
+  /** Diff view: filter by which fields changed (operator, region, …, added, removed). */
+  changedFields: orMultiArraySchema.default([]),
   rangeStart: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
   rangeEnd: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
   capacity: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
@@ -226,6 +229,7 @@ export const DEFAULT_FILTERS: FiltersDTO = {
   region: [],
   inn: [],
   uvrAntifraud: [],
+  changedFields: [],
   rangeStart: "",
   rangeEnd: "",
   capacity: "",
@@ -245,6 +249,7 @@ export function normalizeFilters(filters: FiltersDTO): FiltersDTO {
     region: [...filters.region].sort(),
     inn: [...filters.inn].sort(),
     uvrAntifraud: [...filters.uvrAntifraud].sort(),
+    changedFields: [...filters.changedFields].sort(),
     rangeStart: filters.rangeStart.trim(),
     rangeEnd: filters.rangeEnd.trim(),
     capacity: filters.capacity.trim(),
@@ -300,6 +305,7 @@ export function parseFiltersFromSearchParams(
     region: getArray("region"),
     inn: getOrMultiArray("inn"),
     uvrAntifraud: getOrMultiArray("uvrAntifraud"),
+    changedFields: getOrMultiArray("changedFields"),
     rangeStart: (params.get("filters.rangeStart") ?? "").slice(
       0,
       FILTER_LIMITS.maxTextFilterLength
@@ -333,6 +339,8 @@ export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
   if (filters.inn.length) params.set("filters.inn", filters.inn.join("|||"));
   if (filters.uvrAntifraud.length)
     params.set("filters.uvrAntifraud", filters.uvrAntifraud.join("|||"));
+  if (filters.changedFields.length)
+    params.set("filters.changedFields", filters.changedFields.join("|||"));
   if (filters.rangeStart) params.set("filters.rangeStart", filters.rangeStart);
   if (filters.rangeEnd) params.set("filters.rangeEnd", filters.rangeEnd);
   if (filters.capacity) params.set("filters.capacity", filters.capacity);
