@@ -1,23 +1,23 @@
 import {
-  DIFF_CHANGED_FIELD_KEYS,
-  DIFF_CHANGED_FIELD_LABELS,
-  type DiffChangedFieldKey,
+  DIFF_CHANGE_STATUS_KEYS,
+  DIFF_CHANGE_STATUS_LABELS,
+  type DiffChangeStatusKey,
 } from "@/lib/diff/diffChangedFields";
 import type { FiltersDTO } from "@/packages/shared/contracts/filters.schema";
 import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 import { and, count, type SQL } from "drizzle-orm";
 import { db } from "../index";
 import { buildWhere } from "./buildWhere";
-import { sqlForChangedFieldKey } from "./changedFieldsFilter";
+import { sqlForChangeStatusKey } from "./changeStatusFilter";
 import { resolveQueryContext } from "./datasetContext";
 
-function matchesSearch(key: DiffChangedFieldKey, search?: string): boolean {
+function matchesSearch(key: DiffChangeStatusKey, search?: string): boolean {
   if (!search?.trim()) return true;
-  const label = DIFF_CHANGED_FIELD_LABELS[key];
+  const label = DIFF_CHANGE_STATUS_LABELS[key];
   return label.toLowerCase().includes(search.trim().toLowerCase());
 }
 
-export async function facetChangedFieldsRanges(params: {
+export async function facetChangeStatusRanges(params: {
   filters: FiltersDTO;
   search?: string;
   dataset?: DatasetRef;
@@ -29,18 +29,18 @@ export async function facetChangedFieldsRanges(params: {
   }
 
   const table = context.table;
-  const baseWhere = buildWhere(params.filters, context, "changedFields");
+  const baseWhere = buildWhere(params.filters, context, "changeStatus");
 
-  const keys = DIFF_CHANGED_FIELD_KEYS.filter((key) =>
+  const keys = DIFF_CHANGE_STATUS_KEYS.filter((key) =>
     matchesSearch(key, params.search)
   );
 
   const options = await Promise.all(
     keys.map(async (key) => {
-      const fieldWhere = sqlForChangedFieldKey(key);
+      const statusWhere = sqlForChangeStatusKey(key);
       const where: SQL | undefined = baseWhere
-        ? and(baseWhere, fieldWhere)
-        : fieldWhere;
+        ? and(baseWhere, statusWhere)
+        : statusWhere;
 
       const result = await db
         .select({ count: count() })
@@ -54,9 +54,10 @@ export async function facetChangedFieldsRanges(params: {
     })
   );
 
-  options.sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
-
   const present = options.filter((option) => option.count > 0);
+  present.sort(
+    (a, b) => b.count - a.count || a.value.localeCompare(b.value)
+  );
 
   return {
     options: present,

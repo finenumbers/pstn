@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm";
 import { operatorsRegister } from "../schema";
 import { sqlForChangedFieldKeys } from "./changedFieldsFilter";
+import { sqlForChangeStatusKeys } from "./changeStatusFilter";
 import {
   CURRENT_RANGE_CONTEXT,
   mergeSnapshotFilter,
@@ -238,6 +239,15 @@ export function collectWhereConditions(
 
   if (
     context.isDiff &&
+    excludeColumn !== "changeStatus" &&
+    filters.changeStatus.length > 0
+  ) {
+    const cond = sqlForChangeStatusKeys(filters.changeStatus);
+    if (cond) conditions.push(cond);
+  }
+
+  if (
+    context.isDiff &&
     excludeColumn !== "changedFields" &&
     filters.changedFields.length > 0
   ) {
@@ -270,7 +280,10 @@ export function buildWhere(
 }
 
 export function facetColumnForContext(
-  column: Exclude<FacetColumn, "uvrAntifraud" | "changedFields">,
+  column: Exclude<
+    FacetColumn,
+    "uvrAntifraud" | "changedFields" | "changeStatus"
+  >,
   context: RangeQueryContext
 ) {
   const columns = getColumnMap(context.table);

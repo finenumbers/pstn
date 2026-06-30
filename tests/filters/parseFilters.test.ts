@@ -32,16 +32,39 @@ describe("parseFiltersFromSearchParams", () => {
 
   it("round-trips changedFields filter in URL", () => {
     const params = new URLSearchParams();
-    params.set("filters.changedFields", "region|||added");
+    params.set("filters.changedFields", "region|||inn");
     expect(parseFiltersFromSearchParams(params).changedFields).toEqual([
-      "added",
+      "inn",
       "region",
     ]);
     const serialized = filtersToSearchParams({
       ...DEFAULT_FILTERS,
-      changedFields: ["region", "added"],
+      changedFields: ["region", "inn"],
     });
-    expect(serialized.get("filters.changedFields")).toBe("region|||added");
+    expect(serialized.get("filters.changedFields")).toBe("region|||inn");
+  });
+
+  it("round-trips changeStatus filter in URL", () => {
+    const params = new URLSearchParams();
+    params.set("filters.changeStatus", "added|||removed");
+    expect(parseFiltersFromSearchParams(params).changeStatus).toEqual([
+      "added",
+      "removed",
+    ]);
+    const serialized = filtersToSearchParams({
+      ...DEFAULT_FILTERS,
+      changeStatus: ["added", "removed"],
+    });
+    expect(serialized.get("filters.changeStatus")).toBe("added|||removed");
+  });
+
+  it("migrates legacy added/removed from changedFields into changeStatus", () => {
+    const params = new URLSearchParams();
+    params.set("filters.changedFields", "region|||added");
+    expect(parseFiltersFromSearchParams(params)).toMatchObject({
+      changedFields: ["region"],
+      changeStatus: ["added"],
+    });
   });
 });
 

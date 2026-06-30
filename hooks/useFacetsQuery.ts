@@ -42,7 +42,9 @@ export function useFacetsQuery(
       const facetColumns =
         dataset.kind === "diff"
           ? FACET_COLUMNS
-          : FACET_COLUMNS.filter((column) => column !== "changedFields");
+          : FACET_COLUMNS.filter(
+              (column) => column !== "changedFields" && column !== "changeStatus"
+            );
       filterParams.set("columns", facetColumns.join(","));
       filterParams.set("dataset", datasetParam);
       if (asOf && dataset.kind === "current") {

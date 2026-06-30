@@ -5,6 +5,7 @@ import { db } from "../index";
 import { operatorsRegister } from "../schema";
 import { buildWhere, facetColumnForContext } from "./buildWhere";
 import { sqlForChangedFieldKey } from "./changedFieldsFilter";
+import { sqlForChangeStatusKey } from "./changeStatusFilter";
 import { resolveQueryContext } from "./datasetContext";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
@@ -36,6 +37,10 @@ export async function countFacetValue(
   const valueWhere =
     column === "uvrAntifraud"
       ? uvrAntifraudValueWhere(table, value)
+      : column === "changeStatus"
+        ? sqlForChangeStatusKey(
+            value as Parameters<typeof sqlForChangeStatusKey>[0]
+          )
       : column === "changedFields"
         ? sqlForChangedFieldKey(value as Parameters<typeof sqlForChangedFieldKey>[0])
         : eq(facetColumnForContext(column, context), value);

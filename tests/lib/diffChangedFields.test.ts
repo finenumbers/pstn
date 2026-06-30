@@ -2,7 +2,9 @@ import {
   buildWasStoRows,
   computeChangedFieldKeys,
   computeChangedMetadataFieldKeys,
+  formatChangeStatusLabel,
   formatChangedFieldsLabel,
+  getWasStoRowHighlightClass,
 } from "@/lib/diff/diffChangedFields";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 import { describe, expect, it } from "vitest";
@@ -42,15 +44,25 @@ describe("diffChangedFields", () => {
     expect(computeChangedFieldKeys(row)).toEqual(["region"]);
   });
 
-  it("labels added and removed rows", () => {
-    expect(formatChangedFieldsLabel(diffRow({ changeType: "added" }))).toBe(
-      "Добавлено"
+  it("maps change status labels", () => {
+    expect(formatChangeStatusLabel(diffRow({ changeType: "added" }))).toBe(
+      "Новый ресурс"
     );
-    expect(computeChangedFieldKeys(diffRow({ changeType: "added" }))).toEqual([
-      "added",
-    ]);
+    expect(formatChangeStatusLabel(diffRow({ changeType: "changed" }))).toBe(
+      "Изменение ресурса"
+    );
+    expect(formatChangeStatusLabel(diffRow({ changeType: "removed" }))).toBe(
+      "Удаление ресурса"
+    );
+  });
+
+  it("returns dash in Изменения for added and removed rows", () => {
+    expect(formatChangedFieldsLabel(diffRow({ changeType: "added" }))).toBe("—");
+    expect(computeChangedFieldKeys(diffRow({ changeType: "added" }))).toEqual(
+      []
+    );
     expect(formatChangedFieldsLabel(diffRow({ changeType: "removed" }))).toBe(
-      "Удалено"
+      "—"
     );
   });
 
@@ -70,5 +82,33 @@ describe("diffChangedFields", () => {
       changed: true,
     });
     expect(rows.find((r) => r.key === "operator")?.changed).toBe(false);
+  });
+
+  it("uses type-specific highlight classes in detail rows", () => {
+    const changedRow = diffRow({
+      changeType: "changed",
+      prevRegion: "old",
+    });
+    const changedRows = buildWasStoRows(changedRow);
+    const regionRow = changedRows.find((r) => r.key === "region")!;
+    expect(getWasStoRowHighlightClass("changed", regionRow)).toBe(
+      "bg-yellow-100/80"
+    );
+    expect(
+      getWasStoRowHighlightClass(
+        "changed",
+        changedRows.find((r) => r.key === "operator")!
+      )
+    ).toBeUndefined();
+
+    const addedRows = buildWasStoRows(diffRow({ changeType: "added" }));
+    expect(getWasStoRowHighlightClass("added", addedRows[0]!)).toBe(
+      "bg-green-100/80"
+    );
+
+    const removedRows = buildWasStoRows(diffRow({ changeType: "removed" }));
+    expect(getWasStoRowHighlightClass("removed", removedRows[0]!)).toBe(
+      "bg-red-100/80"
+    );
   });
 });

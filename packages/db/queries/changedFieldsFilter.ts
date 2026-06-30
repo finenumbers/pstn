@@ -1,5 +1,5 @@
 import type { DiffChangedFieldKey } from "@/lib/diff/diffChangedFields";
-import { eq, or, sql, type SQL } from "drizzle-orm";
+import { or, sql, type SQL } from "drizzle-orm";
 import { numberRangeDiffs } from "../schema";
 
 /** SQL predicate: diff row matches a single changed-fields filter value. */
@@ -14,10 +14,6 @@ export function sqlForChangedFieldKey(key: DiffChangedFieldKey): SQL {
       return sql`${d.changeType} = 'changed' AND ${d.prevGarTerritory} IS DISTINCT FROM ${d.garTerritory}`;
     case "inn":
       return sql`${d.changeType} = 'changed' AND ${d.prevInn} IS DISTINCT FROM ${d.inn}`;
-    case "added":
-      return eq(d.changeType, "added");
-    case "removed":
-      return eq(d.changeType, "removed");
   }
 }
 
@@ -27,9 +23,7 @@ export function sqlForChangedFieldKeys(keys: readonly string[]): SQL | undefined
       key === "operator" ||
       key === "region" ||
       key === "garTerritory" ||
-      key === "inn" ||
-      key === "added" ||
-      key === "removed"
+      key === "inn"
   );
   if (valid.length === 0) return undefined;
   if (valid.length === 1) return sqlForChangedFieldKey(valid[0]!);

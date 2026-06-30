@@ -17,6 +17,7 @@ export const FACET_COLUMNS = [
   ...DICT_FACET_COLUMNS,
   "inn",
   "uvrAntifraud",
+  "changeStatus",
   "changedFields",
 ] as const;
 export type FacetColumn = (typeof FACET_COLUMNS)[number];
@@ -57,8 +58,10 @@ export const filtersSchema = z.object({
   region: coverageArraySchema.default([]),
   inn: orMultiArraySchema.default([]),
   uvrAntifraud: orMultiArraySchema.default([]),
-  /** Diff view: filter by which fields changed (operator, region, …, added, removed). */
+  /** Diff view: filter by which metadata fields changed (operator, region, …). */
   changedFields: orMultiArraySchema.default([]),
+  /** Diff view: filter by resource change status (added, changed, removed). */
+  changeStatus: orMultiArraySchema.default([]),
   rangeStart: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
   rangeEnd: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
   capacity: z.string().max(FILTER_LIMITS.maxTextFilterLength).default(""),
@@ -193,6 +196,7 @@ export const DEFAULT_FILTERS: FiltersDTO = {
   inn: [],
   uvrAntifraud: [],
   changedFields: [],
+  changeStatus: [],
   rangeStart: "",
   rangeEnd: "",
   capacity: "",
@@ -213,6 +217,7 @@ export function normalizeFilters(filters: FiltersDTO): FiltersDTO {
     inn: [...filters.inn].sort(),
     uvrAntifraud: [...filters.uvrAntifraud].sort(),
     changedFields: [...filters.changedFields].sort(),
+    changeStatus: [...filters.changeStatus].sort(),
     rangeStart: filters.rangeStart.trim(),
     rangeEnd: filters.rangeEnd.trim(),
     capacity: filters.capacity.trim(),
@@ -269,6 +274,7 @@ export function parseFiltersFromSearchParams(
     inn: getOrMultiArray("inn"),
     uvrAntifraud: getOrMultiArray("uvrAntifraud"),
     changedFields: getOrMultiArray("changedFields"),
+    changeStatus: getOrMultiArray("changeStatus"),
     rangeStart: (params.get("filters.rangeStart") ?? "").slice(
       0,
       FILTER_LIMITS.maxTextFilterLength
@@ -287,7 +293,27 @@ export function parseFiltersFromSearchParams(
     ),
   };
   const parsed = filtersSchema.safeParse(raw);
-  return normalizeFilters(parsed.success ? parsed.data : DEFAULT_FILTERS);
+  const filters = normalizeFilters(parsed.success ? parsed.data : DEFAULT_FILTERS);
+  return migrateLegacyChangedFieldsStatus(filters);
+}
+
+const LEGACY_STATUS_IN_CHANGED_FIELDS = new Set(["added", "removed"]);
+
+/** Move legacy added/removed values from changedFields into changeStatus. */
+function migrateLegacyChangedFieldsStatus(filters: FiltersDTO): FiltersDTO {
+  const legacyStatus = filters.changedFields.filter((value) =>
+    LEGACY_STATUS_IN_CHANGED_FIELDS.has(value)
+  );
+  if (legacyStatus.length === 0) return filters;
+
+  const changedFields = filters.changedFields.filter(
+    (value) => !LEGACY_STATUS_IN_CHANGED_FIELDS.has(value)
+  );
+  const changeStatus = [
+    ...new Set([...filters.changeStatus, ...legacyStatus]),
+  ].sort();
+
+  return normalizeFilters({ ...filters, changedFields, changeStatus });
 }
 
 export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
@@ -304,6 +330,8 @@ export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
     params.set("filters.uvrAntifraud", filters.uvrAntifraud.join("|||"));
   if (filters.changedFields.length)
     params.set("filters.changedFields", filters.changedFields.join("|||"));
+  if (filters.changeStatus.length)
+    params.set("filters.changeStatus", filters.changeStatus.join("|||"));
   if (filters.rangeStart) params.set("filters.rangeStart", filters.rangeStart);
   if (filters.rangeEnd) params.set("filters.rangeEnd", filters.rangeEnd);
   if (filters.capacity) params.set("filters.capacity", filters.capacity);

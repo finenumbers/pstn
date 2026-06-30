@@ -18,5 +18,8 @@ describe("hasActiveFilters", () => {
     expect(
       hasActiveFilters({ ...DEFAULT_FILTERS, changedFields: ["region"] })
     ).toBe(true);
+    expect(
+      hasActiveFilters({ ...DEFAULT_FILTERS, changeStatus: ["added"] })
+    ).toBe(true);
   });
 });

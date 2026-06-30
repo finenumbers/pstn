@@ -23,7 +23,9 @@ import {
 } from "@/components/ui/table";
 import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
 import {
+  DIFF_CHANGE_STATUS_LABELS,
   DIFF_CHANGED_FIELD_LABELS,
+  formatChangeStatusLabel,
   formatChangedFieldsLabel,
 } from "@/lib/diff/diffChangedFields";
 import {
@@ -84,6 +86,7 @@ const COLUMN_ORDER = [
 
 const DIFF_COLUMN_ORDER = [
   ...COLUMN_ORDER,
+  "changeStatus",
   "changedFields",
 ] as const;
 
@@ -104,6 +107,7 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
 
 const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
   ...COLUMN_LABELS,
+  changeStatus: "Статус",
   changedFields: "Изменения",
 };
 
@@ -199,10 +203,33 @@ export function RangesTable({
     []
   );
 
+  const openDetail = (row: NumberRangeRow) => {
+    setDetailRow(row);
+    setDetailOpen(true);
+  };
+
   const columns = useMemo(() => {
     if (!isDiffView) return standardColumns;
     return [
       ...standardColumns,
+      {
+        id: "changeStatus",
+        accessorKey: "changeStatus",
+        header: DIFF_COLUMN_LABELS.changeStatus,
+        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
+          const label = formatChangeStatusLabel(row.original);
+          if (label === "—") return label;
+          return (
+            <button
+              type="button"
+              className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
+              onClick={() => openDetail(row.original)}
+            >
+              {label}
+            </button>
+          );
+        },
+      },
       {
         id: "changedFields",
         accessorKey: "changedFields",
@@ -214,10 +241,7 @@ export function RangesTable({
             <button
               type="button"
               className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
-              onClick={() => {
-                setDetailRow(row.original);
-                setDetailOpen(true);
-              }}
+              onClick={() => openDetail(row.original)}
             >
               {label}
             </button>
@@ -242,7 +266,11 @@ export function RangesTable({
     if (columnId === "inn") {
       return INN_COLUMN_WIDTH_CH;
     }
-    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
+    if (
+      columnId === "uvrAntifraud" ||
+      columnId === "changeStatus" ||
+      columnId === "changedFields"
+    ) {
       return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     }
     if (
@@ -269,7 +297,11 @@ export function RangesTable({
         style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
       };
     }
-    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
+    if (
+      columnId === "uvrAntifraud" ||
+      columnId === "changeStatus" ||
+      columnId === "changedFields"
+    ) {
       return {
         className: "whitespace-nowrap tabular-nums",
         style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
@@ -299,7 +331,11 @@ export function RangesTable({
     if (columnId === "inn") {
       return compactColumnStyle(INN_COLUMN_WIDTH_CH);
     }
-    if (columnId === "uvrAntifraud" || columnId === "changedFields") {
+    if (
+      columnId === "uvrAntifraud" ||
+      columnId === "changeStatus" ||
+      columnId === "changedFields"
+    ) {
       return compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH);
     }
     if (isCompactColumn(columnId)) {
@@ -481,6 +517,24 @@ export function RangesTable({
       case "rangeEnd":
       case "capacity":
         return <SortHeader columnId={colId} />;
+      case "changeStatus":
+        return (
+          <FacetCombobox
+            label={DIFF_COLUMN_LABELS.changeStatus}
+            values={filters.changeStatus}
+            search={facetSearch.changeStatus ?? ""}
+            options={facets?.facets.changeStatus?.options ?? []}
+            onChange={(v) => onFilterChange("changeStatus", v)}
+            onSearchChange={(s) => onFacetSearchChange("changeStatus", s)}
+            isLoading={facetsLoading}
+            placeholder={DIFF_COLUMN_LABELS.changeStatus}
+            formatOption={(value) =>
+              DIFF_CHANGE_STATUS_LABELS[
+                value as keyof typeof DIFF_CHANGE_STATUS_LABELS
+              ] ?? value
+            }
+          />
+        );
       case "changedFields":
         return (
           <FacetCombobox
@@ -576,6 +630,7 @@ export function RangesTable({
     colId === "region" ||
     colId === "inn" ||
     colId === "uvrAntifraud" ||
+    colId === "changeStatus" ||
     colId === "changedFields";
 
   return (
@@ -727,7 +782,9 @@ export function RangesTable({
       {isDiffView && (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
           Режим просмотра расхождений: зелёный — добавлено, жёлтый — изменено,
-          красный — удалено. Нажмите на «Изменения», чтобы увидеть было / стало.
+          красный — удалено. Колонка «Статус» — тип события; «Изменения» —
+          какие поля отличаются. Нажмите на «Статус» или «Изменения», чтобы
+          открыть детализацию «предыдущая / новая версия».
         </div>
       )}
 

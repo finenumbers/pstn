@@ -17,18 +17,31 @@ import {
 } from "@/components/ui/table";
 import {
   buildWasStoRows,
+  formatChangeStatusLabel,
   formatWasStoCell,
+  getWasStoRowHighlightClass,
 } from "@/lib/diff/diffChangedFields";
 import { cn, formatRangeSegment } from "@/lib/utils";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 
-const CHANGE_TYPE_LABELS: Record<
+const DIALOG_TITLES: Record<
   NonNullable<NumberRangeRow["changeType"]>,
   string
 > = {
-  added: "Добавлено",
-  changed: "Изменено",
-  removed: "Удалено",
+  added: "Новый диапазон",
+  changed: "Изменение диапазона",
+  removed: "Удалённый диапазон",
+};
+
+const DIALOG_DESCRIPTIONS: Record<
+  NonNullable<NumberRangeRow["changeType"]>,
+  string
+> = {
+  added:
+    "Диапазон появился в новой версии реестра и отсутствовал в предыдущей.",
+  changed: "Изменились реквизиты при сохранении участка нумерации.",
+  removed:
+    "Диапазон был в предыдущей версии реестра и отсутствует в новой.",
 };
 
 interface DiffChangeDetailDialogProps {
@@ -46,13 +59,14 @@ export function DiffChangeDetailDialog({
 
   const changeType = row.changeType ?? "changed";
   const wasStoRows = buildWasStoRows(row);
+  const statusLabel = formatChangeStatusLabel(row);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
-            <span>Изменение диапазона</span>
+            <span>{DIALOG_TITLES[changeType]}</span>
             <span
               className={cn(
                 "rounded px-2 py-0.5 text-xs font-semibold",
@@ -61,28 +75,31 @@ export function DiffChangeDetailDialog({
                 changeType === "removed" && "bg-red-500 text-white"
               )}
             >
-              {CHANGE_TYPE_LABELS[changeType]}
+              {statusLabel}
             </span>
           </DialogTitle>
           <DialogDescription>
             ABC {row.abc} · {formatRangeSegment(row.rangeStart)} –{" "}
             {formatRangeSegment(row.rangeEnd)} · ёмкость {row.capacity}
           </DialogDescription>
+          <p className="text-sm text-muted-foreground">
+            {DIALOG_DESCRIPTIONS[changeType]}
+          </p>
         </DialogHeader>
 
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-[28%]">Поле</TableHead>
-              <TableHead className="w-[36%]">Было</TableHead>
-              <TableHead className="w-[36%]">Стало</TableHead>
+              <TableHead className="w-[36%]">Предыдущая версия</TableHead>
+              <TableHead className="w-[36%]">Новая версия</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {wasStoRows.map((entry) => (
               <TableRow
                 key={entry.key}
-                className={cn(entry.changed && "bg-yellow-100/80")}
+                className={cn(getWasStoRowHighlightClass(changeType, entry))}
               >
                 <TableCell className="font-medium">{entry.label}</TableCell>
                 <TableCell className="break-words">

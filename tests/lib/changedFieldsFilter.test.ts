@@ -11,8 +11,6 @@ describe("changedFieldsFilter", () => {
       "region",
       "garTerritory",
       "inn",
-      "added",
-      "removed",
     ] as const) {
       expect(sqlForChangedFieldKey(key)).toBeDefined();
     }
@@ -20,12 +18,12 @@ describe("changedFieldsFilter", () => {
 
   it("returns undefined for empty or invalid keys", () => {
     expect(sqlForChangedFieldKeys([])).toBeUndefined();
-    expect(sqlForChangedFieldKeys(["unknown"])).toBeUndefined();
+    expect(sqlForChangedFieldKeys(["unknown", "added", "removed"])).toBeUndefined();
   });
 
   it("combines multiple keys with OR", () => {
     const single = sqlForChangedFieldKeys(["region"]);
-    const multi = sqlForChangedFieldKeys(["region", "added"]);
+    const multi = sqlForChangedFieldKeys(["region", "inn"]);
     expect(single).toBeDefined();
     expect(multi).toBeDefined();
     expect(multi).not.toEqual(single);
