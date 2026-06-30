@@ -17,15 +17,3 @@ export function formatRangeSegment(value: number): string {
   const first3 = Math.floor(n / 10000);
   return `${String(first3).padStart(3, "0")}-${String(mid2).padStart(2, "0")}-${String(last2).padStart(2, "0")}`;
 }
-
-export function formatDateTime(iso: string | null): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date(iso));
-}

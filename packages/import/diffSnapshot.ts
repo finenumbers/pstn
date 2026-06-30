@@ -4,7 +4,6 @@ import {
   datasetMeta,
   numberRangesStaging,
 } from "@/packages/db/schema";
-import type { DiffSegment } from "@/packages/import/rangeDatasetDiff";
 import type { SourceFileHashes } from "@/packages/import/sourceFileHash";
 import type { RangeRecord } from "@/packages/import/rangeDatasetDiff";
 
@@ -118,103 +117,6 @@ export async function saveDatasetMetaAfterImport(params: {
         sourceHashes: params.sourceHashes,
       },
     });
-}
-
-export async function saveDiffSnapshot(params: {
-  jobId: string;
-  loadDate: string;
-  segments: DiffSegment[];
-  counts: { added: number; changed: number; removed: number };
-}): Promise<string | null> {
-  if (params.segments.length === 0) {
-    return null;
-  }
-
-  const client = await importPool().connect();
-  try {
-    await client.query("BEGIN");
-
-    const snapshotResult = await client.query<{ id: string }>(
-      `
-      INSERT INTO dataset_snapshots (
-        kind, load_date, job_id, added_count, changed_count, removed_count
-      )
-      VALUES ('diff', $1::date, $2, $3, $4, $5)
-      ON CONFLICT (load_date) DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        added_count = EXCLUDED.added_count,
-        changed_count = EXCLUDED.changed_count,
-        removed_count = EXCLUDED.removed_count
-      RETURNING id
-    `,
-      [
-        params.loadDate,
-        params.jobId,
-        params.counts.added,
-        params.counts.changed,
-        params.counts.removed,
-      ]
-    );
-
-    const snapshotId = snapshotResult.rows[0]!.id;
-    await client.query(`DELETE FROM number_range_diffs WHERE snapshot_id = $1`, [
-      snapshotId,
-    ]);
-
-    const batchSize = 500;
-    for (let offset = 0; offset < params.segments.length; offset += batchSize) {
-      const batch = params.segments.slice(offset, offset + batchSize);
-      const values: unknown[] = [];
-      const placeholders: string[] = [];
-
-      batch.forEach((segment, index) => {
-        const base = index * 17;
-        placeholders.push(
-          `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17})`
-        );
-        values.push(
-          snapshotId,
-          segment.changeType,
-          segment.abc,
-          segment.rangeStart,
-          segment.rangeEnd,
-          segment.capacity,
-          segment.operator,
-          segment.region,
-          segment.garTerritory,
-          segment.inn,
-          segment.prevRangeStart ?? null,
-          segment.prevRangeEnd ?? null,
-          segment.prevCapacity ?? null,
-          segment.prevOperator ?? null,
-          segment.prevRegion ?? null,
-          segment.prevGarTerritory ?? null,
-          segment.prevInn ?? null
-        );
-      });
-
-      await client.query(
-        `
-        INSERT INTO number_range_diffs (
-          snapshot_id, change_type, abc, range_start, range_end, capacity,
-          operator, region, gar_territory, inn,
-          prev_range_start, prev_range_end, prev_capacity,
-          prev_operator, prev_region, prev_gar_territory, prev_inn
-        )
-        VALUES ${placeholders.join(", ")}
-      `,
-        values
-      );
-    }
-
-    await client.query("COMMIT");
-    return snapshotId;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 export function mskLoadDateKey(date: Date): string {

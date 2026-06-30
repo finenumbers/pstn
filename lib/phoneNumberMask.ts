@@ -81,17 +81,6 @@ export function formatPhoneMaskHint(slots: string[]): string {
   return `(${d(0)}${d(1)}${d(2)}) ${d(3)}${d(4)}${d(5)}-${d(6)}${d(7)}-${d(8)}${d(9)}`;
 }
 
-export function formatPhoneMaskValue(slots: string[]): string {
-  const d = (index: number) =>
-    slots[index] === EMPTY_PHONE_SLOT ? "" : slots[index];
-  const abc = `${d(0)}${d(1)}${d(2)}`;
-  const sub = `${d(3)}${d(4)}${d(5)}${d(6)}${d(7)}${d(8)}${d(9)}`;
-  if (!abc && !sub) return "";
-  if (!abc) return sub;
-  if (!sub) return abc;
-  return `${abc} ${sub}`;
-}
-
 export function parsePhoneNumberMask(value: string): PhoneNumberMaskParts | null {
   const slots = normalizePhoneMask(value);
   if (isPhoneMaskEmpty(serializePhoneMask(slots))) return null;

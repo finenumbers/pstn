@@ -75,7 +75,7 @@ function getColumnMap(context: RangeQueryContext) {
   } as const;
 }
 
-export function buildOrderBy(
+function buildOrderBy(
   context: RangeQueryContext,
   sort: { id: string; desc: boolean }[]
 ): SQL[] {

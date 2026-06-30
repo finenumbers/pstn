@@ -80,16 +80,6 @@ export const rangesQuerySchema = z.object({
   filters: filtersSchema.optional(),
 });
 
-export const facetsQuerySchema = z.object({
-  columns: z.string().optional(),
-  search: z.record(z.string()).optional(),
-  filters: filtersSchema.optional(),
-});
-
-export const summaryQuerySchema = z.object({
-  filters: filtersSchema.optional(),
-});
-
 export const importStatusQuerySchema = z.object({
   jobId: z.string().uuid().optional(),
 });
