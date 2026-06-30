@@ -53,8 +53,8 @@ export function DatasetSelector({
 
   if (datasetsQuery.isLoading) {
     return (
-      <div className="flex h-9 w-fit min-w-[8ch] items-center rounded-md border border-input bg-background px-3">
-        <Skeleton className="h-4 w-[22ch]" />
+      <div className="flex h-9 w-[196px] items-center rounded-md border border-input bg-background px-3">
+        <Skeleton className="h-4 w-full" />
       </div>
     );
   }
@@ -62,7 +62,7 @@ export function DatasetSelector({
   if (datasetsQuery.isError) {
     return (
       <div
-        className="flex h-9 w-fit min-w-[8ch] items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-xs text-amber-900"
+        className="flex h-9 w-[196px] items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-xs text-amber-900"
         title="Не удалось загрузить список датасетов"
       >
         Датасеты недоступны
@@ -75,7 +75,7 @@ export function DatasetSelector({
   }
 
   return (
-    <label className="relative flex h-9 w-fit min-w-[8ch] items-center rounded-md border border-input bg-background px-3 text-sm">
+    <label className="relative flex h-9 w-[196px] items-center rounded-md border border-input bg-background px-3 text-sm">
       <span className="sr-only">Выбор датасета</span>
       <span className="pointer-events-none whitespace-nowrap">
         {selectedItem ? (
