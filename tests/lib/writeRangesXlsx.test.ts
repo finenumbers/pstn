@@ -14,7 +14,7 @@ describe("writeRangesXlsx", () => {
     expect(headers).toContain("УВр Антифрод");
   });
 
-  it("defines diff export columns with old/new operator and INN", () => {
+  it("defines diff export columns with old/new operator, region, GAR and INN", () => {
     const headers = EXPORT_DIFF_XLS_COLUMNS.map((col) => col.header);
     expect(headers).toEqual([
       "Тип изменения",
@@ -24,8 +24,10 @@ describe("writeRangesXlsx", () => {
       "Емкость",
       "Старый оператор связи",
       "Новый оператор связи",
-      "Регион",
-      "Территория ГАР",
+      "Старый регион",
+      "Новый регион",
+      "Старая территория ГАР",
+      "Новая территория ГАР",
       "УВр Антифрод",
       "Старый ИНН",
       "Новый ИНН",
