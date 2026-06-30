@@ -1,5 +1,6 @@
 "use client";
 
+import { AppVersionBadge } from "@/components/ranges/AppVersionBadge";
 import { PhoneNumberMaskInput } from "@/components/ranges/PhoneNumberMaskInput";
 import { ExternalApiHelpDialog } from "@/components/ranges/ExternalApiHelpDialog";
 import { DatasetDatePicker } from "@/components/ranges/DatasetDatePicker";
@@ -62,6 +63,7 @@ export function KpiSummaryBar({
           <h1 className="text-2xl font-semibold tracking-tight">
             Телефонный план нумерации России
           </h1>
+          <AppVersionBadge />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {onResetFilters && (

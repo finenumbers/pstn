@@ -347,9 +347,17 @@ curl -X POST "https://pstn.example.com/api/import" \
 
 > 100k строк — ожидайте несколько минут. UI показывает confirm.
 
+### Portainer: зелёная галочка, но код старый
+
+**Зелёный статус stack** = контейнеры running/healthy. Это **не** индикатор «образ с GHCR свежий».
+
+При **`image: ...:latest`** Portainer часто **не показывает** устаревший релиз: имя тега не меняется, меняется только digest в registry.
+
+**Решение (с v0.3.6):** в Environment stack задайте **`PSTN_IMAGE_TAG=0.3.6`** (semver из GitHub Release) → **Pull and redeploy**. Проверка: на сайте под заголовком «Версия 0.3.6» или `curl /api/health`.
+
 ### Portainer: прочерк в «Images up to date»
 
-Как у `geoip`: stack должен быть создан **через Portainer → Git repository** (**Control: Total**), compose path `docker-compose.portainer.yml`, образ `ghcr.io/finenumbers/pstn:latest` без `build:`.
+Как у `geoip`: stack должен быть создан **через Portainer → Git repository** (**Control: Total**), compose path `docker-compose.portainer.yml`, образ **`ghcr.io/finenumbers/pstn:${PSTN_IMAGE_TAG}`** без `build:`.
 
 Если **Control = Limited** (stack поднимали через SSH) — индикатор устаревшего образа **не работает**, Pull and redeploy может не подтягивать GHCR. Пересоздайте stack через Portainer, см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
 
@@ -363,13 +371,13 @@ curl -s http://127.0.0.1:5555/api/health | jq .
 **Принудительный pull вручную** (если redeploy не обновил образ):
 
 ```bash
-docker pull ghcr.io/finenumbers/pstn:latest
+docker pull ghcr.io/finenumbers/pstn:0.3.6
 docker compose -f docker-compose.portainer.yml up -d --force-recreate app
 ```
 
 ```bash
 docker inspect pstn_app --format '{{.Config.Image}}'
-# ghcr.io/finenumbers/pstn:latest
+# ghcr.io/finenumbers/pstn:0.3.6
 ```
 
 Registries в Portainer **не нужны** (публичный GHCR).
