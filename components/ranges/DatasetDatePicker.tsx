@@ -99,14 +99,15 @@ export function DatasetDatePicker({
   return (
     <div
       className={cn(
-        "flex h-9 w-[168px] items-center rounded-md border border-input bg-background",
+        "inline-flex h-9 w-auto items-center rounded-md border border-input bg-background",
         invalid && "border-destructive ring-1 ring-destructive",
         disabled && "opacity-50"
       )}
     >
       <Input
-        className="h-9 min-w-0 flex-1 border-0 bg-transparent px-2 font-mono tabular-nums shadow-none focus-visible:ring-0"
+        className="h-9 w-[10ch] shrink-0 border-0 bg-transparent px-2 font-mono tabular-nums shadow-none focus-visible:ring-0"
         placeholder="ДД.ММ.ГГГГ"
+        size={10}
         value={draft}
         disabled={disabled}
         inputMode="numeric"
@@ -154,10 +155,6 @@ export function DatasetDatePicker({
             modifiers={{
               versionDay: (date) => changeDateSet.has(isoFromDate(date)),
             }}
-            modifiersClassNames={{
-              versionDay:
-                "relative after:absolute after:bottom-1 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-blue-600",
-            }}
             disabled={isCalendarDateDisabled}
           />
           {value && (
@@ -175,7 +172,7 @@ export function DatasetDatePicker({
             </div>
           )}
           <div className="border-t px-3 py-2 text-[11px] text-muted-foreground">
-            Синяя точка — день версии датасета (первая загрузка или изменения).
+            Синий фон — день версии датасета (первая загрузка или изменения).
             Ранее первой загрузки даты недоступны.
           </div>
         </PopoverContent>
