@@ -4,6 +4,7 @@
 # Образ app: ghcr.io/finenumbers/pstn:latest (публичный GHCR).
 # NPM в Docker: Forward pstn_app:5555, сеть proxy — см. docs/npm.md
 # POSTGRES_PASSWORD — в Environment variables stack. Pull and redeploy после push в main.
+# app.pull_policy: always — принудительный pull :latest при каждом redeploy (см. docs/operations.md).
 
 name: pstn
 
@@ -33,6 +34,7 @@ services:
 
   app:
     image: ghcr.io/finenumbers/pstn:latest
+    pull_policy: always
     container_name: pstn_app
     restart: unless-stopped
     ports:

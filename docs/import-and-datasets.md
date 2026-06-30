@@ -389,6 +389,7 @@ Diff snapshots защищены **тем же периметром**, что и 
 | Нет пункта «Расхождения» в селекторе | Import был skip, или diff segments = 0 | Норма при отсутствии изменений диапазонов |
 | URL с `dataset=diff:...` сбросился на current | Snapshot удалён или UUID неверный | UI auto-reset; проверьте `GET /api/datasets` |
 | Import failed, production intact | Ошибка до swap | Безопасно повторить import |
+| `import_diff_old` … `id` … not-null | На сервере **старый Docker-образ** (до v0.3.4) | `curl /api/health` → `version` ≥ 0.3.4; **Pull and redeploy** stack `pstn` (см. [operations.md](operations.md#portainer-прочерк-в-images-up-to-date)) |
 | Job failed «interrupted by server restart» | Stale > 45 min | Повторите import |
 | Cron log: non-2xx | Сеть, app down, import running | Проверьте health, logs app, `import_jobs` |
 

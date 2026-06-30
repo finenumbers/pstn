@@ -227,11 +227,16 @@ UI «Загрузить данные» **не отправляет** `X-Import-S
 
 ```bash
 curl http://127.0.0.1:5555/api/health
+# {"status":"ok","database":"ok","version":"0.3.5","revision":"<git-sha>"}
 ```
+
+Поле **`version`** — версия образа; после деплоя сверьте с последним [release](https://github.com/finenumbers/pstn/releases). Если версия старая — образ не обновился (см. ниже).
 
 ### Шаг 3 — Обновление
 
 Portainer → Stacks → `pstn` → **Pull and redeploy** — подтягивает `ghcr.io/finenumbers/pstn:latest` с GHCR.
+
+В [`docker-compose.portainer.yml`](../docker-compose.portainer.yml) для `app` задано **`pull_policy: always`** — Docker принудительно тянет `:latest` при каждом redeploy stack (актуализируйте compose в Portainer из Git, если stack создан раньше).
 
 Образ публикуется workflow **Publish Docker image** после успешного CI на `main`. Registries в Portainer не нужны (публичный GHCR).
 
@@ -379,6 +384,7 @@ User-Agent: `Mozilla/5.0 (compatible; PSTN-Analytics/1.0; +https://github.com/fi
 Push в `main` запускает [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (тесты, lint). После **успешного** CI workflow [`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml) публикует образ:
 
 - `ghcr.io/finenumbers/pstn:latest`
+- `ghcr.io/finenumbers/pstn:<version>` (например `0.3.5`)
 - `ghcr.io/finenumbers/pstn:<commit-sha>`
 
 Portainer stack использует `:latest`. Обновление на сервере: **Pull and redeploy** (не локальная сборка).

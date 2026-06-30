@@ -6,7 +6,12 @@ export async function GET() {
   try {
     client = await pool().connect();
     await client.query("SELECT 1");
-    return NextResponse.json({ status: "ok", database: "ok" });
+    return NextResponse.json({
+      status: "ok",
+      database: "ok",
+      version: process.env.APP_VERSION ?? "unknown",
+      revision: process.env.APP_REVISION ?? "unknown",
+    });
   } catch (error) {
     console.error("health GET error:", error);
     return NextResponse.json(
