@@ -288,26 +288,31 @@ curl -s "http://127.0.0.1:5555/api/import/status?jobId=<uuid>"
 
 ## UI
 
-Страница `/ranges` — компоненты `RangesPageContent`, `DatasetSelector`, `ImportProgressCard`, `RangesTable`.
+Страница `/ranges` — компоненты `RangesPageContent`, `DatasetDatePicker`, `DatasetSelector`, `ImportProgressCard`, `RangesTable`. Заголовок: **«Телефонная нумерация России»**.
 
-### Селектор датасета
+### Панель действий (порядок)
+
+**Сбросить фильтры** → **Дата датасета** → **Датасет** → **БД** → **API** → **XLSX** → **Загрузить данные**.
+
+### Селектор датасета и календарь
 
 - **«Датасет DD.MM.YYYY»** — current; дата = MSK-день последнего успешного import (`dataset_meta.last_success_at`).
 - **«Расхождения DD.MM.YYYY»** — diff snapshot; список из `GET /api/datasets`.
-- Поле даты (DatePicker) — **заглушка**, disabled («скоро»).
-- Во время import селектор disabled.
+- **Дата датасета** (`DatasetDatePicker`) — рабочий выбор исторической версии: поле ДД.ММ.ГГГГ + календарь; даты версий из `GET /api/datasets/change-dates`; **синий фон** в календаре = день версии (первая загрузка или import с snapshot).
+- **БД: X ГБ** — `GET /api/storage`.
+- Во время import селектор датасета и календарь disabled.
 
 ### URL
 
-Фильтры, сортировка и датасет сохраняются в query string:
+Фильтры, сортировка, датасет и `asOf` сохраняются в query string:
 
 ```
-/ranges?filters.operator=...&sort=abc:asc&dataset=diff:550e8400-e29b-41d4-a716-446655440000
+/ranges?filters.operator=...&sort=abc:asc&dataset=diff:550e8400-e29b-41d4-a716-446655440000&asOf=2026-06-22
 ```
 
-Кнопка «Назад»/«Вперёд» восстанавливает состояние. **«Сбросить фильтры»** возвращает `dataset=current`.
+Кнопка «Назад»/«Вперёд» восстанавливает состояние. **«Сбросить фильтры»** очищает фильтры, сортировку, **`asOf`** и возвращает **`dataset=current`**.
 
-При неверном или удалённом snapshot UUID API вернёт 404; UI автоматически переключится на current и покажет toast.
+При неверном или удалённом snapshot UUID API вернёт 404; UI автоматически переключится на current и покажет toast «Снимок расхождений не найден, показан текущий датасет».
 
 ### Diff view
 
@@ -319,9 +324,11 @@ curl -s "http://127.0.0.1:5555/api/import/status?jobId=<uuid>"
 
 Легенда — под таблицей. В diff mode отключены красные ABC-gap маркеры и специальная подсветка Frontir/9xx.
 
-Колонки таблицы в diff mode: ABC, Начало, Конец, Ёмкость, **Старый/Новый оператор связи**, Регион, Территория ГАР, УВр Антифрод, **Старый/Новый ИНН**. Фильтры по оператору и ИНН — по **новым** значениям.
+**Колонки таблицы в diff mode (UI):** ABC, Начало, Конец, Ёмкость, Оператор связи, Регион, Территория ГАР, УВр Антифрод, ИНН, **Изменения**. Отдельных колонок «Старый/Новый оператор» и «Старый/Новый ИНН» в UI **нет** — old/new доступны в диалоге «было / стало» по клику на «Изменения».
 
-Фильтры (включая Coverage AND), KPI, facets и экспорт XLSX работают в diff mode. В XLSX: «Тип изменения» и old/new оператор и ИНН (не стандартный набор колонок current).
+Фильтр **`filters.changedFields`** (колонка «Изменения»): OR по полям `operator`, `region`, `garTerritory`, `inn`, `added`, `removed`. Фильтры по оператору и ИНН — по **новым** значениям в snapshot.
+
+Фильтры (включая Coverage AND), KPI, facets и экспорт XLSX работают в diff mode. **XLSX** дополнительно содержит «Тип изменения» и колонки old/new оператор и ИНН (см. [api-reference.md](api-reference.md#ui-vs-xlsx-в-diff-режиме)).
 
 ### Карточка import
 
@@ -408,7 +415,7 @@ Diff snapshots защищены **тем же периметром**, что и 
 | Нет пункта «Расхождения» в селекторе | Import был skip, или diff segments = 0 | Норма при отсутствии изменений диапазонов |
 | URL с `dataset=diff:...` сбросился на current | Snapshot удалён или UUID неверный | UI auto-reset; проверьте `GET /api/datasets` |
 | Import failed, production intact | Ошибка до swap | Безопасно повторить import |
-| `import_diff_old` … `id` … not-null | На сервере **старый Docker-образ** (до v0.3.4) | `curl /api/health` → `version` ≥ 0.3.4; **Pull and redeploy** stack `pstn` (см. [operations.md](operations.md#portainer-прочерк-в-images-up-to-date)) |
+| `import_diff_old` … `id` … not-null | На сервере **старый Docker-образ** (до v0.3.4) | `HEALTH_VERBOSE=1` + `curl /api/health` → `version` ≥ 0.3.4; **Pull and redeploy** stack `pstn` (см. [operations.md](operations.md#portainer-прочерк-в-images-up-to-date)) |
 | Job failed «interrupted by server restart» | Stale > 45 min | Повторите import |
 | Cron log: non-2xx | Сеть, app down, import running | Проверьте health, logs app, `import_jobs` |
 

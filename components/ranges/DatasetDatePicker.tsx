@@ -115,13 +115,14 @@ export function DatasetDatePicker({
   };
 
   return (
-    <div
-      className={cn(
-        "inline-flex h-9 w-max items-stretch rounded-md border border-input bg-background",
-        invalid && "border-destructive ring-1 ring-destructive",
-        disabled && "opacity-50"
-      )}
-    >
+    <div className="inline-flex flex-col gap-1">
+      <div
+        className={cn(
+          "inline-flex h-9 w-max items-stretch rounded-md border border-input bg-background",
+          invalid && "border-destructive ring-1 ring-destructive",
+          disabled && "opacity-50"
+        )}
+      >
       <input
         className={DATE_INPUT_CLASS}
         placeholder="ДД.ММ.ГГГГ"
@@ -158,7 +159,12 @@ export function DatasetDatePicker({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          {changeDatesQuery.isPending ? (
+          {changeDatesQuery.isError ? (
+            <div className="px-4 py-6 text-sm text-red-800" role="alert">
+              Не удалось загрузить даты версий. Обновите страницу или повторите
+              позже.
+            </div>
+          ) : changeDatesQuery.isPending ? (
             <div className="px-4 py-6 text-sm text-muted-foreground">
               Загрузка дат версий…
             </div>
@@ -210,6 +216,12 @@ export function DatasetDatePicker({
           </div>
         </PopoverContent>
       </Popover>
+      </div>
+      {invalid && (
+        <span className="text-[11px] text-destructive" role="alert">
+          Неверная дата или дата раньше первой загрузки
+        </span>
+      )}
     </div>
   );
 }

@@ -40,6 +40,6 @@ export async function POST(request: NextRequest) {
       status: result.status,
     });
   } catch (error) {
-    return internalServerError(error, "Import failed");
+    return internalServerError(error, "Не удалось запустить загрузку данных.");
   }
 }

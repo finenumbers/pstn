@@ -68,7 +68,7 @@ flowchart TB
 | `GET /api/ranges/facets` | 60 req / min | `RATE_LIMIT_FACETS=60/60000` |
 | `/api/v1/lookup*` | 120 req / min | `RATE_LIMIT_LOOKUP=120/60000` |
 
-Формат env: `maxRequests/windowMs`. При превышении: **429** + заголовок `Retry-After`, тело `{ "error": "Too many requests" }`.
+Формат env: `maxRequests/windowMs`. При превышении: **429** + заголовок `Retry-After`, тело с `code: "RATE_LIMITED"` и русским `message` («Слишком много запросов. Повторите через N сек.»).
 
 IP берётся из `X-Forwarded-For` (первый hop) или `X-Real-IP`.
 
@@ -168,7 +168,7 @@ Diff snapshots (`GET /api/datasets`, `?dataset=diff:<uuid>`) содержат и
 
 - Production: `internalServerError()` **не** отдаёт `error.message` клиенту — generic fallback
 - Development: детали ошибки в ответе для отладки
-- Validation: `{ error: { code: "VALIDATION_ERROR", message, details: { issues } } }`
+- Validation: `{ error: { code: "VALIDATION_ERROR", message, details: { issues } } }` — internal API: сообщения на русском ([`lib/api/errors.ts`](../lib/api/errors.ts), [`lib/api/mapApiError.ts`](../lib/api/mapApiError.ts))
 
 Формат ошибок:
 
@@ -182,20 +182,7 @@ Diff snapshots (`GET /api/datasets`, `?dataset=diff:<uuid>`) содержат и
 }
 ```
 
----
-
-## HTTP security headers
-
-[`next.config.ts`](../next.config.ts) для всех routes:
-
-| Header | Value |
-|--------|-------|
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
-
-CSP, HSTS — настраиваются на NPM (рекомендуется HSTS при SSL).
+External lookup API сохраняет англоязычные сообщения.
 
 ---
 

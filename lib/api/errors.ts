@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import { logApiTiming } from "@/lib/api/logger";
 
 export function apiError(
@@ -15,15 +16,18 @@ export function apiError(
 }
 
 export function validationError(error: ZodError) {
-  return apiError("VALIDATION_ERROR", "Invalid request parameters", 400, {
-    issues: error.issues,
-  });
+  return apiError(
+    API_ERROR_CODES.VALIDATION_ERROR,
+    "Некорректные параметры фильтра или сортировки.",
+    400,
+    { issues: error.issues }
+  );
 }
 
 /** Never forward raw error.message to clients in production. */
 export function internalServerError(
   error: unknown,
-  fallback = "Internal server error"
+  fallback = "Внутренняя ошибка сервера. Попробуйте позже."
 ) {
   console.error(error);
   const message =
@@ -32,7 +36,7 @@ export function internalServerError(
       : error instanceof Error
         ? error.message
         : fallback;
-  return apiError("INTERNAL_ERROR", message, 500);
+  return apiError(API_ERROR_CODES.INTERNAL_ERROR, message, 500);
 }
 
 export function withTiming(

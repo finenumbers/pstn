@@ -65,6 +65,7 @@ interface RangesTableProps {
   isFetching?: boolean;
   isFetchingNextPage?: boolean;
   errorMessage?: string;
+  loadMoreError?: string;
   facetsError?: string;
   isDiffView?: boolean;
 }
@@ -147,6 +148,7 @@ export function RangesTable({
   isFetching,
   isFetchingNextPage,
   errorMessage,
+  loadMoreError,
   facetsError,
   isDiffView = false,
 }: RangesTableProps) {
@@ -700,6 +702,27 @@ export function RangesTable({
           </button>
         )}
       </div>
+
+      {loadMoreError && (
+        <div
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+          role="alert"
+        >
+          {loadMoreError}
+          {hasMore && onLoadMore ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => onLoadMore()}
+              >
+                Повторить
+              </button>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {isDiffView && (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">

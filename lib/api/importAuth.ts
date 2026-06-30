@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import { safeEqual } from "@/lib/api/safeEqual";
 import { apiError } from "@/lib/api/errors";
 
@@ -15,7 +16,11 @@ export function checkImportAuthorization(
     return null;
   }
 
-  return apiError("UNAUTHORIZED", "Invalid or missing import secret", 401);
+  return apiError(
+    API_ERROR_CODES.UNAUTHORIZED,
+    "Неверный или отсутствующий секрет импорта.",
+    401
+  );
 }
 
 export function requireImportSecret(request: Request): NextResponse | null {

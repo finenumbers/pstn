@@ -2,13 +2,15 @@
 
 Справочник REST API PSTN Analytics. Базовый URL: `http://127.0.0.1:5555` (локально) или публичный домен за NPM.
 
+**Internal API** (ranges, import, export, datasets, health) с v0.3.19+ возвращает **русскоязычные** сообщения в поле `error.message`. **External lookup API** (`/api/v1/lookup*`) сохраняет **англоязычные** сообщения для программных клиентов.
+
 ---
 
 ## Аутентификация
 
 | Класс endpoints | Auth в приложении | Рекомендация |
 |-----------------|-------------------|--------------|
-| Internal (ranges, summary, export, import, examples, config, health) | **Нет** | NPM Access List |
+| Internal (ranges, summary, export, import, examples, config, health, storage, datasets) | **Нет** | NPM Access List |
 | External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`) | Bearer или `X-Api-Key` | Ключ + rate limit |
 
 ### External lookup headers
@@ -33,6 +35,43 @@ X-Import-Secret: <IMPORT_SECRET>
 
 ---
 
+## Rate limiting (in-app)
+
+С v0.3.19 middleware ограничивает частоту запросов **per IP per process** (in-memory). Дополнение к NPM, не замена.
+
+| Endpoint | Лимит по умолчанию | Env override |
+|----------|-------------------|--------------|
+| `POST /api/import` | 3 req / 10 min | `RATE_LIMIT_IMPORT=3/600000` |
+| `GET /api/export/ranges` | 10 req / min | `RATE_LIMIT_EXPORT=10/60000` |
+| `GET /api/ranges/facets` | 60 req / min | `RATE_LIMIT_FACETS=60/60000` |
+| `/api/v1/lookup*` | 120 req / min | `RATE_LIMIT_LOOKUP=120/60000` |
+
+Формат env: `maxRequests/windowMs`.
+
+**Response 429:**
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+Content-Type: application/json
+```
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Слишком много запросов. Повторите через 42 сек.",
+    "details": { "retryAfterSec": 42 }
+  }
+}
+```
+
+Клиент UI читает `Retry-After` и показывает то же сообщение пользователю.
+
+Подробнее: [security.md](security.md#in-app-rate-limiting).
+
+---
+
 ## Формат ошибок
 
 ```json
@@ -45,14 +84,25 @@ X-Import-Secret: <IMPORT_SECRET>
 }
 ```
 
-| Code | HTTP | Описание |
-|------|------|----------|
-| `VALIDATION_ERROR` | 400 | Невалидные параметры (Zod issues в `details`) |
-| `DATASET_NOT_FOUND` | 404 | Неизвестный snapshot (`dataset=diff:<uuid>`) |
-| `UNAUTHORIZED` | 401 | Неверный API key или import secret |
-| `SERVICE_UNAVAILABLE` | 503 | External API не настроен (`EXTERNAL_API_KEY`) |
-| `EXPORT_TOO_LARGE` | 400 | Export > 500 000 строк |
-| `INTERNAL_ERROR` | 500 | Внутренняя ошибка (без деталей в production) |
+### Internal API — коды и сообщения (русский)
+
+| Code | HTTP | message (типичный) |
+|------|------|-------------------|
+| `VALIDATION_ERROR` | 400 | «Некорректные параметры фильтра или сортировки.» (+ `details.issues` от Zod) |
+| `VALIDATION_ERROR` | 400 | «Некорректный курсор постраничной навигации.» (невалидный `cursor`) |
+| `DATASET_NOT_FOUND` | 404 | «Снимок расхождений не найден.» |
+| `UNAUTHORIZED` | 401 | «Доступ запрещён.» (неверный import secret) |
+| `EXPORT_TOO_LARGE` | 400 | «Слишком много строк для экспорта (лимит 500 000, найдено N). Сузьте фильтры.» |
+| `RATE_LIMITED` | 429 | «Слишком много запросов. Повторите через N сек.» |
+| `INTERNAL_ERROR` | 500 | «Внутренняя ошибка сервера. Попробуйте позже.» (без деталей в production) |
+
+### External lookup API — коды (английский)
+
+| Code | HTTP | message |
+|------|------|---------|
+| `UNAUTHORIZED` | 401 | Invalid or missing API key |
+| `SERVICE_UNAVAILABLE` | 503 | External API is not configured |
+| `VALIDATION_ERROR` | 400 | Invalid phone parameter |
 
 ---
 
@@ -68,12 +118,34 @@ X-Import-Secret: <IMPORT_SECRET>
 | `filters.garTerritory` | values `|||` | Coverage AND, max 20 |
 | `filters.inn` | values `|||` | OR, max 50 |
 | `filters.uvrAntifraud` | values `|||` | OR, max 50 |
+| `filters.changedFields` | values `|||` | OR, max 50; **только diff view** — см. ниже |
 | `filters.rangeStart` | string | max 100 chars |
 | `filters.rangeEnd` | string | max 100 chars |
 | `filters.capacity` | string | max 100 chars |
 | `filters.phoneNumber` | string | max 10 chars (internal mask slots) |
 
 Разделитель массива: `|||`.
+
+### `filters.changedFields` (diff snapshot)
+
+Доступен при `dataset=diff:<uuid>`. Фильтрует строки по типу или полю изменения (OR):
+
+| Значение | Смысл |
+|----------|-------|
+| `operator` | `changeType=changed`, оператор отличается |
+| `region` | `changeType=changed`, регион отличается |
+| `garTerritory` | `changeType=changed`, территория ГАР отличается |
+| `inn` | `changeType=changed`, ИНН отличается |
+| `added` | `changeType=added` |
+| `removed` | `changeType=removed` |
+
+Пример:
+
+```bash
+curl -s "http://127.0.0.1:5555/api/ranges?dataset=diff:550e8400-e29b-41d4-a716-446655440000&filters.changedFields=operator|||inn"
+```
+
+Facet-колонка `changedFields` поддерживается в `GET /api/ranges/facets?columns=changedFields,...`.
 
 ### Датасет (`dataset`)
 
@@ -91,37 +163,15 @@ X-Import-Secret: <IMPORT_SECRET>
 
 `asOf` **не сочетается** с `dataset=diff:*` или `dataset=full:*` (400).
 
-#### Endpoints
-
-| Endpoint | Описание |
-|----------|----------|
-| `GET /api/datasets/change-dates` | Даты версий для календаря (`loadDate`, `hasDiff`) |
-| `GET /api/storage` | `{ databaseBytes, formatted }` — размер БД |
-
-Невалидный формат (`diff:not-a-uuid`) → **400** `VALIDATION_ERROR`.  
-Неизвестный snapshot id → **404** `DATASET_NOT_FOUND`.
-
 #### Mapping `id` из `GET /api/datasets`
-
-Ответ `GET /api/datasets` и query param `dataset` используют **разный формат** для diff snapshots:
 
 | kind | `items[].id` в ответе | Query param |
 |------|----------------------|-------------|
 | `current` | `"current"` | `dataset=current` (default, можно опустить) |
-| `diff` | UUID, напр. `550e8400-e29b-41d4-a716-446655440000` | `dataset=diff:550e8400-e29b-41d4-a716-446655440000` |
+| `diff` | UUID | `dataset=diff:550e8400-e29b-41d4-a716-446655440000` |
 
-Пример:
-
-```bash
-curl -s "http://127.0.0.1:5555/api/ranges?dataset=diff:550e8400-e29b-41d4-a716-446655440000&pageSize=10"
-```
-
-#### Жизненный цикл diff snapshot
-
-- Snapshot создаётся **только после успешного swap** production и **только если** алгоритм diff нашёл сегменты (`added` / `changed` / `removed`).
-- `load_date` — календарная дата в **Europe/Moscow**; constraint UNIQUE — один snapshot на MSK-день.
-- Повторный import с diff в тот же MSK-день **перезаписывает** snapshot этого дня (upsert).
-- Автоматического удаления старых snapshots **нет**.
+Невалидный формат (`diff:not-a-uuid`) → **400** `VALIDATION_ERROR`.  
+Неизвестный snapshot id → **404** `DATASET_NOT_FOUND`.
 
 Подробнее: [import-and-datasets.md](import-and-datasets.md).
 
@@ -139,17 +189,88 @@ Healthcheck приложения и PostgreSQL.
 
 **Auth:** нет
 
-**Response 200:**
+**Response 200 (production, default):**
 
 ```json
 { "status": "ok", "database": "ok" }
 ```
 
+**Response 200 (verbose):** при `HEALTH_VERBOSE=1` или `NODE_ENV !== production`:
+
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "version": "0.3.19",
+  "revision": "abc123def",
+  "nodeEnv": "production",
+  "uptimeSec": 3600
+}
+```
+
+Поля `version` и `revision` задаются при сборке образа (`APP_VERSION`, `APP_REVISION`).
+
 **Response 503:**
 
 ```json
-{ "status": "error", "database": "down", "message": "..." }
+{ "status": "error", "database": "down", "message": "Database unavailable" }
 ```
+
+В production UI **не отображает** номер версии — для проверки деплоя используйте verbose health, тег GHCR или GitHub Release.
+
+---
+
+### `GET /api/storage`
+
+Размер базы PostgreSQL для блока «БД: X ГБ» в UI.
+
+**Auth:** NPM (perimeter)
+
+**Response 200:**
+
+```json
+{
+  "databaseBytes": 2147483648,
+  "formatted": "2.0 ГБ"
+}
+```
+
+`formatted` — человекочитаемая строка (ГБ / МБ / КБ).
+
+---
+
+### `GET /api/datasets/change-dates`
+
+Даты версий датасета для календаря «Дата датасета». Каждый элемент — день, для которого сохранён full snapshot (`has_full=true`).
+
+**Auth:** NPM (perimeter)
+
+**Response 200:**
+
+```json
+{
+  "items": [
+    {
+      "loadDate": "2026-06-28",
+      "snapshotId": "550e8400-e29b-41d4-a716-446655440000",
+      "hasDiff": true
+    },
+    {
+      "loadDate": "2026-06-22",
+      "snapshotId": "660e8400-e29b-41d4-a716-446655440001",
+      "hasDiff": false
+    }
+  ]
+}
+```
+
+| Поле | Описание |
+|------|----------|
+| `loadDate` | Календарная дата MSK (`YYYY-MM-DD`) |
+| `snapshotId` | UUID snapshot или `"current"` для текущего production load date без отдельной записи |
+| `hasDiff` | Был ли import с ненулевым diff в этот день |
+
+UI подсвечивает **все** дни из списка синим фоном в календаре (дни версий). Выбор недоступен для дат раньше минимального `loadDate` и для будущих дат.
 
 ---
 
@@ -157,7 +278,7 @@ Healthcheck приложения и PostgreSQL.
 
 Список диапазонов с фильтрами, сортировкой и keyset pagination.
 
-**Auth:** NPM (perimeter)
+**Auth:** NPM (perimeter). **Rate limit:** нет (facets rate-limited отдельно).
 
 **Query:**
 
@@ -167,7 +288,8 @@ Healthcheck приложения и PostgreSQL.
 | `pageSize` | 50 | 200 | Размер страницы |
 | `cursor` | — | — | Keyset cursor (infinite scroll) |
 | `sort` | `abc:asc` | — | Сортировка |
-| `dataset` | `current` | — | `current` или `diff:<uuid>` |
+| `dataset` | `current` | — | `current`, `full:<uuid>` или `diff:<uuid>` |
+| `asOf` | — | — | Исторический full при `dataset=current` |
 | `filters.*` | — | — | См. выше |
 
 **Response 200:**
@@ -184,7 +306,7 @@ Healthcheck приложения и PostgreSQL.
 }
 ```
 
-Invalid filters → **400** `VALIDATION_ERROR`.
+Invalid filters → **400** `VALIDATION_ERROR`. Invalid cursor → **400** «Некорректный курсор постраничной навигации.»
 
 ---
 
@@ -192,14 +314,14 @@ Invalid filters → **400** `VALIDATION_ERROR`.
 
 Опции для combobox-фильтров с counts.
 
-**Auth:** NPM
+**Auth:** NPM. **Rate limit:** 60 req / min (in-app).
 
 **Query:**
 
 | Param | Описание |
 |-------|----------|
-| `columns` | Список колонок через запятую: `abc`, `operator`, `region`, `garTerritory`, `inn`, `uvrAntifraud` |
-| `search.<column>` | Поиск внутри фасета (max длина — см. `FILTER_LIMITS`) |
+| `columns` | Список колонок: `abc`, `operator`, `region`, `garTerritory`, `inn`, `uvrAntifraud`, `changedFields` (последняя — только diff) |
+| `search.<column>` | Поиск внутри фасета |
 | `dataset` | `current` (default) или `diff:<uuid>` |
 | `filters.*` | Контекстные фильтры |
 
@@ -224,7 +346,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 
 **Auth:** NPM
 
-**Query:** `filters.*` (optional), `dataset` (optional)
+**Query:** `filters.*` (optional), `dataset` (optional), `asOf` (optional)
 
 **Response 200:**
 
@@ -238,13 +360,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
     "uniqueGarTerritories": 210,
     "uniqueOperators": 1200
   },
-  "filtered": {
-    "rangeCount": 446000,
-    "totalCapacity": 1234567890,
-    "uniqueRegions": 85,
-    "uniqueGarTerritories": 210,
-    "uniqueOperators": 1200
-  },
+  "filtered": { "...": "..." },
   "uvrBinding": {
     "registryOperators": 2848,
     "matchedDistinctInns": 1200
@@ -252,17 +368,15 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 }
 ```
 
-Без активных фильтров `filtered` совпадает с `global`.
-
 ---
 
 ### `GET /api/export/ranges`
 
 Экспорт XLSX с текущими фильтрами.
 
-**Auth:** NPM
+**Auth:** NPM. **Rate limit:** 10 req / min (in-app).
 
-**Query:** `filters.*`, `sort`, `dataset` (optional)
+**Query:** `filters.*`, `sort`, `dataset` (optional), `asOf` (optional)
 
 **Limits:**
 
@@ -278,6 +392,14 @@ Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 Content-Disposition: attachment; filename=ranges-export.xlsx
 X-Export-Row-Count: 12345
 ```
+
+#### UI vs XLSX в diff-режиме
+
+| Аспект | UI (`/ranges`, diff) | XLSX export |
+|--------|------------------------|-------------|
+| Оператор / ИНН | Одна колонка «Оператор связи», одна «ИНН» (новые значения) | Дополнительно «Старый оператор связи», «Новый оператор связи», «Старый ИНН», «Новый ИНН» |
+| Изменения | Колонка «Изменения» (краткий список полей; диалог было/стало) | Колонка «Тип изменения» + old/new колонки |
+| Фильтр | `filters.changedFields` | Те же query params |
 
 ---
 
@@ -315,7 +437,7 @@ X-Export-Row-Count: 12345
 
 Запуск полной перезагрузки 4 CSV.
 
-**Auth:** NPM (+ optional `X-Import-Secret` для manual; **обязателен** для cron)
+**Auth:** NPM (+ optional `X-Import-Secret` для manual; **обязателен** для cron). **Rate limit:** 3 req / 10 min (in-app).
 
 **Body (optional JSON):**
 
@@ -323,24 +445,17 @@ X-Export-Row-Count: 12345
 { "triggeredBy": "cron" }
 ```
 
-| `triggeredBy` | Поведение |
-|---------------|-----------|
-| omitted / `"manual"` | Ручной импорт из UI |
-| `"cron"` | Плановый импорт; требует `X-Import-Secret` |
-
 **Response 200:**
 
 ```json
 { "jobId": "uuid", "status": "pending" }
 ```
 
-Если import уже running — возвращает существующий job.
-
 ---
 
 ### `GET /api/import/status`
 
-Статус import job.
+Статус import job. Контракт типов: [`packages/shared/contracts/import.schema.ts`](../packages/shared/contracts/import.schema.ts) → `ImportStatusResponse`.
 
 **Auth:** NPM (+ optional `X-Import-Secret`)
 
@@ -380,9 +495,9 @@ X-Export-Row-Count: 12345
 | `pending` / `running` | Импорт выполняется |
 | `completed` | Данные обновлены |
 | `skipped` | CSV не изменились (`skipReason: "unchanged"`) |
-| `failed` | Ошибка; production не изменён (если ошибка до swap) |
+| `failed` | Ошибка; `errorMessage` — технический текст (UI маппит на русский) |
 
-При `status: "skipped"` объект `progress` содержит сокращённые steps, `percent: 100`, `filesProcessed: 0`.
+`ImportStatusResponse` fields: `jobId`, `status`, `skipReason?`, `progress?`, `loadedAt`, `errorMessage?`, `rowsLoaded?`.
 
 ---
 
@@ -390,7 +505,7 @@ X-Export-Row-Count: 12345
 
 Точный lookup по 10-значному номеру. **Всегда ищет в current production** — параметр `dataset` не поддерживается.
 
-**Auth:** Bearer / `X-Api-Key`
+**Auth:** Bearer / `X-Api-Key`. **Rate limit:** 120 req / min (in-app).
 
 **Query:** `phone` — ровно 10 цифр
 
@@ -410,29 +525,15 @@ X-Export-Row-Count: 12345
 { "found": false, "phone": "4996660000" }
 ```
 
-**Пример:**
-
-```bash
-curl -s "https://pstn.example.com/api/v1/lookup?phone=4996660000" \
-  -H "Authorization: Bearer YOUR_KEY"
-```
-
 ---
 
 ### `GET /api/v1/lookup/search`
 
 Поиск диапазонов по маске (как «Найти номер» в UI).
 
-**Auth:** Bearer / `X-Api-Key`
+**Auth:** Bearer / `X-Api-Key`. **Rate limit:** 120 req / min (in-app).
 
-**Query:**
-
-| Param | Default | Max | Описание |
-|-------|---------|-----|----------|
-| `phone` | required | — | Маска: цифры + `X` (wildcards) |
-| `page` | 1 | — | Страница |
-| `pageSize` | 50 | 100 | Размер страницы |
-| `dataset` | `current` | — | `current` или `diff:<uuid>` |
+**Query:** `phone`, `page`, `pageSize`, `dataset` (`current` или `diff:<uuid>`)
 
 **Response 200:**
 
@@ -444,39 +545,13 @@ curl -s "https://pstn.example.com/api/v1/lookup?phone=4996660000" \
 }
 ```
 
-Возвращает 200 даже при 0 результатах.
-
-**Пример:**
-
-```bash
-curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&pageSize=50" \
-  -H "Authorization: Bearer YOUR_KEY"
-```
-
 ---
 
 ### `GET /api/v1/lookup/examples`
 
 Готовые curl-примеры для UI (server-side generation).
 
-**Auth:** NPM (perimeter)
-
-**Query:** `phoneMask` (optional), `dataset` (optional)
-
-**Response 200:**
-
-```json
-{
-  "configured": true,
-  "baseUrl": "https://pstn.example.com",
-  "exactCurl": "curl -s \"...\" -H \"Authorization: Bearer <EXTERNAL_API_KEY>\"",
-  "searchCurl": "curl -s \"...\" -H \"Authorization: Bearer <EXTERNAL_API_KEY>\""
-}
-```
-
-Поле `apiKey` **отсутствует** — ключ встроен в готовые curl-строки (`exactCurl`, `searchCurl`) для copy-paste из UI.
-
-**Response 503:** lookup API не настроен.
+**Auth:** NPM (perimeter). **Rate limit:** нет.
 
 ---
 
@@ -485,12 +560,6 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 Статус конфигурации lookup API (без ключа).
 
 **Auth:** NPM
-
-**Response 200:**
-
-```json
-{ "configured": true, "baseUrl": "https://pstn.example.com" }
-```
 
 ---
 
@@ -503,47 +572,26 @@ curl -s "https://pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&p
 | `rangeStart` | number | Начало диапазона |
 | `rangeEnd` | number | Конец диапазона |
 | `capacity` | number | Ёмкость |
-| `operator` | string | Оператор |
-| `garTerritory` | string | Территория ГАР (как в CSV) |
-| `region` | string | Регион (как в CSV) |
-| `inn` | string | ИНН |
+| `operator` | string | Оператор (в diff — **новое** значение) |
+| `garTerritory` | string | Территория ГАР |
+| `region` | string | Регион |
+| `inn` | string | ИНН (в diff — **новое** значение) |
 | `uvrAntifraud` | number \| null | id_src OPR |
 | `abcRangeGapBefore` | boolean | Пропуск ABC сверху |
 | `abcRangeGapAfter` | boolean | Пропуск ABC снизу |
-| `changeType` | `"added"` \| `"changed"` \| `"removed"` \| null | Тип расхождения (только в diff-режиме). `changed` — только при отличии метаданных на сегменте (см. [import-and-datasets.md](import-and-datasets.md#алгоритм-diff)) |
-| `prevRangeStart` | number \| null | Предыдущее начало (changed) |
-| `prevRangeEnd` | number \| null | Предыдущий конец (changed) |
-| `prevOperator` | string \| null | Предыдущий оператор (changed); в UI/XLSX — колонка «Старый оператор связи» |
-| `prevRegion` | string \| null | Предыдущий регион (changed) |
-| `prevGarTerritory` | string \| null | Предыдущая территория ГАР (changed) |
-| `prevInn` | string \| null | Предыдущий ИНН (changed); в UI/XLSX — колонка «Старый ИНН» |
-| `prevCapacity` | number \| null | Предыдущая ёмкость (changed) |
+| `changeType` | `"added"` \| `"changed"` \| `"removed"` \| null | Только diff |
+| `prevOperator` | string \| null | Старое значение (API/XLSX; в UI — диалог было/стало) |
+| `prevInn` | string \| null | Старое значение ИНН |
+| `prevRegion`, `prevGarTerritory`, `prevCapacity`, … | | Предыдущие метаданные для `changed` |
 
-Поля `operator` и `inn` в diff rows — **новые** значения. Для отображения old/new в UI и XLSX используется единая семантика: `added` → старые колонки `—`, `removed` → новые `—`, `changed` → `prevOperator`/`prevInn` vs `operator`/`inn`.
-
-Пример строки в diff mode (`changed` — смена оператора на сегменте):
-
-```json
-{
-  "abc": "550",
-  "rangeStart": 5500,
-  "rangeEnd": 5599,
-  "operator": "ООО \"Новый оператор\"",
-  "inn": "7700000000",
-  "changeType": "changed",
-  "prevRangeStart": 5500,
-  "prevRangeEnd": 5599,
-  "prevOperator": "ПАО \"Старый оператор\"",
-  "prevInn": "7700000001"
-}
-```
+Поля `prev*` заполняются для сегментов diff; в UI-таблице отображаются через колонку «Изменения», в XLSX — отдельными old/new колонками.
 
 ---
 
 ## Связанные документы
 
 - [import-and-datasets.md](import-and-datasets.md) — импорт, cron, diff snapshots (опорный документ)
-- [security.md](security.md) — auth model, secrets
-- [user-guide.md](user-guide.md) — UI и семантика фильтров
-- [deployment.md](deployment.md) — NPM rate limits
+- [security.md](security.md) — auth model, secrets, rate limits
+- [user-guide.md](user-guide.md) — UI, сообщения об ошибках
+- [deployment.md](deployment.md) — env vars, NPM rate limits
 - [npm.md](npm.md) — настройка Proxy Host

@@ -20,7 +20,11 @@ import {
   rangesTableReducer,
   type RangesTableState,
 } from "@/lib/table/rangesTableState";
-import { buildFilterParams } from "@/lib/api/client";
+import { buildFilterParams, mapFetchResponseError } from "@/lib/api/client";
+import {
+  getErrorUserMessage,
+  isApiErrorCode,
+} from "@/lib/api/apiClientError";
 import { EXPORT_ROW_WARN_THRESHOLD } from "@/lib/export/exportLimits";
 import { mergeDebouncedTextFilters } from "@/lib/filters/mergeDebouncedTextFilters";
 import {
@@ -96,6 +100,9 @@ export function RangesPageContent() {
   );
   const [selectedAsOf, setSelectedAsOf] = useState<string | null>(readInitialAsOf);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastVariant, setToastVariant] = useState<"success" | "error">(
+    "success"
+  );
   const [isExporting, setIsExporting] = useState(false);
   const queryClient = useQueryClient();
   const prevImportStatus = useRef<string | undefined>(undefined);
@@ -220,9 +227,12 @@ export function RangesPageContent() {
 
   const summaryError =
     filtersActive && filteredSummaryQuery.isError
-      ? filteredSummaryQuery.error?.message ?? "Ошибка загрузки KPI"
+      ? getErrorUserMessage(
+          filteredSummaryQuery.error,
+          "Ошибка загрузки KPI"
+        )
       : globalSummaryQuery.isError
-        ? globalSummaryQuery.error?.message ?? "Ошибка загрузки KPI"
+        ? getErrorUserMessage(globalSummaryQuery.error, "Ошибка загрузки KPI")
         : undefined;
 
   useEffect(() => {
@@ -330,11 +340,11 @@ export function RangesPageContent() {
       (filtersActive ? filteredSummaryQuery.error : undefined);
     if (!datasetError) return;
 
-    const message = datasetError.message ?? "";
-    if (!/Dataset snapshot not found/i.test(message)) return;
+    if (!isApiErrorCode(datasetError, "DATASET_NOT_FOUND")) return;
 
     setSelectedDataset({ kind: "current" });
     setRangesResetKey((key) => key + 1);
+    setToastVariant("success");
     setToastMessage("Снимок расхождений не найден, показан текущий датасет");
     queryClient.removeQueries({ queryKey: ["ranges"] });
 
@@ -360,9 +370,16 @@ export function RangesPageContent() {
   ]);
 
   const handleLoadData = async () => {
-    const result = await importStart.mutateAsync();
-    setDismissedJobId(null);
-    setTrackedJobId(result.jobId);
+    try {
+      const result = await importStart.mutateAsync();
+      setDismissedJobId(null);
+      setTrackedJobId(result.jobId);
+    } catch (error) {
+      setToastVariant("error");
+      setToastMessage(
+        getErrorUserMessage(error, "Не удалось запустить загрузку данных.")
+      );
+    }
   };
 
   const handleDismissImportProgress = () => {
@@ -460,10 +477,8 @@ export function RangesPageContent() {
       }
       const response = await fetch(`/api/export/ranges?${params.toString()}`);
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(payload?.error?.message ?? "Export failed");
+        const mapped = await mapFetchResponseError(response);
+        throw new Error(mapped.userMessage);
       }
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -472,10 +487,12 @@ export function RangesPageContent() {
       link.download = "ranges-export.xlsx";
       link.click();
       URL.revokeObjectURL(url);
+      setToastVariant("success");
       setToastMessage("Экспорт XLSX завершён");
     } catch (error) {
+      setToastVariant("error");
       setToastMessage(
-        error instanceof Error ? error.message : "Ошибка экспорта XLSX"
+        getErrorUserMessage(error, "Ошибка экспорта XLSX")
       );
     } finally {
       setIsExporting(false);
@@ -532,6 +549,19 @@ export function RangesPageContent() {
         />
       )}
 
+      {importStatus.isError && trackedJobId && (
+        <div
+          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+          role="alert"
+        >
+          Не удалось получить статус загрузки.{" "}
+          {getErrorUserMessage(
+            importStatus.error,
+            "Проверьте соединение и обновите страницу."
+          )}
+        </div>
+      )}
+
       {showImportProgress && trackedImport && (
         <ImportProgressCard
           status={trackedImport}
@@ -563,13 +593,27 @@ export function RangesPageContent() {
         isFetching={rangesQuery.isFetching && !rangesQuery.isFetchingNextPage}
         isFetchingNextPage={rangesQuery.isFetchingNextPage}
         errorMessage={
-          rangesQuery.isError
-            ? rangesQuery.error?.message ?? "Не удалось загрузить данные"
+          rangesQuery.isError && rangesData.length === 0
+            ? getErrorUserMessage(
+                rangesQuery.error,
+                "Не удалось загрузить данные"
+              )
+            : undefined
+        }
+        loadMoreError={
+          rangesQuery.isFetchNextPageError
+            ? getErrorUserMessage(
+                rangesQuery.error,
+                "Не удалось загрузить следующую страницу"
+              )
             : undefined
         }
         facetsError={
           facetsQuery.isError
-            ? facetsQuery.error?.message ?? "Не удалось загрузить фильтры"
+            ? getErrorUserMessage(
+                facetsQuery.error,
+                "Не удалось загрузить фильтры"
+              )
             : undefined
         }
         isDiffView={isDiffView}
@@ -577,6 +621,7 @@ export function RangesPageContent() {
 
       <AppToast
         message={toastMessage}
+        variant={toastVariant}
         onDismiss={() => setToastMessage(null)}
       />
     </div>

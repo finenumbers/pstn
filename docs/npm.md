@@ -172,7 +172,7 @@ networks:
 ## Безопасность (кратко)
 
 - В PSTN **нет** логина — защита на NPM: **Access List**, Basic Auth, VPN.
-- Рекомендуется **rate limiting** на тяжёлые endpoints (`/api/export/ranges`, `/api/import`). Cron scheduler вызывает import **раз в сутки**; rate limit не должен блокировать плановый cron, но защищает от злоупотреблений manual import. Подробнее: [deployment.md](deployment.md#rate-limiting-рекомендуется), [import-and-datasets.md](import-and-datasets.md).
+- Рекомендуется **rate limiting** на тяжёлые endpoints (`/api/export/ranges`, `/api/import`). Cron scheduler вызывает import **раз в сутки**; rate limit не должен блокировать плановый cron, но защищает от злоупотреблений manual import. Подробнее: [deployment.md](deployment.md#rate-limiting), [import-and-datasets.md](import-and-datasets.md).
 - `/api/health` не выставляйте публично без необходимости.
 
 Полная модель: [security.md](security.md).

@@ -16,6 +16,7 @@ import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { countFacetValue } from "@/packages/db/queries/countFacetValue";
 import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -30,7 +31,11 @@ export async function GET(request: NextRequest) {
       );
 
     if (columns.length === 0) {
-      return apiError("VALIDATION_ERROR", "No valid facet columns", 400);
+      return apiError(
+        API_ERROR_CODES.VALIDATION_ERROR,
+        "Не указаны допустимые колонки для фильтра.",
+        400
+      );
     }
 
     const filtersRaw = parseFiltersFromSearchParams(params);
@@ -51,8 +56,8 @@ export async function GET(request: NextRequest) {
       if (!val) continue;
       if (val.length > FILTER_LIMITS.maxTextFilterLength) {
         return apiError(
-          "VALIDATION_ERROR",
-          `search.${col} exceeds maximum length`,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          "Слишком длинный текст поиска в фильтре.",
           400
         );
       }

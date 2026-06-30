@@ -14,6 +14,8 @@ export function DbSizeInfo() {
     >
       {storageQuery.isLoading ? (
         <Skeleton className="h-3 w-16" />
+      ) : storageQuery.isError ? (
+        <span className="font-bold tabular-nums text-amber-800">БД: недоступно</span>
       ) : (
         <span className="font-bold tabular-nums text-foreground">
           БД: {storageQuery.data?.formatted ?? "—"}

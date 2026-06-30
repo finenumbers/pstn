@@ -8,7 +8,7 @@ docker-compose.portainer.yml
 
 **Только** `docker-compose.portainer.yml` — без `build:`, без bind mounts, образ **`ghcr.io/finenumbers/pstn:latest`**. Контейнер `pstn_app` подключается к сети **`proxy`** для NPM.
 
-> **Зелёная галочка** у stack = контейнеры **запущены**, не «образ свежий». После релиза: **Pull and redeploy** (compose с `pull_policy: always`). Проверка: под заголовком на сайте «Версия X.Y.Z».
+> **Зелёная галочка** у stack = контейнеры **запущены**, не «образ свежий». После релиза: **Pull and redeploy** (compose с `pull_policy: always`). Проверка: `HEALTH_VERBOSE=1` + `curl /api/health`, тег GHCR или GitHub Release (UI версию не показывает).
 
 > **Control: Limited?** Stack создан через SSH — Portainer не тянет GHCR. [Пересоздание stack](../../docs/deployment.md#stack-limited-created-outside-of-portainer)
 

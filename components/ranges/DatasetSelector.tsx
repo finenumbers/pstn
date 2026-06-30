@@ -59,6 +59,17 @@ export function DatasetSelector({
     );
   }
 
+  if (datasetsQuery.isError) {
+    return (
+      <div
+        className="flex h-9 w-fit min-w-[8ch] items-center rounded-md border border-amber-200 bg-amber-50 px-3 text-xs text-amber-900"
+        title="Не удалось загрузить список датасетов"
+      >
+        Датасеты недоступны
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return null;
   }

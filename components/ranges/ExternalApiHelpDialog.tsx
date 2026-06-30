@@ -82,9 +82,11 @@ export function ExternalApiHelpDialog({
   const [exactCurl, setExactCurl] = useState("");
   const [searchCurl, setSearchCurl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadExamples = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams();
       if (phoneMask.trim()) {
@@ -103,6 +105,7 @@ export function ExternalApiHelpDialog({
         setApiBaseUrl(null);
         setExactCurl("");
         setSearchCurl("");
+        setLoadError("Не удалось загрузить примеры API. Попробуйте позже.");
         return;
       }
       const payload = (await response.json()) as {
@@ -120,6 +123,9 @@ export function ExternalApiHelpDialog({
       setApiBaseUrl(null);
       setExactCurl("");
       setSearchCurl("");
+      setLoadError(
+        "Не удалось загрузить примеры API. Проверьте соединение и повторите."
+      );
     } finally {
       setLoading(false);
     }
@@ -195,9 +201,13 @@ export function ExternalApiHelpDialog({
                 <ExampleBlock title="Точный номер" curlExample={exactCurl} />
                 <ExampleBlock title="Поиск по маске" curlExample={searchCurl} />
               </div>
+            ) : loadError ? (
+              <p className="text-xs text-red-800" role="alert">
+                {loadError}
+              </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                API lookup не настроен (EXTERNAL_API_KEY).
+                API lookup не настроен (не задан ключ EXTERNAL_API_KEY на сервере).
               </p>
             )}
           </section>

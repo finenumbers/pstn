@@ -136,12 +136,10 @@ export function KpiSummaryBar({
 
       {isUvrUnbound && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          Колонка «УВр Антифрод» пустая: реестр OPR не загружен. После{" "}
-          <strong>Pull and redeploy</strong> образ с{" "}
-          <code className="rounded bg-amber-100 px-1">data/opr/</code> должен
-          подтянуться автоматически при старте. Проверьте логи{" "}
-          <code className="rounded bg-amber-100 px-1">pstn_app</code> («Loaded …
-          OPR operators»).
+          Колонка «УВр Антифрод» пустая: реестр операторов OPR ещё не загружен в
+          базу. Обычно он подтягивается автоматически при старте приложения после
+          обновления. Если сообщение не исчезает — обратитесь к администратору
+          (нужно обновить контейнер и проверить логи запуска).
         </div>
       )}
 

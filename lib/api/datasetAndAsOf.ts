@@ -8,6 +8,7 @@ import {
   parseDatasetFromSearchParams,
 } from "@/lib/api/datasetParam";
 import { apiError } from "@/lib/api/errors";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
 
 export function parseDatasetAndAsOf(
@@ -27,8 +28,8 @@ export function parseDatasetAndAsOf(
 
   if (dataset.kind !== "current" && asOf) {
     return apiError(
-      "VALIDATION_ERROR",
-      "asOf is only supported with dataset=current",
+      API_ERROR_CODES.VALIDATION_ERROR,
+      "Параметр asOf доступен только для текущего датасета.",
       400
     );
   }

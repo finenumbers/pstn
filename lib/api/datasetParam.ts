@@ -9,6 +9,7 @@ import {
   type DatasetRef,
 } from "@/packages/shared/contracts/dataset.schema";
 import { validationError } from "@/lib/api/errors";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 
 export function parseDatasetFromSearchParams(
   params: URLSearchParams
@@ -30,8 +31,8 @@ export function datasetNotFoundResponse(error: DatasetNotFoundError): NextRespon
   return NextResponse.json(
     {
       error: {
-        code: "DATASET_NOT_FOUND",
-        message: error.message,
+        code: API_ERROR_CODES.DATASET_NOT_FOUND,
+        message: "Снимок расхождений не найден.",
         details: { snapshotId: error.snapshotId },
       },
     },

@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatNumber } from "@/lib/utils";
+import { mapImportErrorMessage } from "@/lib/import/mapImportErrorMessage";
 import type {
   ImportFileProgress,
   ImportStatusResponse,
@@ -148,7 +149,7 @@ export function ImportProgressCard({
 
         {isFailed && status.errorMessage && (
           <div className="rounded-md border border-red-200 bg-white/70 px-3 py-2 text-sm text-red-900">
-            {status.errorMessage}
+            {mapImportErrorMessage(status.errorMessage)}
           </div>
         )}
 

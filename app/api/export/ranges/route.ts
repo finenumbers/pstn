@@ -12,6 +12,7 @@ import {
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetNotFoundResponse } from "@/lib/api/datasetParam";
 import { EXPORT_ROW_MAX } from "@/lib/export/exportLimits";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -33,9 +34,10 @@ export async function GET(request: NextRequest) {
     const totalRows = await countRanges(filtersParsed.data, dataset, asOf);
     if (totalRows > EXPORT_ROW_MAX) {
       return apiError(
-        "EXPORT_TOO_LARGE",
-        `Export exceeds maximum of ${EXPORT_ROW_MAX.toLocaleString("ru-RU")} rows (${totalRows.toLocaleString("ru-RU")} matched). Narrow filters.`,
-        400
+        API_ERROR_CODES.EXPORT_TOO_LARGE,
+        `Слишком много строк для экспорта (лимит ${EXPORT_ROW_MAX.toLocaleString("ru-RU")}, найдено ${totalRows.toLocaleString("ru-RU")}). Сузьте фильтры.`,
+        400,
+        { matched: totalRows, limit: EXPORT_ROW_MAX }
       );
     }
 
@@ -60,6 +62,6 @@ export async function GET(request: NextRequest) {
     if (error instanceof DatasetNotFoundError) {
       return datasetNotFoundResponse(error);
     }
-    return internalServerError(error, "Export failed");
+    return internalServerError(error, "Не удалось выполнить экспорт.");
   }
 }

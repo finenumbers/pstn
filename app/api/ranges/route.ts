@@ -17,6 +17,7 @@ import { normalizeRangesSort } from "@/lib/sort/normalizeRangesSort";
 import { listRanges } from "@/packages/db/queries/rangesQueries";
 import { shouldSkipPhoneRangeCount } from "@/lib/filters/phoneSearchLimits";
 import { phoneFilterTimingMeta } from "@/lib/phone/phoneFilterMeta";
+import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 import { apiError, internalServerError, validationError, withTiming } from "@/lib/api/errors";
 
 export async function GET(request: NextRequest) {
@@ -47,7 +48,11 @@ export async function GET(request: NextRequest) {
       : null;
 
     if (parsed.data.cursor && !cursor) {
-      return apiError("VALIDATION_ERROR", "Invalid cursor", 400);
+      return apiError(
+        API_ERROR_CODES.VALIDATION_ERROR,
+        "Некорректный курсор постраничной навигации.",
+        400
+      );
     }
 
     const parsedDataset = parseDatasetAndAsOf(params);

@@ -351,7 +351,7 @@ curl -X POST "https://pstn.example.com/api/import" \
 
 **Зелёный статус stack** = контейнеры running/healthy. Это **не** «образ с GHCR обновлён».
 
-**Решение:** Stacks → `pstn` → **Pull and redeploy** (compose с `pull_policy: always`). Проверка: «Версия X.Y.Z» в UI или `/api/health` с `HEALTH_VERBOSE=1` на app. Если версия не меняется — stack **Control: Limited** или старый compose без `pull_policy`; см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
+**Решение:** Stacks → `pstn` → **Pull and redeploy** (compose с `pull_policy: always`). Проверка: `HEALTH_VERBOSE=1` + `curl /api/health` на app, тег GHCR или GitHub Release. Если версия не меняется — stack **Control: Limited** или старый compose без `pull_policy`; см. [deployment.md](deployment.md#stack-limited-created-outside-of-portainer).
 
 ### Portainer: прочерк в «Images up to date»
 
@@ -361,13 +361,20 @@ curl -X POST "https://pstn.example.com/api/import" \
 
 **Проверка версии на сервере:**
 
-- В UI `/ranges` — строка «Версия X.Y.Z» под заголовком.
-- Через API: в dev или при `HEALTH_VERBOSE=1` в env контейнера app:
+UI `/ranges` **не показывает** номер версии. Варианты:
+
+1. **`HEALTH_VERBOSE=1`** в env контейнера app (Portainer → stack → Environment variables → redeploy):
 
 ```bash
 curl -s http://127.0.0.1:5555/api/health | jq .
 # version должна совпадать с последним GitHub release
 ```
+
+2. Тег образа: `docker inspect pstn_app --format '{{.Config.Image}}'` и digest после `docker pull ghcr.io/finenumbers/pstn:latest`.
+
+3. Логи контейнера при старте: строка `[pstn] APP_VERSION=... APP_REVISION=...`.
+
+В **dev** (`npm run dev`) или без `NODE_ENV=production` health возвращает verbose-поля и без `HEALTH_VERBOSE`.
 
 **Принудительный pull вручную** (если redeploy не обновил образ):
 
