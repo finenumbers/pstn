@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { listRanges } from "@/packages/db/queries/rangesQueries";
+import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 import {
   insertTestRangeRows,
   refreshTestDatasetMeta,
@@ -75,18 +76,7 @@ describeWithDb("uvrAntifraud join", () => {
 
   it("maps uvrAntifraud from operators_register.id_src by INN", async () => {
     const { data } = await listRanges({
-      filters: {
-        abc: [],
-        operator: [],
-        garTerritory: [],
-        region: [],
-        inn: [],
-        uvrAntifraud: [],
-        rangeStart: "",
-        rangeEnd: "",
-        capacity: "",
-        phoneNumber: "",
-      },
+      filters: DEFAULT_FILTERS,
       sort: [
         { id: "abc", desc: false },
         { id: "rangeStart", desc: false },
@@ -103,18 +93,7 @@ describeWithDb("uvrAntifraud join", () => {
 
   it("filters rows by partial uvrAntifraud id_src", async () => {
     const { data, totalRows } = await listRanges({
-      filters: {
-        abc: [],
-        operator: [],
-        garTerritory: [],
-        region: [],
-        inn: [],
-        uvrAntifraud: ["11012"],
-        rangeStart: "",
-        rangeEnd: "",
-        capacity: "",
-        phoneNumber: "",
-      },
+      filters: { ...DEFAULT_FILTERS, uvrAntifraud: ["11012"] },
       sort: [
         { id: "abc", desc: false },
         { id: "rangeStart", desc: false },

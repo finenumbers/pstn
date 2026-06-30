@@ -270,7 +270,7 @@ export function buildWhere(
 }
 
 export function facetColumnForContext(
-  column: Exclude<FacetColumn, "uvrAntifraud">,
+  column: Exclude<FacetColumn, "uvrAntifraud" | "changedFields">,
   context: RangeQueryContext
 ) {
   const columns = getColumnMap(context.table);
