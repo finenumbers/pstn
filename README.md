@@ -31,7 +31,7 @@ flowchart LR
   app --> pg
 ```
 
-В production compose (`docker-compose.prod.yml`, Portainer) к postgres и app добавляется **scheduler** — ежедневный cron-импорт в 12:00 MSK. Локальные compose — только postgres + app.
+В production compose (`docker-compose.prod.yml`, Portainer) к postgres и app добавляется **scheduler** — ежедневный cron-импорт в 18:00 MSK. Локальные compose — только postgres + app.
 
 Compose-стек проекта **не включает** NPM, Portainer и SSL — они настраиваются отдельно.
 
@@ -120,7 +120,7 @@ npm run audit              # npm audit --audit-level=high
 | Режим | Описание |
 |-------|----------|
 | **Ручной import** | UI «Загрузить данные» или `POST /api/import` |
-| **Автоimport (production)** | Cron `pstn_scheduler` — ежедневно 12:00 MSK; требует `IMPORT_SECRET` |
+| **Автоimport (production)** | Cron `pstn_scheduler` — ежедневно 18:00 MSK; требует `IMPORT_SECRET` |
 | **Skip** | При неизменных CSV (SHA256) job `skipped`, production не меняется |
 | **Diff snapshots** | После import с изменениями — просмотр расхождений в UI (`?dataset=diff:<uuid>`) |
 

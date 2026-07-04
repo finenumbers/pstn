@@ -191,7 +191,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | Container | `pstn_scheduler` |
 | Образ | `alpine:3.21` + `curl` + `crond` |
 | `CRON_TZ` | `Europe/Moscow` |
-| Расписание | **ежедневно 12:00 MSK** (`0 12 * * *`) |
+| Расписание | **ежедневно 18:00 MSK** (`0 18 * * *`) |
 | Скрипт | `/usr/local/bin/pstn-cron-import.sh` |
 | Запрос | `POST http://app:${APP_PORT}/api/import` с `{"triggeredBy":"cron"}` и `X-Import-Secret` |
 | Лог | `[pstn-cron] HTTP <code> <json body>` |

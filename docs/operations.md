@@ -46,7 +46,7 @@ git push -u origin main
 
 ## Автоимпорт (cron)
 
-При деплое с [`docker-compose.prod.yml`](../docker-compose.prod.yml) или Portainer stack поднимается контейнер **`pstn_scheduler`**. Он ежедневно в **12:00 Europe/Moscow** вызывает `POST /api/import` с `triggeredBy=cron`.
+При деплое с [`docker-compose.prod.yml`](../docker-compose.prod.yml) или Portainer stack поднимается контейнер **`pstn_scheduler`**. Он ежедневно в **18:00 Europe/Moscow** вызывает `POST /api/import` с `triggeredBy=cron`.
 
 > **Локальная разработка** (`docker-compose.yml`, `docker-compose.dev.yml`) **не включает** scheduler — import только вручную.
 

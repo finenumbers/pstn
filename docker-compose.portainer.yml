@@ -109,7 +109,7 @@ services:
         fi
         SCRIPT
         chmod +x /usr/local/bin/pstn-cron-import.sh
-        echo "0 12 * * * /usr/local/bin/pstn-cron-import.sh" > /etc/crontabs/root
+        echo "0 18 * * * /usr/local/bin/pstn-cron-import.sh" > /etc/crontabs/root
         crond -f -l 8
     networks:
       - pstn_internal
