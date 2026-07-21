@@ -283,7 +283,7 @@ npm run db:rebuild-dicts
 ### Import failed
 
 - Проверьте исходящий доступ к opendata.digital.gov.ru
-- **TLS / SSL:** сайт Минцифры использует сертификат **НУЦ (Russian Trusted CA)**. Образ app начиная с **v0.3.25** включает корневой и промежуточный CA ([`certs/mincifry/`](../certs/mincifry/)). После обновления образа — redeploy stack и повторите import.
+- **TLS / SSL:** сайт Минцифры использует сертификат **НУЦ (Russian Trusted CA)**. Образ app начиная с **v0.3.25** включает корневой и промежуточный CA ([`certs/mincifry/`](../certs/mincifry/)); с **v0.3.26** Node `fetch` использует системное хранилище (`NODE_OPTIONS=--use-openssl-ca`). После обновления образа — redeploy stack и повторите import.
 - Проверка TLS **из контейнера app** (не с хоста):
 
 ```bash

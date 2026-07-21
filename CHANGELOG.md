@@ -4,6 +4,14 @@
 
 ---
 
+## v0.3.26
+
+### Operations / Import
+
+- Node.js: `NODE_OPTIONS=--use-openssl-ca` — `fetch` при import использует системные CA (включая Russian Trusted CA), как `wget`.
+
+---
+
 ## v0.3.25
 
 ### Operations / Import

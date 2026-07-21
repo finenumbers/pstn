@@ -16,7 +16,7 @@
 
 ## Использование в PSTN
 
-Файлы копируются в Docker-образ app (`Dockerfile`, stage `runner`) и добавляются в системное хранилище Alpine через `update-ca-certificates`. Node.js `fetch` при import CSV использует `/etc/ssl/certs/ca-certificates.crt`.
+Файлы копируются в Docker-образ app (`Dockerfile`, stage `runner`) и добавляются в системное хранилище Alpine через `update-ca-certificates`. Node.js `fetch` при import CSV дополнительно включает `NODE_OPTIONS=--use-openssl-ca`, чтобы использовать `/etc/ssl/certs/ca-certificates.crt` (с v0.3.26).
 
 ## Обновление
 

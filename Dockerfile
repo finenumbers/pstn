@@ -34,6 +34,9 @@ RUN apk add --no-cache postgresql-client su-exec ca-certificates wget && \
 COPY certs/mincifry/*.crt /usr/local/share/ca-certificates/
 RUN update-ca-certificates
 
+# Node fetch uses bundled Mozilla CAs by default; opendata needs Russian Trusted CA from system store.
+ENV NODE_OPTIONS=--use-openssl-ca
+
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static

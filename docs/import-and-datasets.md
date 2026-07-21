@@ -128,7 +128,7 @@ flowchart TD
 
 URL задаются в `packages/import/constants.ts`. Загрузка идёт последовательно; хеширование — тоже последовательно (снижение нагрузки на opendata.digital.gov.ru).
 
-**TLS:** `opendata.digital.gov.ru` использует сертификат **НУЦ Минцифры** (Russian Trusted CA). Docker-образ app включает корневой и промежуточный CA (`certs/mincifry/` → `update-ca-certificates` в [`Dockerfile`](../Dockerfile)). Без них import падает на этапе `checking_sources` с ошибкой TLS и «Всего загружено: 0».
+**TLS:** `opendata.digital.gov.ru` использует сертификат **НУЦ Минцифры** (Russian Trusted CA). Docker-образ app включает корневой и промежуточный CA (`certs/mincifry/` → `update-ca-certificates` в [`Dockerfile`](../Dockerfile)); с v0.3.26 Node `fetch` подключает системное хранилище через `NODE_OPTIONS=--use-openssl-ca` (без этого `wget` может работать, а import — падать с `fetch failed`).
 
 ### Stale recovery
 
