@@ -361,6 +361,7 @@ curl -s "http://127.0.0.1:5555/api/import/status?jobId=<uuid>"
 ### Конфигурация
 
 - Образ: `alpine:3.21` + `curl` + `crond`
+- Entrypoint: [`scripts/scheduler-entrypoint.sh`](../scripts/scheduler-entrypoint.sh) (volume mount)
 - `CRON_TZ=Europe/Moscow`
 - Расписание: **`0 18 * * *`** (ежедневно 18:00 MSK)
 - Скрипт: `/usr/local/bin/pstn-cron-import.sh`
@@ -379,29 +380,18 @@ docker compose -f docker-compose.prod.yml logs scheduler --tail 50
 
 Модель auth: [security.md](security.md).
 
-| Сценарий | Функция | Secret |
-|----------|---------|--------|
-| UI «Загрузить данные» | `checkImportAuthorization` | Если `IMPORT_SECRET` **не задан** — OK. Если задан — UI **не шлёт header** → **401** |
-| Cron scheduler | `requireImportSecret` | Secret **обязателен**; без него cron всегда 401 |
-| `GET /api/import/status` | `checkImportAuthorization` | Как manual |
+| Сценарий | Механизм | Secret |
+|----------|----------|--------|
+| UI «Загрузить данные» (v0.3.27+) | Server Action `startImportFromUi` | Не нужен в браузере |
+| UI «Загрузить данные» (до v0.3.27) | `POST /api/import` | 401, если secret задан и header не передан |
+| Cron scheduler | `POST /api/import` + `triggeredBy: cron` | **Обязателен** на app и в scheduler |
+| `GET /api/import/status` | `checkImportAuthorization` | Как manual POST |
 
-### Конфликт production
+### Production
 
-Standard prod stack **требует** `IMPORT_SECRET` для scheduler (compose validation `:?`). Secret передаётся и в **app**, и в **scheduler**. В результате кнопка «Загрузить данные» в UI перестаёт работать.
+Standard prod stack **требует** `IMPORT_SECRET` для scheduler (compose validation `:?`). Secret передаётся в **app** и **scheduler**. С v0.3.27 UI и cron работают одновременно.
 
-**Workarounds:**
-
-1. **curl с header** (рекомендуется для разовых manual import):
-
-```bash
-curl -X POST "https://pstn.example.com/api/import" \
-  -H "X-Import-Secret: YOUR_SECRET" \
-  -H "Content-Type: application/json"
-```
-
-2. **NPM Custom Location / inject header** — прокси добавляет `X-Import-Secret` для POST `/api/import` из доверенной сети (осторожно: не открывайте import публично).
-
-3. **Убрать secret только на app** — cron продолжит работать через scheduler env, но app не будет проверять secret для manual. Менее строго с точки зрения defense-in-depth.
+**External POST /api/import** (curl, automation) — с заголовком `X-Import-Secret`, если secret задан.
 
 Diff snapshots защищены **тем же периметром**, что и остальной internal API (NPM Access List). Snapshot содержит исторические данные диапазонов — те же sensitivity, что production.
 
@@ -411,8 +401,9 @@ Diff snapshots защищены **тем же периметром**, что и 
 
 | Симптом | Вероятная причина | Действие |
 |---------|-------------------|----------|
+| Нет `pstn_scheduler` в `docker ps` | `IMPORT_SECRET` не задан в Portainer env | Задать secret, Pull and redeploy stack |
 | Scheduler log: `HTTP 401` | Secret mismatch app vs scheduler | Сверить `IMPORT_SECRET` в обоих контейнерах |
-| UI: import не стартует, 401 | `IMPORT_SECRET` задан на app | curl с header или workaround выше |
+| UI: import 401 (образ < v0.3.27) | Старый app без Server Action | Обновить до v0.3.27+ |
 | Карточка «Данные актуальны» | SHA256 match | Норма; CSV не менялись |
 | Нет пункта «Расхождения» в селекторе | Import был skip, или diff segments = 0 | Норма при отсутствии изменений диапазонов |
 | URL с `dataset=diff:...` сбросился на current | Snapshot удалён или UUID неверный | UI auto-reset; проверьте `GET /api/datasets` |

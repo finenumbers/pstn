@@ -4,6 +4,24 @@
 
 ---
 
+## v0.3.27
+
+### Operations / Cron
+
+- Scheduler: [`scripts/scheduler-entrypoint.sh`](../scripts/scheduler-entrypoint.sh) — env запекается при старте контейнера (`/etc/environment` + baked curl script), cron jobs не теряют `IMPORT_SECRET`.
+- Compose: volume mount entrypoint вместо inline shell.
+
+### UI
+
+- Кнопка «Загрузить данные» — Server Action [`app/actions/import.ts`](../app/actions/import.ts); работает при включённом `IMPORT_SECRET` (без заголовка в браузере).
+
+### Docs
+
+- `portainer.env.example`: `IMPORT_SECRET` обязателен для scheduler.
+- Post-deploy чеклист: проверка `pstn_scheduler`.
+
+---
+
 ## v0.3.26
 
 ### Operations / Import

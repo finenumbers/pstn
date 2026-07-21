@@ -67,7 +67,17 @@ git push -u origin main
 ### Требования
 
 - `IMPORT_SECRET` задан в env **app** и **scheduler** (compose validation)
+- Контейнер **`pstn_scheduler`** running после deploy
 - Исходящий HTTPS до `opendata.digital.gov.ru`
+
+### Post-deploy чеклист
+
+```bash
+docker ps --filter name=pstn_
+# Ожидается: pstn_app, pstn_postgres, pstn_scheduler (Up)
+
+docker exec pstn_app sh -c 'test -n "$IMPORT_SECRET" && echo IMPORT_SECRET=SET || echo IMPORT_SECRET=EMPTY'
+```
 
 ### Проверка
 
@@ -325,25 +335,29 @@ docker logs pstn_app 2>&1 | grep "OPR operators"
 tsx scripts/import-opr-csv.ts data/opr/OPR_2026_06_18_00_00_00.csv
 ```
 
-### UI import не работает при `IMPORT_SECRET`
+### UI import и `IMPORT_SECRET`
 
-Production stack с scheduler **всегда** задаёт `IMPORT_SECRET` на app и scheduler. UI **не отправляет** заголовок `X-Import-Secret` → кнопка «Загрузить данные» возвращает **401**.
+С v0.3.27 кнопка «Загрузить данные» вызывает Server Action (`startImportFromUi`) — secret в браузере не нужен. `POST /api/import` по-прежнему требует `X-Import-Secret`, если `IMPORT_SECRET` задан (curl, cron scheduler).
 
-**Workarounds:**
+### Нет контейнера `pstn_scheduler`
 
-1. **Manual import через curl** (рекомендуется):
+Если `docker ps` показывает только `pstn_app` и `pstn_postgres`:
+
+1. Добавьте **`IMPORT_SECRET`** в Portainer stack env (`openssl rand -base64 32`).
+2. **Pull and redeploy** stack (`docker-compose.portainer.yml`).
+3. Проверьте: `docker ps --filter name=pstn_scheduler`.
+
+Без scheduler и без secret автозагрузка по cron **не работает**; import только вручную.
+
+### UI import не работает (старые образы до v0.3.27)
+
+На образах **до v0.3.27** при заданном `IMPORT_SECRET` UI возвращал **401** (POST без header). Обновите app до v0.3.27+ или используйте curl:
 
 ```bash
 curl -X POST "https://pstn.example.com/api/import" \
   -H "X-Import-Secret: YOUR_SECRET" \
   -H "Content-Type: application/json"
 ```
-
-2. **NPM inject header** — добавить `X-Import-Secret` на POST `/api/import` для доверенных IP (осторожно с rate limit и ACL).
-
-3. **Убрать `IMPORT_SECRET` только на app** — cron продолжит работать (secret в scheduler env), manual UI заработает, но app не проверяет secret для POST import. Менее строго.
-
-Подробнее: [import-and-datasets.md](import-and-datasets.md), [security.md](security.md).
 
 ### External lookup 401
 

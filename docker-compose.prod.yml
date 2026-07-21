@@ -74,26 +74,9 @@ services:
     depends_on:
       app:
         condition: service_healthy
-    entrypoint: /bin/sh
-    command:
-      - -c
-      - |
-        apk add --no-cache curl
-        cat > /usr/local/bin/pstn-cron-import.sh << 'SCRIPT'
-        #!/bin/sh
-        code=$(curl -s -o /tmp/pstn-import.json -w "%{http_code}" \
-          -X POST "http://app:${APP_PORT}/api/import" \
-          -H "X-Import-Secret: ${IMPORT_SECRET}" \
-          -H "Content-Type: application/json" \
-          -d '{"triggeredBy":"cron"}')
-        echo "[pstn-cron] HTTP ${code} $(cat /tmp/pstn-import.json 2>/dev/null)"
-        if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-          exit 1
-        fi
-        SCRIPT
-        chmod +x /usr/local/bin/pstn-cron-import.sh
-        echo "0 18 * * * /usr/local/bin/pstn-cron-import.sh" > /etc/crontabs/root
-        crond -f -l 8
+    volumes:
+      - ./scripts/scheduler-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     networks:
       - internal
 
