@@ -283,8 +283,19 @@ npm run db:rebuild-dicts
 ### Import failed
 
 - Проверьте исходящий доступ к opendata.digital.gov.ru
-- Логи app: `docker compose logs app | tail -100`
-- Типичные причины: timeout download, incomplete CSV, validation failed
+- **TLS / SSL:** сайт Минцифры использует сертификат **НУЦ (Russian Trusted CA)**. Образ app начиная с **v0.3.25** включает корневой и промежуточный CA ([`certs/mincifry/`](../certs/mincifry/)). После обновления образа — redeploy stack и повторите import.
+- Проверка TLS **из контейнера app** (не с хоста):
+
+```bash
+docker exec pstn_app wget -S --spider -T 30 \
+  "https://opendata.digital.gov.ru/downloads/ABC-3xx.csv" 2>&1 | head -15
+```
+
+Ожидается HTTP 200/302 без `SSL certificate problem`. Если на хосте curl падает, а в контейнере — OK, import работает.
+
+- Логи app: `docker logs pstn_app --tail 100`
+- SQL: `SELECT error_message, progress_phase FROM import_jobs ORDER BY created_at DESC LIMIT 1;`
+- Типичные причины: TLS (до v0.3.25), timeout download, incomplete CSV, validation failed
 - Production data **не** изменены — безопасно повторить
 
 ### Пустая таблица после deploy

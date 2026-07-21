@@ -128,6 +128,8 @@ flowchart TD
 
 URL задаются в `packages/import/constants.ts`. Загрузка идёт последовательно; хеширование — тоже последовательно (снижение нагрузки на opendata.digital.gov.ru).
 
+**TLS:** `opendata.digital.gov.ru` использует сертификат **НУЦ Минцифры** (Russian Trusted CA). Docker-образ app включает корневой и промежуточный CA (`certs/mincifry/` → `update-ca-certificates` в [`Dockerfile`](../Dockerfile)). Без них import падает на этапе `checking_sources` с ошибкой TLS и «Всего загружено: 0».
+
 ### Stale recovery
 
 Если job в статусе `pending` или `running` не обновлял heartbeat (`updated_at`) **45 минут**, при следующем `startImportJob` или перезапуске сервера он помечается `failed` с сообщением *«Import interrupted by server restart or timeout»*. Выполняется очистка: `TRUNCATE number_ranges_staging`, `DROP import_diff_old`.

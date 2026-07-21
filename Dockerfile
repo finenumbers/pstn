@@ -26,10 +26,13 @@ LABEL org.opencontainers.image.source="https://github.com/finenumbers/pstn"
 LABEL org.opencontainers.image.title="PSTN Analytics"
 LABEL org.opencontainers.image.vendor="Finenumbers"
 
-RUN apk add --no-cache postgresql-client su-exec && \
+RUN apk add --no-cache postgresql-client su-exec ca-certificates wget && \
     addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
     mkdir -p /app/.secrets && chown nextjs:nodejs /app/.secrets
+
+COPY certs/mincifry/*.crt /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

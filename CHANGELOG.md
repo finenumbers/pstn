@@ -4,6 +4,14 @@
 
 ---
 
+## v0.3.25
+
+### Operations / Import
+
+- Docker-образ app: встроены корневой и промежуточный **Russian Trusted CA** (НУЦ Минцифры) для TLS к `opendata.digital.gov.ru`.
+
+---
+
 ## v0.3.24
 
 ### Operations
