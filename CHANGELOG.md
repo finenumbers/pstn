@@ -4,6 +4,14 @@
 
 ---
 
+## v0.3.28
+
+### Operations / Portainer
+
+- `docker-compose.portainer.yml`: scheduler entrypoint inline (без bind mount `./scripts/...`) — совместимо с Portainer «no host bind mounts».
+
+---
+
 ## v0.3.27
 
 ### Operations / Cron

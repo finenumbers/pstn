@@ -341,13 +341,21 @@ tsx scripts/import-opr-csv.ts data/opr/OPR_2026_06_18_00_00_00.csv
 
 ### Нет контейнера `pstn_scheduler`
 
-Если `docker ps` показывает только `pstn_app` и `pstn_postgres`:
+Если `docker ps` показывает только `pstn_app` и `pstn_postgres`, а `IMPORT_SECRET=EMPTY` на app:
 
-1. Добавьте **`IMPORT_SECRET`** в Portainer stack env (`openssl rand -base64 32`).
-2. **Pull and redeploy** stack (`docker-compose.portainer.yml`).
-3. Проверьте: `docker ps --filter name=pstn_scheduler`.
+1. Portainer → **Stacks** → `pstn` → **Editor** (или **Environment variables**).
+2. В блок **Environment variables** добавьте строку (не комментарий):
+   ```
+   IMPORT_SECRET=<openssl rand -base64 32>
+   ```
+3. **Update the stack** / **Pull and redeploy** (не Restart отдельного контейнера).
+4. Проверка:
+   ```bash
+   docker ps --filter name=pstn_scheduler
+   docker exec pstn_app sh -c 'test -n "$IMPORT_SECRET" && echo SET || echo EMPTY'
+   ```
 
-Без scheduler и без secret автозагрузка по cron **не работает**; import только вручную.
+Без `IMPORT_SECRET` compose **не создаёт** сервис scheduler (`:?` validation). Автозагрузка не работает.
 
 ### UI import не работает (старые образы до v0.3.27)
 
