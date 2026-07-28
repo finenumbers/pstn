@@ -4,6 +4,18 @@
 
 ---
 
+## v0.3.30
+
+### CI
+
+- `npm overrides` для `brace-expansion`, `postcss`, `sharp` — разблокирован `npm audit --audit-level=high` в CI (Docker publish).
+
+### UI (из v0.3.29, не опубликован в GHCR)
+
+- Polling статуса import через Server Action `getImportStatusFromUi`.
+
+---
+
 ## v0.3.29
 
 ### UI
