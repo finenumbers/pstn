@@ -4,6 +4,14 @@
 
 ---
 
+## v0.3.29
+
+### UI
+
+- Кнопка «Загрузить данные»: polling статуса import через Server Action `getImportStatusFromUi` — без `X-Import-Secret` в браузере (исправлена ошибка после v0.3.27).
+
+---
+
 ## v0.3.28
 
 ### Operations / Portainer

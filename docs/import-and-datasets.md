@@ -382,7 +382,7 @@ docker compose -f docker-compose.prod.yml logs scheduler --tail 50
 
 | Сценарий | Механизм | Secret |
 |----------|----------|--------|
-| UI «Загрузить данные» (v0.3.27+) | Server Action `startImportFromUi` | Не нужен в браузере |
+| UI «Загрузить данные» (v0.3.27+) | Server Actions `startImportFromUi` + `getImportStatusFromUi` | Не нужен в браузере |
 | UI «Загрузить данные» (до v0.3.27) | `POST /api/import` | 401, если secret задан и header не передан |
 | Cron scheduler | `POST /api/import` + `triggeredBy: cron` | **Обязателен** на app и в scheduler |
 | `GET /api/import/status` | `checkImportAuthorization` | Как manual POST |
