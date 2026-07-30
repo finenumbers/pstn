@@ -276,7 +276,7 @@ Jobs без heartbeat дольше **45 минут** помечаются failed
 
 > **Слишком много запросов. Повторите через N сек.**
 
-`N` берётся из заголовка `Retry-After`. Лимиты in-app (с v0.3.19): import — 3 req / 10 min; export — 10 req / min; facets — 60 req / min; lookup — 1800 req / min. Подробнее: [security.md](security.md#in-app-rate-limiting).
+`N` берётся из заголовка `Retry-After`. Лимиты in-app (с v0.3.19): import — 3 req / 10 min; export — 10 req / min; facets — 60 req / min; lookup — 2000 req / min. Подробнее: [security.md](security.md#in-app-rate-limiting).
 
 ### Экспорт — слишком много строк
 

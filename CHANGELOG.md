@@ -4,6 +4,14 @@
 
 ---
 
+## v0.3.32
+
+### API
+
+- Default in-app rate limit для `/api/v1/lookup*`: **2000 req / min** (было 1800).
+
+---
+
 ## v0.3.31
 
 ### API
