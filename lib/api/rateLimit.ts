@@ -61,7 +61,7 @@ export const RATE_LIMIT_DEFAULTS = {
   import: { maxRequests: 3, windowMs: 10 * 60 * 1000 },
   export: { maxRequests: 10, windowMs: 60 * 1000 },
   facets: { maxRequests: 60, windowMs: 60 * 1000 },
-  lookup: { maxRequests: 120, windowMs: 60 * 1000 },
+  lookup: { maxRequests: 1800, windowMs: 60 * 1000 },
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMIT_DEFAULTS;
