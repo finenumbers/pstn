@@ -140,8 +140,6 @@ describe("rangeDatasetDiff", () => {
   });
 
   it("handles many added segments without stack overflow", () => {
-    // One segment per unique ABC — exercises appendAll with >65k total segments
-    // without O(n²) findCoveringRange cost of a single large ABC bucket.
     const newRanges = Array.from({ length: 70_000 }, (_, index) =>
       range(String(800 + index), 100, 200)
     );
@@ -152,5 +150,32 @@ describe("rangeDatasetDiff", () => {
     expect(segments.every((segment) => segment.changeType === "added")).toBe(
       true
     );
+  });
+
+  it("diffs a large single-ABC dataset within a reasonable time", () => {
+    const chunkSize = 100;
+    const oldRanges = Array.from({ length: 50_000 }, (_, index) =>
+      range("495", index * chunkSize, index * chunkSize + chunkSize - 1, "Op A")
+    );
+    const newRanges = Array.from({ length: 50_000 }, (_, index) =>
+      range(
+        "495",
+        index * chunkSize,
+        index * chunkSize + chunkSize - 1,
+        index === 25_000 ? "Op B" : "Op A"
+      )
+    );
+
+    const startedAt = performance.now();
+    const segments = diffRangeDatasets(oldRanges, newRanges);
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(segments).toHaveLength(1);
+    expect(segments[0]).toMatchObject({
+      changeType: "changed",
+      operator: "Op B",
+      prevOperator: "Op A",
+    });
+    expect(elapsedMs).toBeLessThan(5_000);
   });
 });

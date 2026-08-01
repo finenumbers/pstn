@@ -39,7 +39,7 @@ import {
 import { saveVersionSnapshot } from "./versionSnapshot";
 import {
   countDiffSegments,
-  diffRangeDatasets,
+  diffRangeDatasetsAsync,
 } from "./rangeDatasetDiff";
 import { recoverStaleImportJobs } from "./recoverStaleImportJobs";
 import {
@@ -321,14 +321,26 @@ async function runImportJob(jobId: string): Promise<void> {
       .where(eq(importJobs.id, jobId));
 
     await assertImportJobStillRunning(jobId);
+    console.info(`Import ${jobId}: computing_diff loading ranges`);
     const [oldRanges, newRanges] = await Promise.all([
       loadImportDiffOldRanges(),
       loadStagingRangesForDiff(),
     ]);
+    await touchImportJobHeartbeat(jobId);
+    console.info(
+      `Import ${jobId}: computing_diff loaded old=${oldRanges.length} new=${newRanges.length}`
+    );
     // First import: production was empty — no baseline to compare, skip diff snapshot.
     const diffSegments =
-      oldRanges.length === 0 ? [] : diffRangeDatasets(oldRanges, newRanges);
+      oldRanges.length === 0
+        ? []
+        : await diffRangeDatasetsAsync(oldRanges, newRanges, () =>
+            touchImportJobHeartbeat(jobId)
+          );
     const diffCounts = countDiffSegments(diffSegments);
+    console.info(
+      `Import ${jobId}: computing_diff done segments=${diffSegments.length}`
+    );
     await touchImportJobHeartbeat(jobId);
 
     await db
@@ -412,6 +424,8 @@ async function runImportJob(jobId: string): Promise<void> {
 }
 
 export async function getImportStatus(jobId?: string) {
+  await recoverStaleImportJobs();
+
   let job;
   if (jobId) {
     const rows = await db

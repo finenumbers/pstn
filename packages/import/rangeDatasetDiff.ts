@@ -38,17 +38,34 @@ function sortRangesByStart(ranges: RangeRecord[]): RangeRecord[] {
   return [...ranges].sort((a, b) => a.rangeStart - b.rangeStart);
 }
 
+/** Two-pointer lookup: boundaries and segment starts are monotonic. */
 function findCoveringRange(
-  ranges: RangeRecord[],
+  sortedRanges: RangeRecord[],
+  pointer: number,
   segmentStart: number,
   segmentEnd: number
-): RangeRecord | null {
-  for (const range of ranges) {
-    if (range.rangeStart <= segmentStart && range.rangeEnd >= segmentEnd) {
-      return range;
-    }
+): { cover: RangeRecord | null; pointer: number } {
+  let index = pointer;
+  while (
+    index < sortedRanges.length &&
+    sortedRanges[index]!.rangeEnd < segmentStart
+  ) {
+    index++;
   }
-  return null;
+
+  if (index >= sortedRanges.length) {
+    return { cover: null, pointer: index };
+  }
+
+  const candidate = sortedRanges[index]!;
+  if (
+    candidate.rangeStart <= segmentStart &&
+    candidate.rangeEnd >= segmentEnd
+  ) {
+    return { cover: candidate, pointer: index };
+  }
+
+  return { cover: null, pointer: index };
 }
 
 function segmentCapacity(start: number, end: number): number {
@@ -163,14 +180,31 @@ export function diffRangesForAbc(
   if (boundaries.length < 2) return [];
 
   const segments: DiffSegment[] = [];
+  let oldPointer = 0;
+  let newPointer = 0;
 
   for (let index = 0; index < boundaries.length - 1; index++) {
     const segmentStart = boundaries[index]!;
     const segmentEnd = boundaries[index + 1]! - 1;
     if (segmentStart > segmentEnd) continue;
 
-    const oldCover = findCoveringRange(sortedOld, segmentStart, segmentEnd);
-    const newCover = findCoveringRange(sortedNew, segmentStart, segmentEnd);
+    const oldLookup = findCoveringRange(
+      sortedOld,
+      oldPointer,
+      segmentStart,
+      segmentEnd
+    );
+    oldPointer = oldLookup.pointer;
+    const oldCover = oldLookup.cover;
+
+    const newLookup = findCoveringRange(
+      sortedNew,
+      newPointer,
+      segmentStart,
+      segmentEnd
+    );
+    newPointer = newLookup.pointer;
+    const newCover = newLookup.cover;
 
     if (!oldCover && newCover) {
       segments.push({
@@ -220,39 +254,62 @@ export function diffRangesForAbc(
   return mergeAdjacentSegments(segments);
 }
 
+function groupRangesByAbc(ranges: RangeRecord[]): Map<string, RangeRecord[]> {
+  const byAbc = new Map<string, RangeRecord[]>();
+  for (const range of ranges) {
+    const list = byAbc.get(range.abc) ?? [];
+    list.push(range);
+    byAbc.set(range.abc, list);
+  }
+  return byAbc;
+}
+
+function collectAbcCodes(
+  oldRanges: RangeRecord[],
+  newRanges: RangeRecord[]
+): string[] {
+  const abcCodes = new Set<string>();
+  for (const range of oldRanges) abcCodes.add(range.abc);
+  for (const range of newRanges) abcCodes.add(range.abc);
+  return Array.from(abcCodes).sort();
+}
+
 export function diffRangeDatasets(
   oldRanges: RangeRecord[],
   newRanges: RangeRecord[]
 ): DiffSegment[] {
-  const abcCodes = new Set<string>();
-  for (const range of oldRanges) abcCodes.add(range.abc);
-  for (const range of newRanges) abcCodes.add(range.abc);
-
-  const oldByAbc = new Map<string, RangeRecord[]>();
-  const newByAbc = new Map<string, RangeRecord[]>();
-
-  for (const range of oldRanges) {
-    const list = oldByAbc.get(range.abc) ?? [];
-    list.push(range);
-    oldByAbc.set(range.abc, list);
-  }
-
-  for (const range of newRanges) {
-    const list = newByAbc.get(range.abc) ?? [];
-    list.push(range);
-    newByAbc.set(range.abc, list);
-  }
-
+  const oldByAbc = groupRangesByAbc(oldRanges);
+  const newByAbc = groupRangesByAbc(newRanges);
   const result: DiffSegment[] = [];
-  for (const abc of Array.from(abcCodes).sort()) {
+
+  for (const abc of collectAbcCodes(oldRanges, newRanges)) {
     appendAll(
       result,
-      diffRangesForAbc(
-        abc,
-        oldByAbc.get(abc) ?? [],
-        newByAbc.get(abc) ?? []
-      )
+      diffRangesForAbc(abc, oldByAbc.get(abc) ?? [], newByAbc.get(abc) ?? [])
     );
+  }
+
+  return result;
+}
+
+export async function diffRangeDatasetsAsync(
+  oldRanges: RangeRecord[],
+  newRanges: RangeRecord[],
+  onAbcProcessed?: () => void | Promise<void>
+): Promise<DiffSegment[]> {
+  const oldByAbc = groupRangesByAbc(oldRanges);
+  const newByAbc = groupRangesByAbc(newRanges);
+  const abcCodes = collectAbcCodes(oldRanges, newRanges);
+  const result: DiffSegment[] = [];
+
+  for (const abc of abcCodes) {
+    appendAll(
+      result,
+      diffRangesForAbc(abc, oldByAbc.get(abc) ?? [], newByAbc.get(abc) ?? [])
+    );
+    if (onAbcProcessed) {
+      await onAbcProcessed();
+    }
   }
 
   return result;

@@ -4,6 +4,17 @@
 
 ---
 
+## v0.3.33
+
+### Import
+
+- Оптимизация `computing_diff`: two-pointer lookup вместо O(n²) перебора — diff ~446k диапазонов за секунды вместо десятков минут.
+- Heartbeat import job при загрузке ranges из БД и после каждого ABC-кода во время diff.
+- Stale recovery при polling статуса (`getImportStatus`) — zombie jobs после рестарта контейнера сбрасываются без ожидания 45 мин.
+- Логирование фаз `computing_diff` в stdout контейнера.
+
+---
+
 ## v0.3.32
 
 ### API
