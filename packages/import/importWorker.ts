@@ -334,9 +334,9 @@ async function runImportJob(jobId: string): Promise<void> {
     const diffSegments =
       oldRanges.length === 0
         ? []
-        : await diffRangeDatasetsAsync(oldRanges, newRanges, () =>
-            touchImportJobHeartbeat(jobId)
-          );
+        : await diffRangeDatasetsAsync(oldRanges, newRanges, async () => {
+            await touchImportJobHeartbeat(jobId);
+          });
     const diffCounts = countDiffSegments(diffSegments);
     console.info(
       `Import ${jobId}: computing_diff done segments=${diffSegments.length}`
