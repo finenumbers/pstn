@@ -13,10 +13,14 @@ import type {
 
 export type { ImportProgress as ImportProgressDisplay } from "@/packages/shared/contracts/import.schema";
 
+/** Typical full MinDigital import volume — used for intra-file progress percent. */
+export const EXPECTED_IMPORT_ROWS = 446_000;
+
 const POST_LOAD_PHASES = [
   { id: "validating", label: "Проверка полноты данных" },
   { id: "computing_gaps", label: "Расчёт пропусков в диапазонах" },
   { id: "computing_diff", label: "Анализ расхождений по диапазонам" },
+  { id: "building_staging_indexes", label: "Подготовка индексов" },
   { id: "swapping", label: "Обновление таблицы и справочников" },
   { id: "saving_version_snapshot", label: "Сохранение версии датасета" },
   { id: "binding_uvr_antifraud", label: "Привязка УВр Антифрод" },
@@ -31,6 +35,7 @@ const PHASE_LABELS: Record<string, string> = {
   validating: "Проверка полноты данных…",
   computing_gaps: "Расчёт пропусков в диапазонах…",
   computing_diff: "Анализ расхождений по диапазонам…",
+  building_staging_indexes: "Подготовка индексов перед обновлением…",
   saving_version_snapshot: "Сохранение версии датасета…",
   saving_diff_snapshot: "Сохранение расхождений…",
   swapping: "Обновление таблицы и справочников…",
@@ -52,7 +57,8 @@ export function buildImportFileProgress(
   fileRows: Partial<LoadedRowsBySource>,
   jobStatus: ImportJobStatus,
   filesProcessed = 0,
-  filesTotal: number = SOURCE_FILES.length
+  filesTotal: number = SOURCE_FILES.length,
+  rowsLoaded = 0
 ): ImportFileProgress[] {
   if (jobStatus === "skipped") {
     return SOURCE_FILES.map((file) => ({
@@ -91,10 +97,16 @@ export function buildImportFileProgress(
     }
 
     if (loadingKey === file.key) {
+      const completedRows = SOURCE_FILES.reduce(
+        (sum, sourceFile) => sum + (fileRows[sourceFile.key] ?? 0),
+        0
+      );
+      const partialRows = Math.max(0, rowsLoaded - completedRows);
+
       return {
         key: file.key,
         status: jobStatus === "failed" ? ("failed" as const) : ("loading" as const),
-        rows: null,
+        rows: partialRows > 0 ? partialRows : null,
       };
     }
 
@@ -113,7 +125,9 @@ export function computeImportPercent(
   phase: string,
   filesProcessed: number,
   filesTotal: number,
-  jobStatus: ImportJobStatus
+  jobStatus: ImportJobStatus,
+  rowsLoaded = 0,
+  expectedRows = EXPECTED_IMPORT_ROWS
 ): number {
   if (jobStatus === "skipped") return 100;
   if (jobStatus === "completed") return 100;
@@ -129,20 +143,17 @@ export function computeImportPercent(
   if (phase === "skipped_unchanged") return 100;
   if (phase === "clearing_staging") return 4;
 
-  if (phase.startsWith("loading_")) {
-    const base = 8 + (filesProcessed / filesTotal) * 62;
-    return Math.min(72, Math.round(base + 4));
-  }
-
-  if (phase.startsWith("loaded_")) {
-    const base = 8 + (filesProcessed / filesTotal) * 62;
-    return Math.min(74, Math.round(base + 8));
+  if (phase.startsWith("loading_") || phase.startsWith("loaded_")) {
+    const rowProgress =
+      expectedRows > 0 ? Math.min(1, rowsLoaded / expectedRows) : 0;
+    return Math.min(72, Math.round(8 + rowProgress * 62));
   }
 
   const postPercent: Record<string, number> = {
     validating: 78,
     computing_gaps: 82,
     computing_diff: 86,
+    building_staging_indexes: 87,
     swapping: 89,
     saving_version_snapshot: 92,
     saving_diff_snapshot: 92,
@@ -272,13 +283,15 @@ export function buildImportProgressDisplay(input: {
     input.fileRows,
     input.status,
     input.filesProcessed,
-    input.filesTotal
+    input.filesTotal,
+    input.rowsLoaded
   );
   const percent = computeImportPercent(
     phase,
     input.filesProcessed,
     input.filesTotal,
-    input.status
+    input.status,
+    input.rowsLoaded
   );
 
   return {

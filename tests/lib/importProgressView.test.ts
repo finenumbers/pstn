@@ -90,6 +90,7 @@ describe("importProgressView", () => {
       "validating",
       "computing_gaps",
       "computing_diff",
+      "building_staging_indexes",
       "swapping",
       "saving_version_snapshot",
       "binding_uvr_antifraud",
@@ -132,6 +133,29 @@ describe("importProgressView", () => {
       "checking_sources",
       "skipped_unchanged",
     ]);
+  });
+
+  it("uses rowsLoaded for percent while CSV files are loading", () => {
+    expect(
+      computeImportPercent("loading_ABC-4xx", 1, 4, "running", 168_714)
+    ).toBe(31);
+  });
+
+  it("shows partial row count for the file currently loading", () => {
+    const files = buildImportFileProgress(
+      "loading_ABC-4xx",
+      { "ABC-3xx": 68_714 },
+      "running",
+      1,
+      4,
+      168_714
+    );
+
+    expect(files[1]).toEqual({
+      key: "ABC-4xx",
+      status: "loading",
+      rows: 100_000,
+    });
   });
 
   it("builds full progress display payload", () => {

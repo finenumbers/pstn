@@ -2,9 +2,11 @@ import { importDb, importPool, pool } from "@/packages/db";
 import { numberRangesStaging } from "@/packages/db/schema";
 import { RANGES_STAGING_TABLE } from "@/packages/db/importTables";
 import type { ParsedRangeRow } from "./csvParser";
+import { dropStagingSecondaryIndexes } from "./stagingIndexes";
 
 export async function clearStaging(): Promise<void> {
   await importPool().query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
+  await dropStagingSecondaryIndexes();
 }
 
 export async function insertBatch(

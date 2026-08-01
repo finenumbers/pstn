@@ -48,6 +48,9 @@ import {
 } from "./validateStagingImport";
 import { getDownloadStream } from "./sourceFileHttp";
 import {
+  ensureStagingProductionIndexes,
+} from "./stagingIndexes";
+import {
   hashAllSourceFiles,
   sourceHashesEqual,
   type SourceFileHashes,
@@ -144,12 +147,14 @@ async function loadSourceFile(
   }
 
   let fileRowsLoaded = 0;
+  let batchCount = 0;
 
   const parseResult = await parseCsvStream(
     response.body,
     async (batch) => {
       await insertBatch(batch, file.key);
       fileRowsLoaded += batch.length;
+      batchCount += 1;
 
       await importPool().query(
         `
@@ -162,6 +167,12 @@ async function loadSourceFile(
       `,
         [jobId, rowsBefore + fileRowsLoaded, `loading_${file.key}`]
       );
+
+      if (batchCount % 10 === 0) {
+        console.info(
+          `Import ${jobId}: loading ${file.key} rows=${rowsBefore + fileRowsLoaded}`
+        );
+      }
     },
     BATCH_SIZE
   );
@@ -341,6 +352,16 @@ async function runImportJob(jobId: string): Promise<void> {
     console.info(
       `Import ${jobId}: computing_diff done segments=${diffSegments.length}`
     );
+    await touchImportJobHeartbeat(jobId);
+
+    await db
+      .update(importJobs)
+      .set({ progressPhase: "building_staging_indexes" })
+      .where(eq(importJobs.id, jobId));
+
+    await assertImportJobStillRunning(jobId);
+    console.info(`Import ${jobId}: building staging indexes before swap`);
+    await ensureStagingProductionIndexes();
     await touchImportJobHeartbeat(jobId);
 
     await db
