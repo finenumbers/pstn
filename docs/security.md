@@ -66,7 +66,7 @@ flowchart TB
 | `POST /api/import` | 3 req / 10 min | `RATE_LIMIT_IMPORT=3/600000` |
 | `GET /api/export/ranges` | 10 req / min | `RATE_LIMIT_EXPORT=10/60000` |
 | `GET /api/ranges/facets` | 60 req / min | `RATE_LIMIT_FACETS=60/60000` |
-| `/api/v1/lookup*` | 2000 req / min | `RATE_LIMIT_LOOKUP=2000/60000` |
+| `/api/v1/lookup*` | 5000 req / min | `RATE_LIMIT_LOOKUP=5000/60000` |
 
 Формат env: `maxRequests/windowMs`. При превышении: **429** + заголовок `Retry-After`, тело с `code: "RATE_LIMITED"` и русским `message` («Слишком много запросов. Повторите через N сек.»).
 

@@ -44,7 +44,7 @@ X-Import-Secret: <IMPORT_SECRET>
 | `POST /api/import` | 3 req / 10 min | `RATE_LIMIT_IMPORT=3/600000` |
 | `GET /api/export/ranges` | 10 req / min | `RATE_LIMIT_EXPORT=10/60000` |
 | `GET /api/ranges/facets` | 60 req / min | `RATE_LIMIT_FACETS=60/60000` |
-| `/api/v1/lookup*` | 2000 req / min | `RATE_LIMIT_LOOKUP=2000/60000` |
+| `/api/v1/lookup*` | 5000 req / min | `RATE_LIMIT_LOOKUP=5000/60000` |
 
 Формат env: `maxRequests/windowMs`.
 
@@ -505,7 +505,7 @@ X-Export-Row-Count: 12345
 
 Точный lookup по 10-значному номеру. **Всегда ищет в current production** — параметр `dataset` не поддерживается.
 
-**Auth:** Bearer / `X-Api-Key`. **Rate limit:** 120 req / min (in-app).
+**Auth:** Bearer / `X-Api-Key`. **Rate limit:** общий bucket `/api/v1/lookup*` (in-app).
 
 **Query:** `phone` — ровно 10 цифр
 
@@ -531,7 +531,7 @@ X-Export-Row-Count: 12345
 
 Поиск диапазонов по маске (как «Найти номер» в UI).
 
-**Auth:** Bearer / `X-Api-Key`. **Rate limit:** 120 req / min (in-app).
+**Auth:** Bearer / `X-Api-Key`. **Rate limit:** общий bucket `/api/v1/lookup*` (in-app).
 
 **Query:** `phone`, `page`, `pageSize`, `dataset` (`current` или `diff:<uuid>`)
 

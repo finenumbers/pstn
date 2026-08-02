@@ -269,7 +269,7 @@ NPM устанавливается и обновляется **независи�
 | `/api/export/ranges` | 5 req/min на IP | Тяжёлый XLSX export |
 | `/api/v1/lookup/search` | 60 req/min на IP | Поиск по маске |
 | `/api/v1/lookup/by-inn` | 60 req/min на IP | Поиск по ИНН (list-style) |
-| `/api/v1/lookup` | 2000 req/min на IP | Точный lookup |
+| `/api/v1/lookup` | 5000 req/min на IP | Точный lookup |
 | `/api/import` | 1 req/10 min на IP | Защита от повторного full reload |
 
 #### Пример Custom Nginx Configuration (NPM → Advanced)
@@ -279,7 +279,7 @@ NPM устанавливается и обновляется **независи�
 ```nginx
 # Zone definitions — добавьте в http-контекст NPM или через custom snippet
 limit_req_zone $binary_remote_addr zone=pstn_export:10m rate=5r/m;
-limit_req_zone $binary_remote_addr zone=pstn_lookup:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=pstn_lookup:10m rate=5000r/m;
 limit_req_zone $binary_remote_addr zone=pstn_search:10m rate=60r/m;
 limit_req_zone $binary_remote_addr zone=pstn_import:10m rate=6r/h;
 
@@ -337,7 +337,7 @@ location /api/import {
 | `RATE_LIMIT_IMPORT` | нет | `3/600000` | In-app rate limit POST `/api/import` |
 | `RATE_LIMIT_EXPORT` | нет | `10/60000` | In-app rate limit GET `/api/export/ranges` |
 | `RATE_LIMIT_FACETS` | нет | `60/60000` | In-app rate limit GET `/api/ranges/facets` |
-| `RATE_LIMIT_LOOKUP` | нет | `2000/60000` | In-app rate limit `/api/v1/lookup*` |
+| `RATE_LIMIT_LOOKUP` | нет | `5000/60000` | In-app rate limit `/api/v1/lookup*` |
 
 > **Portainer:** в compose проброшены `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`, `IMPORT_SECRET` (для app и scheduler). Переменная `EXTERNAL_API_KEY` из [`portainer.env.example`](../portainer.env.example) **не попадает в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
 
