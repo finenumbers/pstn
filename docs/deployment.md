@@ -268,6 +268,7 @@ NPM устанавливается и обновляется **независи�
 |----------|---------------------|------------|
 | `/api/export/ranges` | 5 req/min на IP | Тяжёлый XLSX export |
 | `/api/v1/lookup/search` | 60 req/min на IP | Поиск по маске |
+| `/api/v1/lookup/by-inn` | 60 req/min на IP | Поиск по ИНН (list-style) |
 | `/api/v1/lookup` | 2000 req/min на IP | Точный lookup |
 | `/api/import` | 1 req/10 min на IP | Защита от повторного full reload |
 
@@ -287,6 +288,10 @@ location /api/export/ranges {
 }
 
 location /api/v1/lookup/search {
+    limit_req zone=pstn_search burst=10 nodelay;
+}
+
+location /api/v1/lookup/by-inn {
     limit_req zone=pstn_search burst=10 nodelay;
 }
 

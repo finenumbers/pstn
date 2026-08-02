@@ -81,6 +81,7 @@ export function ExternalApiHelpDialog({
   const [apiBaseUrl, setApiBaseUrl] = useState<string | null>(null);
   const [exactCurl, setExactCurl] = useState("");
   const [searchCurl, setSearchCurl] = useState("");
+  const [byInnCurl, setByInnCurl] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -105,6 +106,7 @@ export function ExternalApiHelpDialog({
         setApiBaseUrl(null);
         setExactCurl("");
         setSearchCurl("");
+        setByInnCurl("");
         setLoadError("Не удалось загрузить примеры API. Попробуйте позже.");
         return;
       }
@@ -113,16 +115,19 @@ export function ExternalApiHelpDialog({
         baseUrl?: string | null;
         exactCurl?: string;
         searchCurl?: string;
+        byInnCurl?: string;
       };
       setConfigured(payload.configured === true);
       setApiBaseUrl(payload.baseUrl ?? null);
       setExactCurl(payload.exactCurl ?? "");
       setSearchCurl(payload.searchCurl ?? "");
+      setByInnCurl(payload.byInnCurl ?? "");
     } catch {
       setConfigured(false);
       setApiBaseUrl(null);
       setExactCurl("");
       setSearchCurl("");
+      setByInnCurl("");
       setLoadError(
         "Не удалось загрузить примеры API. Проверьте соединение и повторите."
       );
@@ -183,6 +188,18 @@ export function ExternalApiHelpDialog({
             </p>
           </section>
 
+          <section className="space-y-1">
+            <h3 className="font-medium">Поиск по ИНН</h3>
+            <p className="text-muted-foreground">
+              <code className="text-xs">
+                GET /api/v1/lookup/by-inn?inn=&lt;10 или 12 цифр&gt;&amp;page=1&amp;pageSize=50
+              </code>{" "}
+              — диапазоны оператора по ИНН и{" "}
+              <code className="text-xs">meta.totalRows</code>.{" "}
+              <code className="text-xs">pageSize</code> max 100.
+            </p>
+          </section>
+
           <section className="space-y-3 border-t pt-4">
             <p className="text-xs text-muted-foreground">
               Примеры ниже — готовые curl с ключом и адресом внешнего API
@@ -195,11 +212,13 @@ export function ExternalApiHelpDialog({
               <div className="space-y-3">
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
               </div>
             ) : configured && searchCurl ? (
               <div className="space-y-4">
                 <ExampleBlock title="Точный номер" curlExample={exactCurl} />
                 <ExampleBlock title="Поиск по маске" curlExample={searchCurl} />
+                <ExampleBlock title="Поиск по ИНН" curlExample={byInnCurl} />
               </div>
             ) : loadError ? (
               <p className="text-xs text-red-800" role="alert">

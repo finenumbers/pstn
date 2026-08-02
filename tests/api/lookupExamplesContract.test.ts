@@ -9,11 +9,14 @@ describe("lookup examples API contract", () => {
         'curl -s "https://api.pstn.example.com/api/v1/lookup?phone=4996660000" -H "Authorization: Bearer secret"',
       searchCurl:
         'curl -s "https://api.pstn.example.com/api/v1/lookup/search?phone=499X66XXXX&page=1&pageSize=50" -H "Authorization: Bearer secret"',
+      byInnCurl:
+        'curl -s "https://api.pstn.example.com/api/v1/lookup/by-inn?inn=5406978329&page=1&pageSize=50" -H "Authorization: Bearer secret"',
     };
 
     expect(configuredResponse).not.toHaveProperty("apiKey");
     expect(Object.keys(configuredResponse).sort()).toEqual([
       "baseUrl",
+      "byInnCurl",
       "configured",
       "exactCurl",
       "searchCurl",

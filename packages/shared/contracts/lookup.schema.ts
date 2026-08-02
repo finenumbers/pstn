@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeInn } from "@/lib/inn/normalizeInn";
 import { parseLookupSearchPhone } from "@/lib/phoneNumberMask";
 import type { NumberRangeRow } from "./filters.schema";
 
@@ -57,6 +58,54 @@ export function parseLookupSearchQuery(input: unknown):
   };
 }
 
+export const lookupByInnQuerySchema = z.object({
+  inn: z.string().min(1, "INN is required"),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LOOKUP_SEARCH_PAGE_SIZE_MAX)
+    .default(50),
+});
+
+export type LookupByInnQuery = z.infer<typeof lookupByInnQuerySchema>;
+
+function isValidLookupInn(inn: string): boolean {
+  return inn.length === 10 || inn.length === 12;
+}
+
+export function parseLookupByInnQuery(input: unknown):
+  | { success: true; data: LookupByInnQuery & { inn: string } }
+  | { success: false; error: z.ZodError } {
+  const parsed = lookupByInnQuerySchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error };
+  }
+
+  const inn = normalizeInn(parsed.data.inn);
+  if (!isValidLookupInn(inn)) {
+    return {
+      success: false,
+      error: new z.ZodError([
+        {
+          code: z.ZodIssueCode.custom,
+          message: "INN must be 10 or 12 digits",
+          path: ["inn"],
+        },
+      ]),
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      ...parsed.data,
+      inn,
+    },
+  };
+}
+
 export interface LookupSuccessResponse {
   found: true;
   phone: string;
@@ -72,6 +121,17 @@ export type LookupResponse = LookupSuccessResponse | LookupNotFoundResponse;
 
 export interface LookupSearchResponse {
   phone: string;
+  data: NumberRangeRow[];
+  meta: {
+    page: number;
+    pageSize: number;
+    totalRows: number;
+    hasMore: boolean;
+  };
+}
+
+export interface LookupByInnResponse {
+  inn: string;
   data: NumberRangeRow[];
   meta: {
     page: number;

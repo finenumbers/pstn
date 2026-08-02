@@ -11,7 +11,7 @@
 | Класс endpoints | Auth в приложении | Рекомендация |
 |-----------------|-------------------|--------------|
 | Internal (ranges, summary, export, import, examples, config, health, storage, datasets) | **Нет** | NPM Access List |
-| External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`) | Bearer или `X-Api-Key` | Ключ + rate limit |
+| External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`, `/api/v1/lookup/by-inn`) | Bearer или `X-Api-Key` | Ключ + rate limit |
 
 ### External lookup headers
 
@@ -149,7 +149,7 @@ Facet-колонка `changedFields` поддерживается в `GET /api/r
 
 ### Датасет (`dataset`)
 
-Параметр `dataset` доступен для `/api/ranges`, `/api/ranges/facets`, `/api/summary`, `/api/export/ranges`, `/api/v1/lookup/search`.
+Параметр `dataset` доступен для `/api/ranges`, `/api/ranges/facets`, `/api/summary`, `/api/export/ranges`, `/api/v1/lookup/search`, `/api/v1/lookup/by-inn`.
 
 | Значение | Описание |
 |----------|----------|
@@ -542,6 +542,26 @@ X-Export-Row-Count: 12345
   "phone": "499X66XXXX",
   "data": [],
   "meta": { "page": 1, "pageSize": 50, "totalRows": 123, "hasMore": false }
+}
+```
+
+---
+
+### `GET /api/v1/lookup/by-inn`
+
+Поиск диапазонов по ИНН оператора.
+
+**Auth:** Bearer / `X-Api-Key`. **Rate limit:** общий bucket `/api/v1/lookup*` (in-app).
+
+**Query:** `inn` — 10 или 12 цифр (нецифровые символы отбрасываются), `page`, `pageSize`, `dataset` (`current` или `diff:<uuid>`)
+
+**Response 200:**
+
+```json
+{
+  "inn": "5406978329",
+  "data": [],
+  "meta": { "page": 1, "pageSize": 50, "totalRows": 12, "hasMore": false }
 }
 ```
 

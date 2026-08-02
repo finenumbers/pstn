@@ -8,6 +8,8 @@ import {
 
 export const LOOKUP_DEFAULT_PHONE = "4996660000";
 export const LOOKUP_DEFAULT_MASK = "499X66XXXX";
+/** ООО «Фронтир Нетворк» — default INN for curl examples. */
+export const LOOKUP_DEFAULT_INN = "5406978329";
 
 export function phoneQueryFromMask(maskValue: string): string | null {
   const slots = normalizePhoneMask(maskValue);
@@ -51,12 +53,26 @@ export function buildLookupSearchCurlExample(
   return `curl -s "${base}/api/v1/lookup/search?phone=${encodedPhone}&page=${page}&pageSize=${pageSize}${datasetQuery}" -H "Authorization: Bearer ${apiKey}"`;
 }
 
+export function buildLookupByInnCurlExample(
+  origin: string,
+  apiKey: string,
+  inn: string = LOOKUP_DEFAULT_INN,
+  page = 1,
+  pageSize = 50,
+  dataset = "current"
+): string {
+  const base = origin.replace(/\/$/, "");
+  const encodedInn = encodeURIComponent(inn);
+  const datasetQuery = dataset !== "current" ? `&dataset=${encodeURIComponent(dataset)}` : "";
+  return `curl -s "${base}/api/v1/lookup/by-inn?inn=${encodedInn}&page=${page}&pageSize=${pageSize}${datasetQuery}" -H "Authorization: Bearer ${apiKey}"`;
+}
+
 export function buildLookupCurlExamples(
   origin: string,
   apiKey: string,
   phoneMask = "",
   dataset = "current"
-): { exactCurl: string; searchCurl: string } {
+): { exactCurl: string; searchCurl: string; byInnCurl: string } {
   const exactPhone = phoneQueryFromMask(phoneMask);
   const searchMask = maskSearchQueryFromMask(phoneMask);
   return {
@@ -69,6 +85,14 @@ export function buildLookupCurlExamples(
       origin,
       apiKey,
       searchMask,
+      1,
+      50,
+      dataset
+    ),
+    byInnCurl: buildLookupByInnCurlExample(
+      origin,
+      apiKey,
+      LOOKUP_DEFAULT_INN,
       1,
       50,
       dataset

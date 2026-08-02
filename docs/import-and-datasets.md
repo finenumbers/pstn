@@ -238,7 +238,7 @@ Unlogged temp-таблица — копия данных `number_ranges` (без
 | `current` (default) | Таблица `number_ranges` |
 | `diff:<uuid>` | Таблица `number_range_diffs` с фильтром `snapshot_id = uuid` |
 
-Поддерживается на: `/api/ranges`, `/api/ranges/facets`, `/api/summary`, `/api/export/ranges`, `/api/v1/lookup/search`.
+Поддерживается на: `/api/ranges`, `/api/ranges/facets`, `/api/summary`, `/api/export/ranges`, `/api/v1/lookup/search`, `/api/v1/lookup/by-inn`.
 
 **Не поддерживается** на exact lookup: `GET /api/v1/lookup?phone=...` всегда ищет в current production.
 

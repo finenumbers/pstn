@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildLookupByInnCurlExample,
   buildLookupCurlExample,
   buildLookupCurlExamples,
   buildLookupSearchCurlExample,
+  LOOKUP_DEFAULT_INN,
   LOOKUP_DEFAULT_MASK,
   LOOKUP_DEFAULT_PHONE,
   maskSearchQueryFromMask,
@@ -38,6 +40,18 @@ describe("lookupApiExample", () => {
     expect(curl).toContain("pageSize=50");
   });
 
+  it("builds by-inn curl with pagination", () => {
+    const curl = buildLookupByInnCurlExample(
+      "https://api.pstn.example.com",
+      "test-api-key"
+    );
+    expect(curl).toContain("/api/v1/lookup/by-inn?inn=");
+    expect(curl).toContain(LOOKUP_DEFAULT_INN);
+    expect(curl).toContain("page=1");
+    expect(curl).toContain("pageSize=50");
+    expect(curl).toContain("Bearer test-api-key");
+  });
+
   it("includes dataset param in search curl when not current", () => {
     const snapshotId = "550e8400-e29b-41d4-a716-446655440000";
     const curl = buildLookupSearchCurlExample(
@@ -65,7 +79,7 @@ describe("lookupApiExample", () => {
   });
 
   it("uses default phone in exact curl when mask is incomplete", () => {
-    const { exactCurl, searchCurl } = buildLookupCurlExamples(
+    const { exactCurl, searchCurl, byInnCurl } = buildLookupCurlExamples(
       "https://api.pstn.example.com",
       "secret-key-123",
       "301______"
@@ -73,10 +87,11 @@ describe("lookupApiExample", () => {
     expect(exactCurl).toContain(`phone=${LOOKUP_DEFAULT_PHONE}`);
     expect(exactCurl).toContain("Bearer secret-key-123");
     expect(searchCurl).toContain(encodeURIComponent("301XXXXXXX"));
+    expect(byInnCurl).toContain(`inn=${LOOKUP_DEFAULT_INN}`);
   });
 
   it("builds paired curl examples from complete phone mask input", () => {
-    const { exactCurl, searchCurl } = buildLookupCurlExamples(
+    const { exactCurl, searchCurl, byInnCurl } = buildLookupCurlExamples(
       "https://api.pstn.example.com",
       "secret-key-123",
       "3012110000"
@@ -84,6 +99,7 @@ describe("lookupApiExample", () => {
     expect(exactCurl).toContain("phone=3012110000");
     expect(exactCurl).toContain("Bearer secret-key-123");
     expect(searchCurl).toContain(encodeURIComponent("3012110000"));
+    expect(byInnCurl).toContain(`/api/v1/lookup/by-inn?inn=${LOOKUP_DEFAULT_INN}`);
   });
 
   it("prefers configured base URL over request host", () => {

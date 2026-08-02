@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const { exactCurl, searchCurl } = buildLookupCurlExamples(
+  const { exactCurl, searchCurl, byInnCurl } = buildLookupCurlExamples(
     origin,
     apiKey,
     phoneMask,
@@ -55,5 +55,6 @@ export async function GET(request: NextRequest) {
     baseUrl: configuredBaseUrl ?? origin,
     exactCurl,
     searchCurl,
+    byInnCurl,
   });
 }

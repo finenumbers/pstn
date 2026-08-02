@@ -132,7 +132,9 @@ function isNineSeriesAbc(abc: string): boolean {
   return abc.startsWith("9");
 }
 
-const ROW_HEIGHT_PX = 40;
+/** Body cell vertical padding is 6.4px (20% less than p-2 / 8px). */
+const ROW_HEIGHT_PX = 37;
+const DATA_CELL_PY_CLASS = "py-[6.4px]";
 
 export function RangesTable({
   listKey,
@@ -426,7 +428,7 @@ export function RangesTable({
           return (
             <TableCell
               key={cell.id}
-              className={compact.className}
+              className={cn(DATA_CELL_PY_CLASS, compact.className)}
               style={compact.style}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -682,7 +684,7 @@ export function RangesTable({
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
                   {columnOrder.map((colId) => (
-                    <TableCell key={colId}>
+                    <TableCell key={colId} className={DATA_CELL_PY_CLASS}>
                       <Skeleton className="h-4 w-full" />
                     </TableCell>
                   ))}
