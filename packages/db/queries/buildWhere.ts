@@ -24,7 +24,6 @@ export const COVERAGE_AND_COLUMNS = [
   "abc",
   "region",
   "garTerritory",
-  "operator",
 ] as const;
 
 export type CoverageAndColumn = (typeof COVERAGE_AND_COLUMNS)[number];
@@ -213,6 +212,9 @@ export function collectWhereConditions(
     if (cond) conditions.push(cond);
   }
 
+  if (excludeColumn !== "operator" && filters.operator.length > 0) {
+    conditions.push(inArray(columns.operator, filters.operator));
+  }
   if (excludeColumn !== "inn" && filters.inn.length > 0) {
     conditions.push(inArray(columns.inn, filters.inn));
   }

@@ -35,7 +35,7 @@ export const SORTABLE_COLUMNS = [
 export type SortableColumn = (typeof SORTABLE_COLUMNS)[number];
 
 export const FILTER_LIMITS = {
-  /** Coverage AND columns (abc, operator, garTerritory, region). */
+  /** Coverage AND columns (abc, garTerritory, region). */
   maxCoverageArrayLength: 20,
   maxArrayLength: 50,
   maxArrayItemLength: 200,
@@ -53,7 +53,7 @@ const orMultiArraySchema = z
 
 export const filtersSchema = z.object({
   abc: coverageArraySchema.default([]),
-  operator: coverageArraySchema.default([]),
+  operator: orMultiArraySchema.default([]),
   garTerritory: coverageArraySchema.default([]),
   region: coverageArraySchema.default([]),
   inn: orMultiArraySchema.default([]),
@@ -268,7 +268,7 @@ export function parseFiltersFromSearchParams(
   };
   const raw = {
     abc: getArray("abc"),
-    operator: getArray("operator"),
+    operator: getOrMultiArray("operator"),
     garTerritory: getArray("garTerritory"),
     region: getArray("region"),
     inn: getOrMultiArray("inn"),

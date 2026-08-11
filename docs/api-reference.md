@@ -114,7 +114,7 @@ Content-Type: application/json
 | Parameter | Формат | Описание |
 |-----------|--------|----------|
 | `filters.abc` | `301\|\|\|353` | Coverage AND, max 20 |
-| `filters.operator` | values `|||` | Coverage AND, max 20 |
+| `filters.operator` | values `|||` | OR, max 50 |
 | `filters.region` | values `|||` | Coverage AND, max 20 |
 | `filters.garTerritory` | values `|||` | Coverage AND, max 20 |
 | `filters.inn` | values `|||` | OR, max 50 |

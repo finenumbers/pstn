@@ -24,6 +24,24 @@ describe("filter URL bounds", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("allows operator OR arrays up to maxArrayLength and rejects oversize", () => {
+    const maxOps = Array.from(
+      { length: FILTER_LIMITS.maxArrayLength },
+      (_, index) => `ООО "Оператор ${index}"`
+    );
+    expect(
+      filtersSchema.safeParse({ ...DEFAULT_FILTERS, operator: maxOps }).success
+    ).toBe(true);
+
+    const tooMany = [
+      ...maxOps,
+      'ООО "Оператор лишний"',
+    ];
+    expect(
+      filtersSchema.safeParse({ ...DEFAULT_FILTERS, operator: tooMany }).success
+    ).toBe(false);
+  });
+
   it("clamps oversized URL params when parsing search params", () => {
     const params = new URLSearchParams();
     params.set(
@@ -39,11 +57,19 @@ describe("filter URL bounds", () => {
         "|||"
       )
     );
+    params.set(
+      "filters.operator",
+      Array.from(
+        { length: FILTER_LIMITS.maxArrayLength + 5 },
+        (_, index) => `ООО "Оп ${index}"`
+      ).join("|||")
+    );
     params.set("filters.rangeStart", "x".repeat(FILTER_LIMITS.maxTextFilterLength + 20));
 
     const filters = parseFiltersFromSearchParams(params);
     expect(filters.abc).toHaveLength(FILTER_LIMITS.maxCoverageArrayLength);
     expect(filters.inn).toHaveLength(FILTER_LIMITS.maxArrayLength);
+    expect(filters.operator).toHaveLength(FILTER_LIMITS.maxArrayLength);
     expect(filters.rangeStart).toHaveLength(FILTER_LIMITS.maxTextFilterLength);
   });
 });

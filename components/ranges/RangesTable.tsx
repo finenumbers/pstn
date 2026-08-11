@@ -128,9 +128,36 @@ function renderInnCellValue(inn: string | null | undefined) {
   );
 }
 
-/** Body cell vertical padding is 6.4px (20% less than p-2 / 8px). */
+/** Fixed single-line body row height (virtualizer estimate). */
 const ROW_HEIGHT_PX = 32;
 const DATA_CELL_PY_CLASS = "py-1";
+const TEXT_CELL_CLASS =
+  "min-w-0 max-w-[28rem] truncate whitespace-nowrap";
+
+function getCellTitle(
+  row: NumberRangeRow,
+  columnId: string
+): string | undefined {
+  switch (columnId) {
+    case "operator":
+    case "region":
+    case "garTerritory":
+    case "inn": {
+      const value = row[columnId];
+      return value ? String(value) : undefined;
+    }
+    case "changeStatus": {
+      const label = formatChangeStatusLabel(row);
+      return label === "—" ? undefined : label;
+    }
+    case "changedFields": {
+      const label = formatChangedFieldsLabel(row);
+      return label === "—" ? undefined : label;
+    }
+    default:
+      return undefined;
+  }
+}
 
 export function RangesTable({
   listKey,
@@ -285,13 +312,13 @@ export function RangesTable({
   const getCompactCellProps = (columnId: string) => {
     if (columnId === "abc") {
       return {
-        className: "whitespace-nowrap tabular-nums",
+        className: "truncate whitespace-nowrap tabular-nums",
         style: compactColumnStyle(abcColumnWidthCh),
       };
     }
     if (columnId === "inn") {
       return {
-        className: "whitespace-nowrap tabular-nums",
+        className: "truncate whitespace-nowrap tabular-nums",
         style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
       };
     }
@@ -301,16 +328,29 @@ export function RangesTable({
       columnId === "changedFields"
     ) {
       return {
-        className: "whitespace-nowrap tabular-nums",
+        className: "truncate whitespace-nowrap tabular-nums",
         style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
       };
     }
+    if (
+      columnId === "operator" ||
+      columnId === "region" ||
+      columnId === "garTerritory"
+    ) {
+      return {
+        className: TEXT_CELL_CLASS,
+        style: undefined,
+      };
+    }
     if (!isCompactColumn(columnId)) {
-      return { className: undefined, style: undefined };
+      return {
+        className: "truncate whitespace-nowrap",
+        style: undefined,
+      };
     }
     const ch = compactWidths[columnId];
     return {
-      className: "whitespace-nowrap tabular-nums",
+      className: "truncate whitespace-nowrap tabular-nums",
       style: compactColumnStyle(ch),
     };
   };
@@ -405,11 +445,13 @@ export function RangesTable({
             .find((visibleCell) => visibleCell.column.id === colId);
           if (!cell) return null;
           const compact = getCompactCellProps(colId);
+          const title = getCellTitle(row.original, colId);
           return (
             <TableCell
               key={cell.id}
               className={cn(DATA_CELL_PY_CLASS, compact.className)}
               style={compact.style}
+              title={title}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
             </TableCell>

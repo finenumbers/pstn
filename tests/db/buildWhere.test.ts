@@ -36,6 +36,7 @@ describe("buildWhere", () => {
     const excludeOperator = buildWhere(filters, "operator");
     expect(withOperator).toBeDefined();
     expect(excludeOperator).toBeDefined();
+    expect(excludeOperator).not.toEqual(withOperator);
   });
 
   it("builds distinct where for multi-select ABC", () => {
@@ -44,6 +45,29 @@ describe("buildWhere", () => {
     expect(single).toBeDefined();
     expect(multi).toBeDefined();
     expect(multi).not.toEqual(single);
+  });
+
+  it("builds multi-select operator OR differently from single operator", () => {
+    const single = buildWhere({
+      ...DEFAULT_FILTERS,
+      operator: ['ПАО "Ростелеком"'],
+    });
+    const multi = buildWhere({
+      ...DEFAULT_FILTERS,
+      operator: ['ПАО "Ростелеком"', 'АО "УФАНЕТ"'],
+    });
+    expect(single).toBeDefined();
+    expect(multi).toBeDefined();
+    expect(multi).not.toEqual(single);
+
+    const excludeSelf = buildWhere(
+      {
+        ...DEFAULT_FILTERS,
+        operator: ['ПАО "Ростелеком"', 'АО "УФАНЕТ"'],
+      },
+      "operator"
+    );
+    expect(excludeSelf).toBeUndefined();
   });
 
   it("applies snapshot filter in diff context for coverage AND", () => {
