@@ -36,7 +36,6 @@ const HEADER_FONT: Partial<ExcelJS.Font> = {
   size: 11,
   bold: true,
 };
-const ROW_HEIGHT = 15;
 const COL_WIDTH_CAP = 80;
 const COL_WIDTH_PAD = 2;
 
@@ -222,7 +221,6 @@ export async function writeRangesXlsxToStream(
     dataRowsOnSheet = 0;
 
     const headerRow = worksheet.addRow(columns.map((col) => col.header ?? ""));
-    headerRow.height = ROW_HEIGHT;
     headerRow.font = HEADER_FONT;
     headerRow.alignment = {
       horizontal: "center",
@@ -355,7 +353,6 @@ export async function writeRangesXlsxToStream(
         }
 
         const addedRow = worksheet!.addRow(exportRow);
-        addedRow.height = ROW_HEIGHT;
         for (let col = 1; col <= columnCount; col++) {
           const cell = addedRow.getCell(col);
           cell.border = borders;

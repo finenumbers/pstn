@@ -129,8 +129,8 @@ function renderInnCellValue(inn: string | null | undefined) {
 }
 
 /** Body cell vertical padding is 6.4px (20% less than p-2 / 8px). */
-const ROW_HEIGHT_PX = 37;
-const DATA_CELL_PY_CLASS = "py-[6.4px]";
+const ROW_HEIGHT_PX = 32;
+const DATA_CELL_PY_CLASS = "py-1";
 
 export function RangesTable({
   listKey,
