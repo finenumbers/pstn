@@ -372,13 +372,11 @@ curl -X POST "https://pstn.example.com/api/import" \
 - Проверьте ключ: диалог **API** на `/ranges` (готовые curl) или `docker compose exec app cat /app/.secrets/external_api_key`
 - Header: `Authorization: Bearer <key>` или `X-Api-Key`
 
-### Export EXPORT_TOO_LARGE
+### Export медленный / большой объём
 
-Сузьте фильтры — лимит **500 000** строк.
+Лимита по числу строк **нет**. >25k строк идут через `POST /api/export/jobs` (прогресс в UI). Файлы на volume `pstn_exports` (`/app/data/exports`), TTL 6 часов. Один тяжёлый export job одновременно.
 
-### Export медленный
-
-> 100k строк — ожидайте несколько минут. UI показывает confirm.
+NPM Proxy Host для PSTN: задайте `proxy_read_timeout 600` / `proxy_send_timeout 600` (для мелкого sync и download).
 
 ### Portainer: зелёная галочка, но код старый
 

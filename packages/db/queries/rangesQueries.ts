@@ -496,13 +496,16 @@ export async function listRangesForExport(
   limit: number,
   cursor?: RangesCursor | null,
   dataset?: DatasetRef,
-  asOf?: string | null
+  asOf?: string | null,
+  contextOverride?: RangeQueryContext
 ) {
-  const context = dataset
-    ? await resolveRangeQueryContext(dataset, asOf)
-    : asOf
-      ? await resolveRangeQueryContext({ kind: "current" }, asOf)
-      : CURRENT_RANGE_CONTEXT;
+  const context =
+    contextOverride ??
+    (dataset
+      ? await resolveRangeQueryContext(dataset, asOf)
+      : asOf
+        ? await resolveRangeQueryContext({ kind: "current" }, asOf)
+        : CURRENT_RANGE_CONTEXT);
   const table = context.table;
   const baseWhere = buildWhere(filters, context);
   const keysetWhere = cursor
@@ -517,6 +520,7 @@ export async function listRangesForExport(
     : undefined;
   const where = mergeKeysetWhere(baseWhere, keysetWhere);
 
+  // UVR resolved in-process via loadUvrLookupMap (avoids regexp JOIN per batch).
   return db
     .select({
       id: table.id,
@@ -528,7 +532,6 @@ export async function listRangesForExport(
       garTerritory: table.garTerritory,
       region: table.region,
       inn: table.inn,
-      uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: context.isDiff
         ? sql<boolean>`false`
         : context.isFull
@@ -548,7 +551,6 @@ export async function listRangesForExport(
         : sql<null>`null`,
     })
     .from(table)
-    .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
     .where(where)
     .orderBy(asc(table.abc), asc(table.rangeStart), asc(table.id))
     .limit(limit);

@@ -84,7 +84,11 @@ done
 
 ensure_external_api_key
 
+EXPORT_DIR="${EXPORT_DIR:-/app/data/exports}"
+mkdir -p "$EXPORT_DIR"
+chown nextjs:nodejs "$EXPORT_DIR"
+
 echo "[pstn] APP_VERSION=${APP_VERSION:-unknown} APP_REVISION=${APP_REVISION:-unknown} hostname=$(hostname)"
 
 echo "Starting PSTN Analytics on port ${PORT:-5555}..."
-exec su-exec nextjs env EXTERNAL_API_KEY="${EXTERNAL_API_KEY}" node server.js
+exec su-exec nextjs env EXTERNAL_API_KEY="${EXTERNAL_API_KEY}" EXPORT_DIR="${EXPORT_DIR}" node server.js

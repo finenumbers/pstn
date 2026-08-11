@@ -1,11 +1,23 @@
 import type { FiltersDTO, NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 import type { DatasetRef } from "@/packages/shared/contracts/dataset.schema";
+import { listRangesForExport } from "@/packages/db/queries/rangesQueries";
 import {
-  listRangesForExport,
-} from "@/packages/db/queries/rangesQueries";
+  CURRENT_RANGE_CONTEXT,
+  resolveRangeQueryContext,
+} from "@/packages/db/queries/datasetContext";
+import {
+  loadUvrLookupMap,
+  lookupUvrAntifraud,
+} from "@/packages/db/queries/uvrLookupMap";
 import { rowToRangesCursor } from "@/lib/api/rangesCursor";
 import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
+import {
+  getRangeRowHighlight,
+  RANGE_ROW_HIGHLIGHT_ARGB,
+  type RangeRowHighlightKind,
+} from "@/lib/table/rangeRowHighlight";
 import { sanitizeSpreadsheetCell } from "@/lib/export/sanitizeSpreadsheetCell";
+import { EXCEL_SHEET_MAX_DATA_ROWS } from "@/lib/export/exportLimits";
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
@@ -14,8 +26,31 @@ import {
 import ExcelJS from "exceljs";
 import { PassThrough } from "node:stream";
 import { Readable } from "node:stream";
+import type { Writable } from "node:stream";
 
-export const EXPORT_BATCH_SIZE = 5000;
+export const EXPORT_BATCH_SIZE = 10_000;
+
+const FONT: Partial<ExcelJS.Font> = { name: "Calibri", size: 11 };
+const HEADER_FONT: Partial<ExcelJS.Font> = {
+  name: "Calibri",
+  size: 11,
+  bold: true,
+};
+const ROW_HEIGHT = 15;
+const COL_WIDTH_CAP = 80;
+const COL_WIDTH_PAD = 2;
+
+const THIN_BORDER: Partial<ExcelJS.Border> = { style: "thin" };
+const GAP_BORDER: Partial<ExcelJS.Border> = {
+  style: "medium",
+  color: { argb: "FFEF4444" },
+};
+
+const HEADER_FILL: ExcelJS.Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: "FFF3F4F6" },
+};
 
 export const EXPORT_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "ABC", key: "abc", width: 6 },
@@ -46,13 +81,6 @@ export const EXPORT_DIFF_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Новый ИНН", key: "newInn", width: 15 },
 ];
 
-const THIN_BORDER: Partial<ExcelJS.Border> = { style: "thin" };
-
-const GAP_BORDER: Partial<ExcelJS.Border> = {
-  style: "medium",
-  color: { argb: "FFEF4444" },
-};
-
 export function rowCellBorders(
   gapBefore: boolean,
   gapAfter = false
@@ -65,20 +93,59 @@ export function rowCellBorders(
   };
 }
 
-function applyRowBorders(
-  row: ExcelJS.Row,
-  columnCount: number,
-  gapBefore = false,
-  gapAfter = false
+function fillForHighlight(
+  kind: RangeRowHighlightKind | null
+): ExcelJS.Fill | undefined {
+  if (!kind) return undefined;
+  return {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: RANGE_ROW_HIGHLIGHT_ARGB[kind] },
+  };
+}
+
+function displayLength(value: unknown): number {
+  if (value == null) return 0;
+  return String(value).length;
+}
+
+function applyColumnWidths(
+  worksheet: ExcelJS.Worksheet,
+  maxLens: number[],
+  columnCount: number
 ) {
-  const borders = rowCellBorders(gapBefore, gapAfter);
-  for (let col = 1; col <= columnCount; col++) {
-    row.getCell(col).border = borders;
+  for (let i = 0; i < columnCount; i++) {
+    const width = Math.min(
+      COL_WIDTH_CAP,
+      Math.max(8, (maxLens[i] ?? 0) + COL_WIDTH_PAD)
+    );
+    const col = worksheet.getColumn(i + 1);
+    col.width = width;
   }
 }
 
-function exportRowToNumberRangeRow(
-  row: Awaited<ReturnType<typeof listRangesForExport>>[number]
+function colLetter(index1Based: number): string {
+  let n = index1Based;
+  let s = "";
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+const CHANGE_TYPE_LABELS: Record<string, string> = {
+  added: "Добавлено",
+  changed: "Изменено",
+  removed: "Удалено",
+};
+
+type ExportDbRow = Awaited<ReturnType<typeof listRangesForExport>>[number];
+
+function toNumberRangeRow(
+  row: ExportDbRow,
+  uvrAntifraud: number | null
 ): NumberRangeRow {
   return {
     id: row.id,
@@ -90,9 +157,9 @@ function exportRowToNumberRangeRow(
     garTerritory: row.garTerritory,
     region: row.region,
     inn: row.inn,
-    uvrAntifraud: row.uvrAntifraud,
-    abcRangeGapBefore: row.abcRangeGapBefore,
-    abcRangeGapAfter: row.abcRangeGapAfter,
+    uvrAntifraud,
+    abcRangeGapBefore: Boolean(row.abcRangeGapBefore),
+    abcRangeGapAfter: Boolean(row.abcRangeGapAfter),
     changeType: row.changeType as NumberRangeRow["changeType"],
     prevOperator: row.prevOperator,
     prevInn: row.prevInn,
@@ -101,62 +168,135 @@ function exportRowToNumberRangeRow(
   };
 }
 
-const CHANGE_TYPE_LABELS: Record<string, string> = {
-  added: "Добавлено",
-  changed: "Изменено",
-  removed: "Удалено",
+export type WriteRangesXlsxOptions = {
+  filters: FiltersDTO;
+  totalRows: number;
+  dataset?: DatasetRef;
+  asOf?: string | null;
+  signal?: AbortSignal;
+  onProgress?: (rowsWritten: number) => void | Promise<void>;
+  /** Destination stream (PassThrough for HTTP, file stream for jobs). */
+  stream: Writable;
 };
 
-export async function createRangesXlsxExport(
-  filters: FiltersDTO,
-  totalRows: number,
-  dataset?: DatasetRef,
-  asOf?: string | null
-): Promise<{
-  body: ReadableStream<Uint8Array>;
-  totalRows: number;
-}> {
+export async function writeRangesXlsxToStream(
+  options: WriteRangesXlsxOptions
+): Promise<{ rowsWritten: number; durationMs: number }> {
+  const startMs = Date.now();
+  const { filters, dataset, asOf, signal, onProgress, stream } = options;
   const isDiff = dataset?.kind === "diff";
   const columns: Partial<ExcelJS.Column>[] = isDiff
     ? EXPORT_DIFF_XLS_COLUMNS
     : EXPORT_XLS_COLUMNS;
-  const passThrough = new PassThrough();
+  const columnCount = columns.length;
+  const keys = columns.map((c) => String(c.key ?? ""));
+
+  const context = dataset
+    ? await resolveRangeQueryContext(dataset, asOf)
+    : asOf
+      ? await resolveRangeQueryContext({ kind: "current" }, asOf)
+      : CURRENT_RANGE_CONTEXT;
+
+  const uvrMap = await loadUvrLookupMap();
+
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-    stream: passThrough,
+    stream,
     useStyles: true,
     useSharedStrings: false,
   });
-  const worksheet = workbook.addWorksheet("Диапазоны");
-  worksheet.columns = columns.map(({ key, width }) => ({ key, width }));
-  const columnCount = columns.length;
 
-  const writeTask = (async () => {
-    const headerRow = worksheet.addRow(
-      columns.map((col) => col.header ?? "")
-    );
-    applyRowBorders(headerRow, columnCount);
+  let sheetIndex = 1;
+  let dataRowsOnSheet = 0;
+  let rowsWritten = 0;
+  let cursor: ReturnType<typeof rowToRangesCursor> | null = null;
+  let prevRow: NumberRangeRow | null = null;
+  let maxLens = columns.map((c) => displayLength(c.header));
+  let worksheet: ExcelJS.Worksheet | null = null;
+
+  const beginSheet = () => {
+    const name =
+      sheetIndex === 1 ? "Диапазоны" : `Диапазоны ${sheetIndex}`;
+    worksheet = workbook.addWorksheet(name);
+    worksheet.columns = columns.map(({ key, width }) => ({ key, width }));
+    maxLens = columns.map((c) => displayLength(c.header));
+    dataRowsOnSheet = 0;
+
+    const headerRow = worksheet.addRow(columns.map((col) => col.header ?? ""));
+    headerRow.height = ROW_HEIGHT;
+    headerRow.font = HEADER_FONT;
+    headerRow.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+      wrapText: false,
+    };
+    const headerBorders = rowCellBorders(false, false);
+    for (let col = 1; col <= columnCount; col++) {
+      const cell = headerRow.getCell(col);
+      cell.border = headerBorders;
+      cell.fill = HEADER_FILL;
+      cell.font = HEADER_FONT;
+      cell.alignment = {
+        horizontal: "center",
+        vertical: "middle",
+        wrapText: false,
+      };
+    }
     headerRow.commit();
+  };
 
-    let cursor: ReturnType<typeof rowToRangesCursor> | null = null;
-    let prevRow: NumberRangeRow | null = null;
+  const finishSheet = () => {
+    if (!worksheet) return;
+    applyColumnWidths(worksheet, maxLens, columnCount);
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: dataRowsOnSheet + 1, column: columnCount },
+    };
+    worksheet.commit();
+    worksheet = null;
+  };
 
+  beginSheet();
+
+  try {
     while (true) {
+      if (signal?.aborted) {
+        throw new Error("Export cancelled");
+      }
+
       const batch = await listRangesForExport(
         filters,
         EXPORT_BATCH_SIZE,
         cursor,
         dataset,
-        asOf
+        asOf,
+        context
       );
       if (batch.length === 0) break;
 
       for (const row of batch) {
-        const numberRow = exportRowToNumberRangeRow(row);
+        if (dataRowsOnSheet >= EXCEL_SHEET_MAX_DATA_ROWS) {
+          finishSheet();
+          sheetIndex += 1;
+          beginSheet();
+          prevRow = null;
+        }
+
+        const uvr = lookupUvrAntifraud(uvrMap, row.inn);
+        const numberRow = toNumberRangeRow(row, uvr);
         const { gapBefore, gapAfter } = isDiff
           ? { gapBefore: false, gapAfter: false }
           : effectiveAbcRangeGapMarkers(numberRow, prevRow);
+        const highlight = getRangeRowHighlight(numberRow, { isDiff });
+        const fill = fillForHighlight(highlight);
+        const borders = rowCellBorders(gapBefore, gapAfter);
+        const fontColor =
+          highlight === "diffAdded" || highlight === "diffRemoved"
+            ? { argb: "FFFFFFFF" }
+            : undefined;
+
         const diffDisplay = isDiff ? mapDiffOperatorInn(numberRow) : null;
         const diffRegionGar = isDiff ? mapDiffRegionGar(numberRow) : null;
+
         const exportRow = isDiff
           ? {
               changeType: CHANGE_TYPE_LABELS[row.changeType ?? ""] ?? "",
@@ -183,7 +323,7 @@ export async function createRangesXlsxExport(
                 formatDiffDisplayValue(diffRegionGar!.newGarTerritory)
               ),
               uvrAntifraud: sanitizeSpreadsheetCell(
-                row.uvrAntifraud != null ? String(row.uvrAntifraud) : ""
+                uvr != null ? String(uvr) : ""
               ),
               prevInn: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.oldInn)
@@ -202,34 +342,98 @@ export async function createRangesXlsxExport(
               region: sanitizeSpreadsheetCell(row.region),
               inn: sanitizeSpreadsheetCell(row.inn),
               uvrAntifraud: sanitizeSpreadsheetCell(
-                row.uvrAntifraud != null ? String(row.uvrAntifraud) : ""
+                uvr != null ? String(uvr) : ""
               ),
             };
-        const addedRow = worksheet.addRow(exportRow);
-        applyRowBorders(addedRow, columnCount, gapBefore, gapAfter);
+
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i]!;
+          const len = displayLength(
+            (exportRow as Record<string, unknown>)[key]
+          );
+          if (len > (maxLens[i] ?? 0)) maxLens[i] = len;
+        }
+
+        const addedRow = worksheet!.addRow(exportRow);
+        addedRow.height = ROW_HEIGHT;
+        for (let col = 1; col <= columnCount; col++) {
+          const cell = addedRow.getCell(col);
+          cell.border = borders;
+          cell.font = fontColor ? { ...FONT, color: fontColor } : FONT;
+          cell.alignment = { vertical: "middle", wrapText: false };
+          if (fill) cell.fill = fill;
+        }
         addedRow.commit();
+
         prevRow = numberRow;
+        dataRowsOnSheet += 1;
+        rowsWritten += 1;
+      }
+
+      if (onProgress) {
+        await onProgress(rowsWritten);
       }
 
       if (batch.length < EXPORT_BATCH_SIZE) break;
       cursor = rowToRangesCursor({
         ...batch[batch.length - 1],
+        uvrAntifraud: null,
         changeType:
           (batch[batch.length - 1].changeType as NumberRangeRow["changeType"]) ??
           null,
+        abcRangeGapBefore: Boolean(batch[batch.length - 1].abcRangeGapBefore),
+        abcRangeGapAfter: Boolean(batch[batch.length - 1].abcRangeGapAfter),
       });
     }
 
-    await worksheet.commit();
+    finishSheet();
     await workbook.commit();
-  })();
+  } catch (error) {
+    stream.destroy?.(
+      error instanceof Error ? error : new Error(String(error))
+    );
+    throw error;
+  }
 
-  writeTask.catch((error) => {
-    passThrough.destroy(error instanceof Error ? error : new Error(String(error)));
+  return { rowsWritten, durationMs: Date.now() - startMs };
+}
+
+export async function createRangesXlsxExport(
+  filters: FiltersDTO,
+  totalRows: number,
+  dataset?: DatasetRef,
+  asOf?: string | null,
+  signal?: AbortSignal
+): Promise<{
+  body: ReadableStream<Uint8Array>;
+  totalRows: number;
+}> {
+  const passThrough = new PassThrough();
+
+  const writeTask = writeRangesXlsxToStream({
+    filters,
+    totalRows,
+    dataset,
+    asOf,
+    signal,
+    stream: passThrough,
+  }).catch((error) => {
+    if (!passThrough.destroyed) {
+      passThrough.destroy(
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
   });
+
+  void writeTask;
 
   return {
     body: Readable.toWeb(passThrough) as ReadableStream<Uint8Array>,
     totalRows,
   };
+}
+
+/** Exposed for tests / docs — last column letter for N columns. */
+export function exportAutoFilterRange(columnCount: number): string {
+  return `A1:${colLetter(columnCount)}1`;
 }

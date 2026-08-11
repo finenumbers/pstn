@@ -10,6 +10,16 @@ export async function register() {
       );
     }
 
+    const { recoverStaleExportJobs } = await import(
+      "@/packages/export/recoverStaleExportJobs"
+    );
+    const exportRecovered = await recoverStaleExportJobs();
+    if (exportRecovered > 0) {
+      console.warn(
+        `Recovered ${exportRecovered} stale export job(s) after server start`
+      );
+    }
+
     const { ensureOprRegisterLoaded } = await import(
       "@/packages/import/importOprRegister"
     );

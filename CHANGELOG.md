@@ -4,6 +4,23 @@
 
 ---
 
+## v0.3.37
+
+### Export XLSX
+
+- **Без лимита строк:** убран `EXPORT_TOO_LARGE` / hard cap 500k — выгружается весь набор по фильтрам.
+- **Hybrid sync/async:** ≤25k — sync GET; >25k — `POST /api/export/jobs` с прогрессом, download, cancel.
+- Volume `pstn_exports` (`/app/data/exports`), TTL 6 часов, один running job (advisory lock).
+- Оформление: Calibri 11, thin borders, AutoFilter, ширины по содержимому, заливки как в UI, красные ABC-gap разделители; multi-sheet при >~1.048M строк.
+- UVR без тяжёлого JOIN — lookup map из `operators_register`.
+
+### UI
+
+- Подсветка строк: Фронтир — ярко-жёлтый; ABC 80x — синий; ABC 9xx — светло-зелёный.
+- Баннер прогресса экспорта (строк записано / всего).
+
+---
+
 ## v0.3.36
 
 ### API

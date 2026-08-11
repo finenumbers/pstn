@@ -24,6 +24,10 @@ const CODE_FALLBACKS: Record<string, string> = {
   [API_ERROR_CODES.DATASET_NOT_FOUND]: "Снимок расхождений не найден.",
   [API_ERROR_CODES.EXPORT_TOO_LARGE]:
     "Слишком много строк для экспорта. Сузьте фильтры.",
+  [API_ERROR_CODES.EXPORT_USE_ASYNC]:
+    "Слишком большая выборка для синхронного экспорта. Используйте фоновую выгрузку.",
+  [API_ERROR_CODES.EXPORT_BUSY]:
+    "Уже выполняется другой экспорт. Дождитесь завершения или отмените его.",
   [API_ERROR_CODES.INTERNAL_ERROR]:
     "Внутренняя ошибка сервера. Попробуйте позже.",
   [API_ERROR_CODES.UNAUTHORIZED]: "Доступ запрещён.",

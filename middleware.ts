@@ -18,6 +18,7 @@ function clientIp(request: NextRequest): string {
 function resolveBucket(pathname: string): RateLimitBucket | null {
   if (pathname === "/api/import") return "import";
   if (pathname === "/api/export/ranges") return "export";
+  if (pathname === "/api/export/jobs") return "export";
   if (pathname === "/api/ranges/facets") return "facets";
   if (pathname.startsWith("/api/v1/lookup")) return "lookup";
   return null;
@@ -44,6 +45,7 @@ export const config = {
   matcher: [
     "/api/import",
     "/api/export/ranges",
+    "/api/export/jobs",
     "/api/ranges/facets",
     "/api/v1/lookup/:path*",
   ],

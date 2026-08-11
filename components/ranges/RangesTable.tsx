@@ -37,8 +37,8 @@ import {
   columnWidthStyle,
   isCompactColumn,
 } from "@/lib/table/compactColumns";
-import { isFrontirNetworkInn } from "@/lib/table/highlightedInns";
 import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
+import { getRangeRowHighlightClass } from "@/lib/table/rangeRowHighlight";
 import { isGapCompatibleSort } from "@/lib/sort/normalizeRangesSort";
 import { cn, formatNumber, formatRangeSegment } from "@/lib/utils";
 import { sortFromSingleColumn } from "@/lib/sort/normalizeRangesSort";
@@ -126,10 +126,6 @@ function renderInnCellValue(inn: string | null | undefined) {
       {display}
     </a>
   );
-}
-
-function isNineSeriesAbc(abc: string): boolean {
-  return abc.startsWith("9");
 }
 
 /** Body cell vertical padding is 6.4px (20% less than p-2 / 8px). */
@@ -393,28 +389,12 @@ export function RangesTable({
     const { gapBefore, gapAfter } = isDiffView
       ? { gapBefore: false, gapAfter: false }
       : effectiveAbcRangeGapMarkers(row.original, prev);
-    const changeType = row.original.changeType;
 
     return (
       <TableRow
         key={`${row.original.id}-${rowIndex}`}
         className={cn(
-          isDiffView &&
-            changeType === "added" &&
-            "bg-green-600 text-white hover:bg-green-600/90",
-          isDiffView &&
-            changeType === "changed" &&
-            "bg-yellow-400 hover:bg-yellow-400/90",
-          isDiffView &&
-            changeType === "removed" &&
-            "bg-red-500 text-white hover:bg-red-500/90",
-          !isDiffView &&
-            isFrontirNetworkInn(row.original.inn) &&
-            "bg-yellow-400 hover:bg-yellow-400/90",
-          !isDiffView &&
-            isNineSeriesAbc(row.original.abc) &&
-            !isFrontirNetworkInn(row.original.inn) &&
-            "bg-green-100 hover:bg-green-100/90",
+          getRangeRowHighlightClass(row.original, { isDiff: isDiffView }),
           gapBefore && showGapMarkers && "range-gap-before",
           gapAfter && showGapMarkers && "range-gap-after"
         )}
@@ -778,6 +758,13 @@ export function RangesTable({
               </button>
             </>
           ) : null}
+        </div>
+      )}
+
+      {!isDiffView && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+          Подсветка строк: ярко-жёлтый — Фронтир Нетворк; синий — ABC 80x;
+          светло-зелёный — ABC 9xx. Красные линии — разрывы нумерации ABC.
         </div>
       )}
 

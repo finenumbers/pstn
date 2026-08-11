@@ -39,6 +39,7 @@ services:
       EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
     volumes:
       - pstn_secrets:/app/.secrets
+      - pstn_exports:/app/data/exports
     depends_on:
       postgres:
         condition: service_healthy
@@ -46,3 +47,4 @@ services:
 volumes:
   pstn_pg_data:
   pstn_secrets:
+  pstn_exports:

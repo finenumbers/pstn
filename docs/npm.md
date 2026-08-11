@@ -192,6 +192,19 @@ send_timeout 600;
 
 Или Portainer напрямую: `https://<server-ip>:9443`.
 
+## Таймауты NPM для PSTN (рекомендуется)
+
+В Proxy Host **PSTN** → **Advanced** (мелкий sync export и download готового файла):
+
+```nginx
+proxy_connect_timeout 600;
+proxy_send_timeout 600;
+proxy_read_timeout 600;
+send_timeout 600;
+```
+
+Крупный экспорт (>25k строк) идёт через фоновый job и не держит долгий HTTP на генерации.
+
 ---
 
 ## Чеклист после настройки

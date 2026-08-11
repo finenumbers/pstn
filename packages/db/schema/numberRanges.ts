@@ -121,6 +121,30 @@ export const importJobs = pgTable("import_jobs", {
     .$onUpdate(() => new Date()),
 });
 
+export const exportJobs = pgTable("export_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  status: varchar("status", { length: 20 }).notNull(),
+  filtersJson: jsonb("filters_json")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  dataset: varchar("dataset", { length: 80 }),
+  asOf: date("as_of"),
+  totalRows: integer("total_rows").notNull().default(0),
+  rowsWritten: integer("rows_written").notNull().default(0),
+  filePath: text("file_path"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
 export const datasetMeta = pgTable("dataset_meta", {
   id: smallint("id").primaryKey().default(1),
   lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),

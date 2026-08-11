@@ -92,7 +92,8 @@ Content-Type: application/json
 | `VALIDATION_ERROR` | 400 | «Некорректный курсор постраничной навигации.» (невалидный `cursor`) |
 | `DATASET_NOT_FOUND` | 404 | «Снимок расхождений не найден.» |
 | `UNAUTHORIZED` | 401 | «Доступ запрещён.» (неверный import secret) |
-| `EXPORT_TOO_LARGE` | 400 | «Слишком много строк для экспорта (лимит 500 000, найдено N). Сузьте фильтры.» |
+| `EXPORT_USE_ASYNC` | 400 | Sync GET при >25 000 строк — нужен `POST /api/export/jobs` |
+| `EXPORT_BUSY` | 409 | Уже выполняется другой export job |
 | `RATE_LIMITED` | 429 | «Слишком много запросов. Повторите через N сек.» |
 | `INTERNAL_ERROR` | 500 | «Внутренняя ошибка сервера. Попробуйте позже.» (без деталей в production) |
 
@@ -372,26 +373,41 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 
 ### `GET /api/export/ranges`
 
-Экспорт XLSX с текущими фильтрами.
+Синхронный экспорт XLSX (только **≤ 25 000** строк).
 
-**Auth:** NPM. **Rate limit:** 10 req / min (in-app).
+**Auth:** NPM. **Rate limit:** 10 req / min (in-app) — общий bucket с `POST /api/export/jobs`.
 
-**Query:** `filters.*`, `sort`, `dataset` (optional), `asOf` (optional)
-
-**Limits:**
+**Query:** `filters.*`, `dataset`, `asOf`
 
 | Порог | HTTP |
 |-------|------|
-| ≤ 500 000 строк | 200, файл XLSX |
-| > 500 000 строк | 400 `EXPORT_TOO_LARGE` |
+| ≤ 25 000 строк | 200, файл XLSX |
+| > 25 000 строк | 400 `EXPORT_USE_ASYNC` — используйте jobs |
 
-**Response 200 headers:**
+**Response 200 headers:** `Content-Type` XLSX, `Content-Disposition`, `X-Export-Row-Count`, `Cache-Control: no-store`.
 
-```
-Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-Content-Disposition: attachment; filename=ranges-export.xlsx
-X-Export-Row-Count: 12345
-```
+### `POST /api/export/jobs`
+
+Фоновый экспорт **любого** объёма (полный набор по фильтрам).
+
+**Auth:** NPM. **Rate limit:** тот же export bucket.
+
+**Query:** те же `filters.*`, `dataset`, `asOf`.
+
+**Response 202:** `{ jobId, status, totalRows }`.  
+**409 `EXPORT_BUSY`:** уже есть pending/running job.
+
+### `GET /api/export/jobs/:id`
+
+Статус: `pending` \| `running` \| `completed` \| `failed` \| `cancelled`, `rowsWritten`, `totalRows`, `errorMessage`.
+
+### `GET /api/export/jobs/:id/download`
+
+Скачать готовый файл (`completed`). Volume `pstn_exports`, TTL 6 часов.
+
+### `POST /api/export/jobs/:id/cancel`
+
+Отмена running/pending job.
 
 #### UI vs XLSX в diff-режиме
 

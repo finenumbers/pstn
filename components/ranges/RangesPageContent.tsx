@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { SortingState } from "@tanstack/react-table";
 import { ActiveFilterChips } from "@/components/ranges/ActiveFilterChips";
+import { ExportProgressBanner } from "@/components/ranges/ExportProgressBanner";
 import { ImportProgressCard } from "@/components/ranges/ImportProgressCard";
 import { KpiSummaryBar } from "@/components/ranges/KpiSummaryBar";
 import { RangesTable } from "@/components/ranges/RangesTable";
@@ -25,7 +26,10 @@ import {
   getErrorUserMessage,
   isApiErrorCode,
 } from "@/lib/api/apiClientError";
-import { EXPORT_ROW_WARN_THRESHOLD } from "@/lib/export/exportLimits";
+import {
+  EXPORT_ASYNC_THRESHOLD,
+  EXPORT_ROW_WARN_THRESHOLD,
+} from "@/lib/export/exportLimits";
 import { mergeDebouncedTextFilters } from "@/lib/filters/mergeDebouncedTextFilters";
 import {
   normalizeRangesSort,
@@ -104,6 +108,13 @@ export function RangesPageContent() {
     "success"
   );
   const [isExporting, setIsExporting] = useState(false);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<{
+    status: string;
+    rowsWritten: number;
+    totalRows: number;
+  } | null>(null);
+  const exportAbortRef = useRef<AbortController | null>(null);
   const queryClient = useQueryClient();
   const prevImportStatus = useRef<string | undefined>(undefined);
   const urlSyncedRef = useRef(false);
@@ -453,6 +464,70 @@ export function RangesPageContent() {
     queryClient.removeQueries({ queryKey: ["ranges"] });
   };
 
+  const downloadExportFile = (href: string) => {
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "ranges-export.xlsx";
+    link.click();
+  };
+
+  const pollExportJob = async (jobId: string, totalRows: number) => {
+    setExportJobId(jobId);
+    setExportProgress({
+      status: "pending",
+      rowsWritten: 0,
+      totalRows,
+    });
+
+    while (true) {
+      await new Promise((r) => window.setTimeout(r, 1000));
+      const statusRes = await fetch(`/api/export/jobs/${jobId}`);
+      if (!statusRes.ok) {
+        const mapped = await mapFetchResponseError(statusRes);
+        throw new Error(mapped.userMessage);
+      }
+      const statusJson = (await statusRes.json()) as {
+        status: string;
+        rowsWritten: number;
+        totalRows: number;
+        errorMessage?: string | null;
+      };
+      setExportProgress({
+        status: statusJson.status,
+        rowsWritten: statusJson.rowsWritten,
+        totalRows: statusJson.totalRows || totalRows,
+      });
+
+      if (statusJson.status === "completed") {
+        downloadExportFile(`/api/export/jobs/${jobId}/download`);
+        setToastVariant("success");
+        setToastMessage("Экспорт XLSX завершён");
+        return;
+      }
+      if (statusJson.status === "failed") {
+        throw new Error(
+          statusJson.errorMessage || "Не удалось сформировать XLSX"
+        );
+      }
+      if (statusJson.status === "cancelled") {
+        setToastVariant("error");
+        setToastMessage("Экспорт отменён");
+        return;
+      }
+    }
+  };
+
+  const handleCancelExport = async () => {
+    exportAbortRef.current?.abort();
+    if (exportJobId) {
+      await fetch(`/api/export/jobs/${exportJobId}/cancel`, { method: "POST" });
+      setExportProgress((prev) =>
+        prev ? { ...prev, status: "cancelled" } : prev
+      );
+    }
+    setIsExporting(false);
+  };
+
   const handleExport = async () => {
     const exportCount = filtersActive
       ? mergedSummary?.filtered.rangeCount
@@ -462,39 +537,82 @@ export function RangesPageContent() {
       exportCount != null &&
       exportCount > EXPORT_ROW_WARN_THRESHOLD &&
       !window.confirm(
-        `Экспорт ${exportCount.toLocaleString("ru-RU")} строк может занять несколько минут. Продолжить?`
+        `Будет выгружено ${exportCount.toLocaleString("ru-RU")} строк (полный набор по фильтрам). Подготовка может занять некоторое время. Продолжить?`
       )
     ) {
       return;
     }
 
     setIsExporting(true);
+    setExportProgress(null);
+    setExportJobId(null);
+
+    const params = buildFilterParams(debouncedFilters);
+    params.set("dataset", datasetParam);
+    if (effectiveAsOf) {
+      params.set("asOf", effectiveAsOf);
+    }
+    const qs = params.toString();
+
     try {
-      const params = buildFilterParams(debouncedFilters);
-      params.set("dataset", datasetParam);
-      if (effectiveAsOf) {
-        params.set("asOf", effectiveAsOf);
+      const useAsync =
+        exportCount == null || exportCount > EXPORT_ASYNC_THRESHOLD;
+
+      if (useAsync) {
+        const startRes = await fetch(`/api/export/jobs?${qs}`, {
+          method: "POST",
+        });
+        if (!startRes.ok) {
+          const mapped = await mapFetchResponseError(startRes);
+          throw new Error(mapped.userMessage);
+        }
+        const startJson = (await startRes.json()) as {
+          jobId: string;
+          totalRows: number;
+        };
+        await pollExportJob(startJson.jobId, startJson.totalRows);
+      } else {
+        const controller = new AbortController();
+        exportAbortRef.current = controller;
+        setExportProgress({
+          status: "running",
+          rowsWritten: 0,
+          totalRows: exportCount ?? 0,
+        });
+        const response = await fetch(`/api/export/ranges?${qs}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const mapped = await mapFetchResponseError(response);
+          throw new Error(mapped.userMessage);
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        downloadExportFile(url);
+        URL.revokeObjectURL(url);
+        setExportProgress({
+          status: "completed",
+          rowsWritten: exportCount ?? 0,
+          totalRows: exportCount ?? 0,
+        });
+        setToastVariant("success");
+        setToastMessage("Экспорт XLSX завершён");
       }
-      const response = await fetch(`/api/export/ranges?${params.toString()}`);
-      if (!response.ok) {
-        const mapped = await mapFetchResponseError(response);
-        throw new Error(mapped.userMessage);
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "ranges-export.xlsx";
-      link.click();
-      URL.revokeObjectURL(url);
-      setToastVariant("success");
-      setToastMessage("Экспорт XLSX завершён");
     } catch (error) {
-      setToastVariant("error");
-      setToastMessage(
-        getErrorUserMessage(error, "Ошибка экспорта XLSX")
-      );
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setToastVariant("error");
+        setToastMessage("Экспорт отменён");
+      } else {
+        setToastVariant("error");
+        setToastMessage(
+          getErrorUserMessage(error, "Ошибка экспорта XLSX")
+        );
+        setExportProgress((prev) =>
+          prev ? { ...prev, status: "failed" } : prev
+        );
+      }
     } finally {
+      exportAbortRef.current = null;
       setIsExporting(false);
     }
   };
@@ -567,6 +685,25 @@ export function RangesPageContent() {
           status={trackedImport}
           onDismiss={handleDismissImportProgress}
           onRetry={handleLoadData}
+        />
+      )}
+
+      {exportProgress && (
+        <ExportProgressBanner
+          status={exportProgress.status}
+          rowsWritten={exportProgress.rowsWritten}
+          totalRows={exportProgress.totalRows}
+          onCancel={
+            isExporting &&
+            (exportProgress.status === "pending" ||
+              exportProgress.status === "running")
+              ? handleCancelExport
+              : undefined
+          }
+          onDismiss={() => {
+            setExportProgress(null);
+            setExportJobId(null);
+          }}
         />
       )}
 

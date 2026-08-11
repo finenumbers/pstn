@@ -57,6 +57,7 @@ services:
       IMPORT_SECRET: ${IMPORT_SECRET:-}
     volumes:
       - pstn_secrets:/app/.secrets
+      - pstn_exports:/app/data/exports
     healthcheck:
       test:
         [
@@ -134,3 +135,5 @@ volumes:
     name: pstn_pg_data
   pstn_secrets:
     name: pstn_secrets
+  pstn_exports:
+    name: pstn_exports
