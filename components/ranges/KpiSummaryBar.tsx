@@ -2,7 +2,6 @@
 
 import { PhoneNumberMaskInput } from "@/components/ranges/PhoneNumberMaskInput";
 import { ExternalApiHelpDialog } from "@/components/ranges/ExternalApiHelpDialog";
-import { DatasetDatePicker } from "@/components/ranges/DatasetDatePicker";
 import { DbSizeInfo } from "@/components/ranges/DbSizeInfo";
 import {
   DatasetSelector,
@@ -30,8 +29,6 @@ interface KpiSummaryBarProps {
   hasActiveFilters?: boolean;
   selectedDataset?: SharedDatasetRef;
   onDatasetChange?: (dataset: SharedDatasetRef) => void;
-  selectedAsOf?: string | null;
-  onAsOfChange?: (value: string | null) => void;
 }
 
 export function KpiSummaryBar({
@@ -48,8 +45,6 @@ export function KpiSummaryBar({
   hasActiveFilters = false,
   selectedDataset = { kind: "current" },
   onDatasetChange,
-  selectedAsOf = null,
-  onAsOfChange,
 }: KpiSummaryBarProps) {
   const filtered = summary?.filtered;
   const global = summary?.global;
@@ -80,11 +75,6 @@ export function KpiSummaryBar({
               Сбросить фильтры
             </Button>
           )}
-          <DatasetDatePicker
-            value={selectedAsOf}
-            onChange={onAsOfChange}
-            disabled={isImporting}
-          />
           {onDatasetChange && (
             <DatasetSelector
               value={selectedDataset}

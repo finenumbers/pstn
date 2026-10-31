@@ -61,10 +61,9 @@ export async function facetRangesFromDict(params: {
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
-  asOf?: string | null;
 }) {
   const limit = params.limit ?? 200;
-  const context = await resolveQueryContext(params.dataset, params.asOf);
+  const context = await resolveQueryContext(params.dataset);
 
   if (context.isDiff) {
     return facetRangesFromDiffTable({

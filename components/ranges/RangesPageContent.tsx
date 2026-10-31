@@ -37,11 +37,9 @@ import {
 } from "@/lib/sort/normalizeRangesSort";
 import {
   buildRangesPageSearchParams,
-  parseAsOfFromSearchParams,
   parseRangesTableFromSearchParams,
   parseDatasetFromSearchParams,
 } from "@/lib/url/rangesPageUrl";
-import { HistoricalDatasetBanner } from "@/components/ranges/DbSizeInfo";
 import {
   serializeDatasetParam,
   type DatasetRef,
@@ -84,11 +82,6 @@ function readInitialDataset(): DatasetRef {
   );
 }
 
-function readInitialAsOf(): string | null {
-  if (typeof window === "undefined") return null;
-  return parseAsOfFromSearchParams(new URLSearchParams(window.location.search));
-}
-
 export function RangesPageContent() {
   const [state, dispatch] = useReducer(
     rangesTableReducer,
@@ -102,7 +95,6 @@ export function RangesPageContent() {
   const [selectedDataset, setSelectedDataset] = useState<DatasetRef>(
     readInitialDataset
   );
-  const [selectedAsOf, setSelectedAsOf] = useState<string | null>(readInitialAsOf);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<"success" | "error">(
     "success"
@@ -152,39 +144,31 @@ export function RangesPageContent() {
     }))
   );
 
-  const effectiveAsOf =
-    selectedDataset.kind === "current" ? selectedAsOf : null;
-
   const rangesQuery = useRangesInfiniteQuery({
     filters: debouncedFilters,
     sorting: sortingForQuery,
     pageSize: state.pageSize,
     dataset: selectedDataset,
-    asOf: effectiveAsOf,
   });
 
   const isDiffView = selectedDataset.kind === "diff";
-  const isHistoricalView =
-    selectedDataset.kind === "current" && Boolean(effectiveAsOf);
   const datasetParam = serializeDatasetParam(selectedDataset);
 
   const rangesData =
     rangesQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const totalRows = rangesQuery.data?.pages[0]?.meta.totalRows ?? 0;
-  const rangesListKey = `${datasetParam}:${effectiveAsOf ?? ""}:${debouncedFiltersKey}:${serializeSort(sortingForQuery)}:${rangesResetKey}`;
+  const rangesListKey = `${datasetParam}:${debouncedFiltersKey}:${serializeSort(sortingForQuery)}:${rangesResetKey}`;
 
-  const globalSummaryQuery = useGlobalSummaryQuery(selectedDataset, effectiveAsOf);
+  const globalSummaryQuery = useGlobalSummaryQuery(selectedDataset);
   const rangesReadyForSecondaryQueries =
     !filtersActive || rangesQuery.isFetched || rangesQuery.isSuccess;
   const filteredSummaryQuery = useSummaryQuery(debouncedFilters, {
     enabled: filtersActive && rangesReadyForSecondaryQueries,
     dataset: selectedDataset,
-    asOf: effectiveAsOf,
   });
   const facetsQuery = useFacetsQuery(debouncedFilters, debouncedFacetSearch, {
     enabled: rangesReadyForSecondaryQueries,
     dataset: selectedDataset,
-    asOf: effectiveAsOf,
   });
 
   const importStart = useImportStart();
@@ -257,8 +241,7 @@ export function RangesPageContent() {
     const params = buildRangesPageSearchParams(
       debouncedFilters,
       sortingForQuery,
-      selectedDataset,
-      effectiveAsOf
+      selectedDataset
     );
     const qs = params.toString();
     const next = qs
@@ -266,26 +249,21 @@ export function RangesPageContent() {
       : window.location.pathname;
     const current = window.location.pathname + window.location.search;
     if (current !== next) {
-      if (urlHistoryInitializedRef.current) {
+      const hadAsOf = new URLSearchParams(window.location.search).has("asOf");
+      if (urlHistoryInitializedRef.current && !hadAsOf) {
         window.history.pushState(null, "", next);
       } else {
         window.history.replaceState(null, "", next);
-        urlHistoryInitializedRef.current = true;
       }
     }
-  }, [debouncedFilters, sortQueryKey, sortingForQuery, selectedDataset, effectiveAsOf]);
+    urlHistoryInitializedRef.current = true;
+  }, [debouncedFilters, sortQueryKey, sortingForQuery, selectedDataset]);
 
   useEffect(() => {
     const handlePopState = () => {
-      const parsed = parseRangesTableFromSearchParams(
-        new URLSearchParams(window.location.search)
-      );
-      const dataset = parseDatasetFromSearchParams(
-        new URLSearchParams(window.location.search)
-      );
-      const asOf = parseAsOfFromSearchParams(
-        new URLSearchParams(window.location.search)
-      );
+      const searchParams = new URLSearchParams(window.location.search);
+      const parsed = parseRangesTableFromSearchParams(searchParams);
+      const dataset = parseDatasetFromSearchParams(searchParams);
       if (parsed) {
         dispatch({ type: "SET_FILTERS", filters: parsed.filters });
         dispatch({ type: "SET_SORTING", sorting: parsed.sorting });
@@ -293,9 +271,16 @@ export function RangesPageContent() {
         dispatch({ type: "RESET_ALL" });
       }
       setSelectedDataset(dataset);
-      setSelectedAsOf(asOf);
       setRangesResetKey((key) => key + 1);
       queryClient.removeQueries({ queryKey: ["ranges"] });
+
+      if (!searchParams.has("asOf")) return;
+      searchParams.delete("asOf");
+      const qs = searchParams.toString();
+      const next = qs
+        ? `${window.location.pathname}?${qs}`
+        : window.location.pathname;
+      window.history.replaceState(null, "", next);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -324,7 +309,6 @@ export function RangesPageContent() {
       queryClient.invalidateQueries({ queryKey: ["facets"] });
       queryClient.invalidateQueries({ queryKey: ["summary"] });
       queryClient.invalidateQueries({ queryKey: ["datasets"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.changeDates() });
       queryClient.invalidateQueries({ queryKey: queryKeys.storage() });
     }
 
@@ -443,19 +427,9 @@ export function RangesPageContent() {
     dispatch({ type: "RESET_ALL" });
     setFacetSearch({});
     setSelectedDataset({ kind: "current" });
-    setSelectedAsOf(null);
     setRangesResetKey((key) => key + 1);
     queryClient.removeQueries({ queryKey: ["ranges"] });
     window.history.replaceState(null, "", window.location.pathname);
-  };
-
-  const handleAsOfChange = (asOf: string | null) => {
-    setSelectedAsOf(asOf);
-    if (selectedDataset.kind !== "current") {
-      setSelectedDataset({ kind: "current" });
-    }
-    setRangesResetKey((key) => key + 1);
-    queryClient.removeQueries({ queryKey: ["ranges"] });
   };
 
   const handleDatasetChange = (dataset: DatasetRef) => {
@@ -549,9 +523,6 @@ export function RangesPageContent() {
 
     const params = buildFilterParams(debouncedFilters);
     params.set("dataset", datasetParam);
-    if (effectiveAsOf) {
-      params.set("asOf", effectiveAsOf);
-    }
     const qs = params.toString();
 
     try {
@@ -651,21 +622,11 @@ export function RangesPageContent() {
             rangesQuery.data?.pages.length ?? 0,
             state.sorting
           ) ||
-          selectedDataset.kind !== "current" ||
-          Boolean(effectiveAsOf)
+          selectedDataset.kind !== "current"
         }
         selectedDataset={selectedDataset}
         onDatasetChange={handleDatasetChange}
-        selectedAsOf={effectiveAsOf}
-        onAsOfChange={handleAsOfChange}
       />
-
-      {isHistoricalView && effectiveAsOf && (
-        <HistoricalDatasetBanner
-          asOf={effectiveAsOf}
-          versionLoadDate={mergedSummary?.loadedAt}
-        />
-      )}
 
       {importStatus.isError && trackedJobId && (
         <div

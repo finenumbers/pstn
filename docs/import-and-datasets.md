@@ -60,9 +60,8 @@ flowchart TB
 
 | Режим | Таблица | Когда доступен |
 |-------|---------|----------------|
-| Production | `number_ranges` | Всегда; query param `dataset=current` (default) |
+| Production | `number_ranges` | Всегда; единственный полный план; query param `dataset=current` (default) |
 | Staging | `number_ranges_staging` | Только во время running import |
-| Full version | `number_range_full_snapshots` + filter по `snapshot_id` | После первого import (baseline) и каждого import с diff; query `asOf=YYYY-MM-DD` или `dataset=full:<uuid>` |
 | Diff snapshot | `number_range_diffs` + filter по `snapshot_id` | После import с ненулевыми расхождениями; query param `dataset=diff:<uuid>` |
 
 ---
@@ -101,7 +100,7 @@ flowchart TD
 | `computing_gaps` | Расчёт пропусков ABC | staging | «Расчёт пропусков…» |
 | `computing_diff` | Сравнение old vs new ranges | `import_diff_old`, staging | «Анализ расхождений…» |
 | `swapping` | Атомарная подмена production | `number_ranges` | «Обновление таблицы…» |
-| `saving_version_snapshot` | Копия production в `number_range_full_snapshots` (+ diff rows при изменениях) | `dataset_snapshots`, `number_range_full_snapshots`, `number_range_diffs` | «Сохранение версии датасета…» |
+| `saving_version_snapshot` | Строки расхождений этого MSK-дня. Полная копия плана не сохраняется. Фаза пропускается, если diff пустой или это первый импорт | `dataset_snapshots`, `number_range_diffs` | «Сохранение расхождений…» |
 | `binding_uvr_antifraud` | OPR + привязка УВр | `operators_register` | «Привязка УВр Антифрод…» |
 | `completed` | Meta + hashes обновлены | `dataset_meta` | «Загрузка завершена» (зелёная) |
 | `failed` | Ошибка до или после swap* | staging truncated | «Загрузка не завершена» (красная) |
@@ -180,7 +179,7 @@ URL задаются в `packages/import/constants.ts`. Загрузка идё�
 
 ## Модель данных (PostgreSQL)
 
-Мigrations: `0017_dataset_hashes.sql`, `0018_dataset_snapshots.sql`.
+Мigrations: `0017_dataset_hashes.sql`, `0018_dataset_snapshots.sql`, `0023_drop_full_snapshots.sql`.
 
 ### `dataset_meta` (singleton, `id = 1`)
 
@@ -221,9 +220,10 @@ Unlogged temp-таблица — копия данных `number_ranges` (без
 
 ### Политика хранения
 
-- **Автоматического удаления** старых diff snapshots **нет** — они накапливаются в БД.
-- Backup PostgreSQL включает snapshots; при восстановлении backup восстанавливается и история расхождений.
-- Повторный import с diff **в тот же MSK-день** перезаписывает snapshot этого дня (upsert по `load_date`).
+- В базе один активный план: `number_ranges`. Следующий import с изменениями CSV заменяет его целиком (swap со staging).
+- Полные копии плана на прошлые дни не хранятся. Миграция `0023` удаляет уже записанные `number_range_full_snapshots` и baseline без строк расхождений.
+- Строки расхождений прошлых дней остаются. Повторный import с diff **в тот же MSK-день** перезаписывает только этот день (upsert по `load_date`).
+- Backup PostgreSQL включает текущий план и журнал расхождений. Откат только образа без восстановления БД ломает следующий import: таблица полных копий и колонки `has_full` / `as_of` уже сняты.
 
 ---
 
@@ -290,29 +290,29 @@ curl -s "http://127.0.0.1:5555/api/import/status?jobId=<uuid>"
 
 ## UI
 
-Страница `/ranges` — компоненты `RangesPageContent`, `DatasetDatePicker`, `DatasetSelector`, `ImportProgressCard`, `RangesTable`. Заголовок: **«Телефонная нумерация России»**.
+Страница `/ranges` — компоненты `RangesPageContent`, `DatasetSelector`, `ImportProgressCard`, `RangesTable`. Заголовок: **«Телефонная нумерация России»**.
 
 ### Панель действий (порядок)
 
-**Сбросить фильтры** → **Дата датасета** → **Датасет** → **БД** → **API** → **XLSX** → **Загрузить данные**.
+**Сбросить фильтры** → **Датасет** → **БД** → **API** → **XLSX** → **Загрузить данные**.
 
-### Селектор датасета и календарь
+### Селектор датасета
 
 - **«Датасет DD.MM.YYYY»** — current; дата = MSK-день последнего успешного import (`dataset_meta.last_success_at`).
 - **«Расхождения DD.MM.YYYY»** — diff snapshot; список из `GET /api/datasets`.
-- **Дата датасета** (`DatasetDatePicker`) — рабочий выбор исторической версии: поле ДД.ММ.ГГГГ + календарь; даты версий из `GET /api/datasets/change-dates`; **синий фон** в календаре = день версии (первая загрузка или import с snapshot).
 - **БД: X ГБ** — `GET /api/storage`.
-- Во время import селектор датасета и календарь disabled.
+- Во время import селектор датасета disabled.
+- Исторический полный план и поле «Дата датасета» сняты.
 
 ### URL
 
-Фильтры, сортировка, датасет и `asOf` сохраняются в query string:
+Фильтры, сортировка и датасет сохраняются в query string:
 
 ```
-/ranges?filters.operator=...&sort=abc:asc&dataset=diff:550e8400-e29b-41d4-a716-446655440000&asOf=2026-06-22
+/ranges?filters.operator=...&sort=abc:asc&dataset=diff:550e8400-e29b-41d4-a716-446655440000
 ```
 
-Кнопка «Назад»/«Вперёд» восстанавливает состояние. **«Сбросить фильтры»** очищает фильтры, сортировку, **`asOf`** и возвращает **`dataset=current`**.
+Кнопка «Назад»/«Вперёд» восстанавливает состояние. Параметр `asOf` из старых ссылок выбрасывается. **«Сбросить фильтры»** очищает фильтры, сортировку и возвращает **`dataset=current`**.
 
 При неверном или удалённом snapshot UUID API вернёт 404; UI автоматически переключится на current и покажет toast «Снимок расхождений не найден, показан текущий датасет».
 

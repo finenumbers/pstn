@@ -30,12 +30,11 @@ export async function POST(request: NextRequest) {
     if (isDatasetAndAsOfParseError(parsedDataset)) {
       return parsedDataset;
     }
-    const { dataset, asOf } = parsedDataset;
+    const { dataset } = parsedDataset;
 
     const result = await startExportJob({
       filters: filtersParsed.data,
       dataset,
-      asOf,
     });
 
     if (result.status === "busy") {

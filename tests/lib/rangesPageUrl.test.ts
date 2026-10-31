@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRangesPageSearchParams,
-  parseAsOfFromSearchParams,
   parseDatasetFromSearchParams,
   parseRangesTableFromSearchParams,
 } from "@/lib/url/rangesPageUrl";
@@ -60,15 +59,22 @@ describe("rangesPageUrl", () => {
     expect(parseDatasetFromSearchParams(params)).toEqual({ kind: "current" });
   });
 
-  it("round-trips asOf for current dataset", () => {
+  it("falls back to current for a removed full dataset param", () => {
+    const params = new URLSearchParams({
+      dataset: "full:550e8400-e29b-41d4-a716-446655440000",
+    });
+    expect(parseDatasetFromSearchParams(params)).toEqual({ kind: "current" });
+  });
+
+  it("does not write asOf into the page url", () => {
     const params = buildRangesPageSearchParams(
       DEFAULT_FILTERS,
-      [{ id: "abc", desc: false }, { id: "rangeStart", desc: false }],
-      { kind: "current" },
-      "2025-06-15"
+      [
+        { id: "abc", desc: false },
+        { id: "rangeStart", desc: false },
+      ],
+      { kind: "current" }
     );
-
-    expect(params.get("asOf")).toBe("2025-06-15");
-    expect(parseAsOfFromSearchParams(params)).toBe("2025-06-15");
+    expect(params.has("asOf")).toBe(false);
   });
 });

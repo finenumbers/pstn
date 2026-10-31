@@ -76,7 +76,6 @@ describe("buildWhere", () => {
       table: numberRangeDiffs,
       snapshotId,
       isDiff: true,
-      isFull: false,
     };
     const current = buildWhere(
       { ...DEFAULT_FILTERS, abc: ["301", "353"] },
@@ -96,7 +95,6 @@ describe("buildWhere", () => {
       table: numberRangeDiffs,
       snapshotId: "550e8400-e29b-41d4-a716-446655440000",
       isDiff: true,
-      isFull: false,
     };
     const filters = { ...DEFAULT_FILTERS, changedFields: ["operator"] };
     expect(buildWhere(filters)).toBeUndefined();
@@ -112,7 +110,6 @@ describe("buildWhere", () => {
       table: numberRangeDiffs,
       snapshotId: "550e8400-e29b-41d4-a716-446655440000",
       isDiff: true,
-      isFull: false,
     };
     const filters = { ...DEFAULT_FILTERS, changeStatus: ["added"] };
     expect(buildWhere(filters)).toBeUndefined();
@@ -128,7 +125,6 @@ describe("buildWhere", () => {
       table: numberRangeDiffs,
       snapshotId: "550e8400-e29b-41d4-a716-446655440000",
       isDiff: true,
-      isFull: false,
     };
     const statusOnly = buildWhere(
       { ...DEFAULT_FILTERS, changeStatus: ["changed"] },

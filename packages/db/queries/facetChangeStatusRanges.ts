@@ -21,9 +21,8 @@ export async function facetChangeStatusRanges(params: {
   filters: FiltersDTO;
   search?: string;
   dataset?: DatasetRef;
-  asOf?: string | null;
 }) {
-  const context = await resolveQueryContext(params.dataset, params.asOf);
+  const context = await resolveQueryContext(params.dataset);
   if (!context.isDiff) {
     return { options: [], totalDistinct: 0 };
   }

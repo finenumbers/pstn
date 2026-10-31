@@ -55,6 +55,9 @@ until PGPASSWORD="$DB_PASS" pg_isready -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME"
   sleep 2
 done
 
+EXPORT_DIR="${EXPORT_DIR:-/app/data/exports}"
+export EXPORT_DIR
+
 echo "Running database migrations..."
 PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -73,6 +76,11 @@ for migration in packages/db/migrations/*.sql; do
     continue
   fi
 
+  if [ "$filename" = "0023_drop_full_snapshots.sql" ]; then
+    echo "Removing historical full-plan export files..."
+    /purge-legacy-full-exports.sh
+  fi
+
   echo "Applying ${migration}..."
   PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" \
     -v ON_ERROR_STOP=1 \
@@ -84,7 +92,6 @@ done
 
 ensure_external_api_key
 
-EXPORT_DIR="${EXPORT_DIR:-/app/data/exports}"
 mkdir -p "$EXPORT_DIR"
 chown nextjs:nodejs "$EXPORT_DIR"
 

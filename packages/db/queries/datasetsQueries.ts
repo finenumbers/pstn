@@ -1,12 +1,10 @@
-import { and, desc, eq, lte, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "../index";
 import { DatasetNotFoundError } from "@/packages/db/errors/datasetErrors";
 import { datasetMeta, datasetSnapshots } from "../schema";
 import {
   DATASET_CURRENT_ID,
   formatDatasetLabel,
-  type ChangeDatesResponse,
-  type DatasetChangeDateItem,
   type DatasetListItem,
   type DatasetRef,
 } from "@/packages/shared/contracts/dataset.schema";
@@ -58,88 +56,23 @@ export async function listDatasetItems(): Promise<DatasetListItem[]> {
   return items;
 }
 
-export async function listChangeDates(): Promise<DatasetChangeDateItem[]> {
-  const rows = await db
-    .select({
-      loadDate: datasetSnapshots.loadDate,
-      snapshotId: datasetSnapshots.id,
-      hasDiff: datasetSnapshots.hasDiff,
-    })
-    .from(datasetSnapshots)
-    .where(eq(datasetSnapshots.hasFull, true))
-    .orderBy(desc(datasetSnapshots.loadDate));
-
-  const items: DatasetChangeDateItem[] = rows.map((row) => ({
-    loadDate: row.loadDate,
-    snapshotId: row.snapshotId,
-    hasDiff: row.hasDiff,
-  }));
-
-  const currentLoadDate = await getCurrentLoadDate();
-  if (
-    currentLoadDate &&
-    !items.some((item) => item.loadDate === currentLoadDate)
-  ) {
-    items.unshift({
-      loadDate: currentLoadDate,
-      snapshotId: DATASET_CURRENT_ID,
-      hasDiff: false,
-    });
-  }
-
-  return items;
-}
-
-export async function listChangeDatesResponse(): Promise<ChangeDatesResponse> {
-  return { items: await listChangeDates() };
-}
-
 export async function resolveDatasetRef(ref: DatasetRef): Promise<DatasetRef> {
   if (ref.kind === "current") {
     return ref;
   }
 
   const rows = await db
-    .select({ id: datasetSnapshots.id, hasDiff: datasetSnapshots.hasDiff, hasFull: datasetSnapshots.hasFull })
+    .select({ id: datasetSnapshots.id, hasDiff: datasetSnapshots.hasDiff })
     .from(datasetSnapshots)
     .where(eq(datasetSnapshots.id, ref.snapshotId!))
     .limit(1);
 
   const snapshot = rows[0];
-  if (!snapshot) {
-    throw new DatasetNotFoundError(ref.snapshotId!);
-  }
-
-  if (ref.kind === "diff" && !snapshot.hasDiff) {
-    throw new DatasetNotFoundError(ref.snapshotId!);
-  }
-
-  if (ref.kind === "full" && !snapshot.hasFull) {
+  if (!snapshot || (ref.kind === "diff" && !snapshot.hasDiff)) {
     throw new DatasetNotFoundError(ref.snapshotId!);
   }
 
   return ref;
-}
-
-export async function resolveSnapshotByAsOf(
-  asOf: string
-): Promise<{ id: string; loadDate: string } | null> {
-  const rows = await db
-    .select({
-      id: datasetSnapshots.id,
-      loadDate: datasetSnapshots.loadDate,
-    })
-    .from(datasetSnapshots)
-    .where(
-      and(
-        eq(datasetSnapshots.hasFull, true),
-        lte(datasetSnapshots.loadDate, asOf)
-      )
-    )
-    .orderBy(desc(datasetSnapshots.loadDate))
-    .limit(1);
-
-  return rows[0] ?? null;
 }
 
 export async function getSnapshotLoadDate(

@@ -14,6 +14,19 @@ import { API_ERROR_CODES } from "@/lib/api/apiErrorCodes";
 export function parseDatasetFromSearchParams(
   params: URLSearchParams
 ): DatasetRef | NextResponse {
+  const asOf = params.get("asOf");
+  if (asOf != null && asOf !== "") {
+    return NextResponse.json(
+      {
+        error: {
+          code: API_ERROR_CODES.VALIDATION_ERROR,
+          message: "Параметр asOf больше не поддерживается.",
+        },
+      },
+      { status: 400 }
+    );
+  }
+
   const parsed = tryParseDatasetParam(params.get("dataset"));
   if (!parsed.success) {
     return validationError(parsed.error);

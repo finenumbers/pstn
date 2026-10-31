@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     if (isDatasetAndAsOfParseError(parsedDataset)) {
       return parsedDataset;
     }
-    const { dataset, asOf } = parsedDataset;
+    const { dataset } = parsedDataset;
 
     const { data, totalRows, hasMore } = await listRanges({
       filters,
@@ -69,7 +69,6 @@ export async function GET(request: NextRequest) {
       page: cursor ? undefined : parsed.data.page,
       skipCount: shouldSkipPhoneRangeCount(filters),
       dataset,
-      asOf,
     });
 
     withTiming("/api/ranges", startMs, {

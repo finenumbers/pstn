@@ -10,20 +10,16 @@ import { queryKeys } from "@/lib/query/queryKeys";
 
 export function useSummaryQuery(
   filters: FiltersDTO,
-  options?: { enabled?: boolean; dataset?: DatasetRef; asOf?: string | null }
+  options?: { enabled?: boolean; dataset?: DatasetRef }
 ) {
   const dataset = options?.dataset ?? { kind: "current" as const };
-  const asOf = options?.asOf ?? null;
   const datasetParam = serializeDatasetParam(dataset);
 
   return useQuery({
-    queryKey: queryKeys.summary(filters, dataset, asOf),
+    queryKey: queryKeys.summary(filters, dataset),
     queryFn: async ({ signal }) => {
       const params = buildFilterParams(filters);
       params.set("dataset", datasetParam);
-      if (asOf && dataset.kind === "current") {
-        params.set("asOf", asOf);
-      }
       return fetchJson<SummaryResponse>(`/api/summary?${params.toString()}`, {
         signal,
       });
@@ -34,20 +30,14 @@ export function useSummaryQuery(
   });
 }
 
-export function useGlobalSummaryQuery(
-  dataset: DatasetRef = { kind: "current" },
-  asOf?: string | null
-) {
+export function useGlobalSummaryQuery(dataset: DatasetRef = { kind: "current" }) {
   const datasetParam = serializeDatasetParam(dataset);
 
   return useQuery({
-    queryKey: queryKeys.globalSummary(dataset, asOf),
+    queryKey: queryKeys.globalSummary(dataset),
     queryFn: () => {
       const params = new URLSearchParams();
       params.set("dataset", datasetParam);
-      if (asOf && dataset.kind === "current") {
-        params.set("asOf", asOf);
-      }
       return fetchJson<SummaryResponse>(`/api/summary?${params.toString()}`);
     },
     staleTime: Infinity,

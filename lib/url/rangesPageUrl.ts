@@ -1,9 +1,9 @@
 /**
  * Client-side URL parsing for `/ranges` (browser history, share links).
  *
- * Intentionally **lenient**: invalid `dataset` / `asOf` fall back to safe defaults
- * so the page stays usable. For strict validation use server parsers in
- * `lib/api/datasetParam.ts` and `lib/api/asOfParam.ts` (400 on bad input).
+ * Intentionally **lenient**: an invalid `dataset` falls back to current
+ * so the page stays usable. `asOf` is ignored and stripped by the page.
+ * Strict API validation lives in `lib/api/datasetParam.ts` (400 on bad input).
  */
 import {
   DEFAULT_SORT,
@@ -16,7 +16,6 @@ import {
 import {
   DATASET_CURRENT_ID,
   serializeDatasetParam,
-  tryParseAsOfParam,
   tryParseDatasetParam,
   type DatasetRef,
 } from "@/packages/shared/contracts/dataset.schema";
@@ -30,17 +29,6 @@ export function parseDatasetFromSearchParams(
   const parsed = tryParseDatasetParam(params.get("dataset"));
   if (!parsed.success) {
     return { kind: "current" };
-  }
-  return parsed.data;
-}
-
-/** Lenient UI parser — invalid param → null (no as-of filter). */
-export function parseAsOfFromSearchParams(
-  params: URLSearchParams
-): string | null {
-  const parsed = tryParseAsOfParam(params.get("asOf"));
-  if (!parsed.success) {
-    return null;
   }
   return parsed.data;
 }
@@ -65,16 +53,12 @@ export function parseRangesTableFromSearchParams(
 export function buildRangesPageSearchParams(
   filters: FiltersDTO,
   sorting: { id: SortableColumn; desc: boolean }[],
-  dataset: DatasetRef = { kind: "current" },
-  asOf?: string | null
+  dataset: DatasetRef = { kind: "current" }
 ): URLSearchParams {
   const params = filtersToSearchParams(filters);
   const datasetParam = serializeDatasetParam(dataset);
   if (datasetParam !== DATASET_CURRENT_ID) {
     params.set("dataset", datasetParam);
-  }
-  if (asOf && dataset.kind === "current") {
-    params.set("asOf", asOf);
   }
   const sortStr = sorting
     .map((s) => `${s.id}:${s.desc ? "desc" : "asc"}`)

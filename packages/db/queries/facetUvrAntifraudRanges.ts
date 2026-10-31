@@ -12,10 +12,9 @@ export async function facetUvrAntifraudRanges(params: {
   search?: string;
   limit?: number;
   dataset?: DatasetRef;
-  asOf?: string | null;
 }) {
   const limit = params.limit ?? 200;
-  const context = await resolveQueryContext(params.dataset, params.asOf);
+  const context = await resolveQueryContext(params.dataset);
   const table = context.table;
   const rangeWhere = buildWhere(params.filters, context, "uvrAntifraud");
   const conditions: SQL[] = [];

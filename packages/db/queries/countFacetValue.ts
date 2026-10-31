@@ -28,10 +28,9 @@ export async function countFacetValue(
   column: FacetColumn,
   value: string,
   filters: FiltersDTO,
-  dataset?: DatasetRef,
-  asOf?: string | null
+  dataset?: DatasetRef
 ): Promise<number> {
-  const context = await resolveQueryContext(dataset, asOf);
+  const context = await resolveQueryContext(dataset);
   const table = context.table;
   const baseWhere = buildWhere(filters, context);
   const valueWhere =

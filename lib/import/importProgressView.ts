@@ -22,7 +22,7 @@ const POST_LOAD_PHASES = [
   { id: "computing_diff", label: "Анализ расхождений по диапазонам" },
   { id: "building_staging_indexes", label: "Подготовка индексов" },
   { id: "swapping", label: "Обновление таблицы и справочников" },
-  { id: "saving_version_snapshot", label: "Сохранение версии датасета" },
+  { id: "saving_version_snapshot", label: "Сохранение расхождений" },
   { id: "binding_uvr_antifraud", label: "Привязка УВр Антифрод" },
   { id: "completed", label: "Готово" },
 ] as const;
@@ -36,7 +36,7 @@ const PHASE_LABELS: Record<string, string> = {
   computing_gaps: "Расчёт пропусков в диапазонах…",
   computing_diff: "Анализ расхождений по диапазонам…",
   building_staging_indexes: "Подготовка индексов перед обновлением…",
-  saving_version_snapshot: "Сохранение версии датасета…",
+  saving_version_snapshot: "Сохранение расхождений…",
   saving_diff_snapshot: "Сохранение расхождений…",
   swapping: "Обновление таблицы и справочников…",
   binding_uvr_antifraud: "Привязка УВр Антифрод по ИНН…",

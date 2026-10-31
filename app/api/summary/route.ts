@@ -27,9 +27,9 @@ export async function GET(request: NextRequest) {
     if (isDatasetAndAsOfParseError(parsedDataset)) {
       return parsedDataset;
     }
-    const { dataset, asOf } = parsedDataset;
+    const { dataset } = parsedDataset;
 
-    const summary = await summaryRanges(filters, dataset, asOf);
+    const summary = await summaryRanges(filters, dataset);
 
     withTiming("/api/summary", startMs, {
       ...phoneFilterTimingMeta(filters),

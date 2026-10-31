@@ -19,7 +19,6 @@ import {
   datasetMeta,
   datasetSnapshots,
   numberRangeDiffs,
-  numberRangeFullSnapshots,
   numberRanges,
   operatorsRegister,
 } from "../schema";
@@ -106,13 +105,10 @@ export async function listRanges(params: {
   page?: number;
   skipCount?: boolean;
   dataset?: DatasetRef;
-  asOf?: string | null;
 }) {
   const context = params.dataset
-    ? await resolveRangeQueryContext(params.dataset, params.asOf)
-    : params.asOf
-      ? await resolveRangeQueryContext({ kind: "current" }, params.asOf)
-      : CURRENT_RANGE_CONTEXT;
+    ? await resolveRangeQueryContext(params.dataset)
+    : CURRENT_RANGE_CONTEXT;
   const table = context.table;
   const baseWhere = buildWhere(params.filters, context);
   const orderBy = buildOrderBy(context, params.sort);
@@ -142,14 +138,10 @@ export async function listRanges(params: {
       uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: context.isDiff
         ? sql<boolean>`false`
-        : context.isFull
-          ? numberRangeFullSnapshots.abcGapBefore
-          : numberRanges.abcGapBefore,
+        : numberRanges.abcGapBefore,
       abcRangeGapAfter: context.isDiff
         ? sql<boolean>`false`
-        : context.isFull
-          ? numberRangeFullSnapshots.abcGapAfter
-          : numberRanges.abcGapAfter,
+        : numberRanges.abcGapAfter,
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,
@@ -167,7 +159,7 @@ export async function listRanges(params: {
   const resolveTotalRows = (): Promise<number> => {
     if (params.cursor) return Promise.resolve(0);
     if (params.skipCount) return Promise.resolve(-1);
-    return countRanges(params.filters, params.dataset, params.asOf);
+    return countRanges(params.filters, params.dataset);
   };
 
   const [totalRows, data] = await Promise.all([
@@ -192,34 +184,19 @@ export async function listRanges(params: {
 
 export async function countRanges(
   filters: FiltersDTO,
-  dataset?: DatasetRef,
-  asOf?: string | null
+  dataset?: DatasetRef
 ): Promise<number> {
   const context = dataset
-    ? await resolveRangeQueryContext(dataset, asOf)
-    : asOf
-      ? await resolveRangeQueryContext({ kind: "current" }, asOf)
-      : CURRENT_RANGE_CONTEXT;
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
 
-  if (!context.isDiff && !context.isFull && !hasActiveFilters(filters)) {
+  if (!context.isDiff && !hasActiveFilters(filters)) {
     const metaRows = await db
       .select({ totalRows: datasetMeta.totalRows })
       .from(datasetMeta)
       .where(eq(datasetMeta.id, 1));
     const cachedTotal = metaRows[0]?.totalRows;
     if (cachedTotal != null) {
-      return cachedTotal;
-    }
-  }
-
-  if (context.isFull && context.snapshotId && !hasActiveFilters(filters)) {
-    const rows = await db
-      .select({ rowCount: datasetSnapshots.rowCount })
-      .from(datasetSnapshots)
-      .where(eq(datasetSnapshots.id, context.snapshotId))
-      .limit(1);
-    const cachedTotal = rows[0]?.rowCount;
-    if (cachedTotal != null && cachedTotal > 0) {
       return cachedTotal;
     }
   }
@@ -244,9 +221,7 @@ async function loadGlobalSummaryFromTable(
   const snapshotWhere =
     context.isDiff && context.snapshotId
       ? eq(numberRangeDiffs.snapshotId, context.snapshotId)
-      : context.isFull && context.snapshotId
-        ? eq(numberRangeFullSnapshots.snapshotId, context.snapshotId)
-        : undefined;
+      : undefined;
   const globalResult = await db
     .select({
       rangeCount: count(),
@@ -265,37 +240,6 @@ async function loadGlobalSummaryFromTable(
   };
 }
 
-async function loadFullGlobalFromSnapshot(snapshotId: string) {
-  const rows = await db
-    .select()
-    .from(datasetSnapshots)
-    .where(eq(datasetSnapshots.id, snapshotId))
-    .limit(1);
-  const snapshot = rows[0];
-  if (!snapshot) {
-    return loadGlobalSummaryFromTable({
-      table: numberRangeFullSnapshots,
-      snapshotId,
-      isDiff: false,
-      isFull: true,
-    });
-  }
-
-  const tableStats = await loadGlobalSummaryFromTable({
-    table: numberRangeFullSnapshots,
-    snapshotId,
-    isDiff: false,
-    isFull: true,
-  });
-
-  return {
-    rangeCount: snapshot.rowCount || tableStats.rangeCount,
-    totalCapacity: tableStats.totalCapacity,
-    uniqueGarTerritories: tableStats.uniqueGarTerritories,
-    uniqueOperators: tableStats.uniqueOperators,
-  };
-}
-
 async function loadDiffGlobalFromSnapshot(snapshotId: string) {
   const rows = await db
     .select()
@@ -308,7 +252,6 @@ async function loadDiffGlobalFromSnapshot(snapshotId: string) {
       table: numberRangeDiffs,
       snapshotId,
       isDiff: true,
-      isFull: false,
     });
   }
 
@@ -318,7 +261,6 @@ async function loadDiffGlobalFromSnapshot(snapshotId: string) {
     table: numberRangeDiffs,
     snapshotId,
     isDiff: true,
-    isFull: false,
   });
 
   return {
@@ -356,15 +298,12 @@ function globalSummaryFromMeta(
 
 export async function summaryRanges(
   filters: FiltersDTO,
-  dataset?: DatasetRef,
-  asOf?: string | null
+  dataset?: DatasetRef
 ): Promise<SummaryRangesResult> {
   const context = dataset
-    ? await resolveRangeQueryContext(dataset, asOf)
-    : asOf
-      ? await resolveRangeQueryContext({ kind: "current" }, asOf)
-      : CURRENT_RANGE_CONTEXT;
-  const cached = getCachedSummary<SummaryRangesResult>(filters, dataset, asOf);
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const cached = getCachedSummary<SummaryRangesResult>(filters, dataset);
   if (cached) {
     return cached;
   }
@@ -380,24 +319,16 @@ export async function summaryRanges(
     context.isDiff && context.snapshotId
       ? await getSnapshotLoadDate(context.snapshotId)
       : null;
-  const fullLoadedAt =
-    context.isFull && context.snapshotId
-      ? await getSnapshotLoadDate(context.snapshotId)
-      : null;
   const loadedAt =
     diffLoadedAt != null
       ? `${diffLoadedAt}T00:00:00.000Z`
-      : fullLoadedAt != null
-        ? `${fullLoadedAt}T00:00:00.000Z`
-        : metaRow?.lastSuccessAt?.toISOString() ?? null;
+      : metaRow?.lastSuccessAt?.toISOString() ?? null;
 
   const global =
     context.isDiff && context.snapshotId
       ? await loadDiffGlobalFromSnapshot(context.snapshotId)
-      : context.isFull && context.snapshotId
-        ? await loadFullGlobalFromSnapshot(context.snapshotId)
-        : globalSummaryFromMeta(metaRow) ??
-          (await loadGlobalSummaryFromTable(context));
+      : globalSummaryFromMeta(metaRow) ??
+        (await loadGlobalSummaryFromTable(context));
 
   if (!hasActiveFilters(filters)) {
     const result = {
@@ -411,7 +342,7 @@ export async function summaryRanges(
       global,
       uvrBinding,
     };
-    setCachedSummary(filters, result, dataset, asOf);
+    setCachedSummary(filters, result, dataset);
     return result;
   }
 
@@ -470,7 +401,7 @@ export async function summaryRanges(
     global,
     uvrBinding,
   };
-  setCachedSummary(filters, result, dataset, asOf);
+  setCachedSummary(filters, result, dataset);
   return result;
 }
 
@@ -479,16 +410,13 @@ export async function listRangesForExport(
   limit: number,
   cursor?: RangesCursor | null,
   dataset?: DatasetRef,
-  asOf?: string | null,
   contextOverride?: RangeQueryContext
 ) {
   const context =
     contextOverride ??
     (dataset
-      ? await resolveRangeQueryContext(dataset, asOf)
-      : asOf
-        ? await resolveRangeQueryContext({ kind: "current" }, asOf)
-        : CURRENT_RANGE_CONTEXT);
+      ? await resolveRangeQueryContext(dataset)
+      : CURRENT_RANGE_CONTEXT);
   const table = context.table;
   const baseWhere = buildWhere(filters, context);
   const keysetWhere = cursor
@@ -516,14 +444,10 @@ export async function listRangesForExport(
       inn: table.inn,
       abcRangeGapBefore: context.isDiff
         ? sql<boolean>`false`
-        : context.isFull
-          ? numberRangeFullSnapshots.abcGapBefore
-          : numberRanges.abcGapBefore,
+        : numberRanges.abcGapBefore,
       abcRangeGapAfter: context.isDiff
         ? sql<boolean>`false`
-        : context.isFull
-          ? numberRangeFullSnapshots.abcGapAfter
-          : numberRanges.abcGapAfter,
+        : numberRanges.abcGapAfter,
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,

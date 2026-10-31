@@ -152,15 +152,10 @@ Facet-колонка `changedFields` поддерживается в `GET /api/r
 
 | Значение | Описание |
 |----------|----------|
-| `current` (default) | Актуальная production-таблица `number_ranges` |
-| `full:<uuid>` | Полная версия из `number_range_full_snapshots` |
+| `current` (default) | Актуальная production-таблица `number_ranges` — единственный полный план |
 | `diff:<uuid>` | Снимок расхождений из `number_range_diffs` (snapshot id) |
 
-#### Параметр `asOf` (исторический full)
-
-При `dataset=current` (default) можно передать `asOf=YYYY-MM-DD` (MSK). API выберет последний snapshot с `has_full=true` и `load_date ≤ asOf` и вернёт полную таблицу из `number_range_full_snapshots`. Если `asOf` ≥ даты текущего import — читается production без snapshot.
-
-`asOf` **не сочетается** с `dataset=diff:*` или `dataset=full:*` (400).
+`dataset=full:<uuid>` и `asOf` больше не поддерживаются и возвращают **400**.
 
 #### Mapping `id` из `GET /api/datasets`
 
@@ -238,41 +233,6 @@ Healthcheck приложения и PostgreSQL.
 
 ---
 
-### `GET /api/datasets/change-dates`
-
-Даты версий датасета для календаря «Дата датасета». Каждый элемент — день, для которого сохранён full snapshot (`has_full=true`).
-
-**Auth:** NPM (perimeter)
-
-**Response 200:**
-
-```json
-{
-  "items": [
-    {
-      "loadDate": "2026-06-28",
-      "snapshotId": "550e8400-e29b-41d4-a716-446655440000",
-      "hasDiff": true
-    },
-    {
-      "loadDate": "2026-06-22",
-      "snapshotId": "660e8400-e29b-41d4-a716-446655440001",
-      "hasDiff": false
-    }
-  ]
-}
-```
-
-| Поле | Описание |
-|------|----------|
-| `loadDate` | Календарная дата MSK (`YYYY-MM-DD`) |
-| `snapshotId` | UUID snapshot или `"current"` для текущего production load date без отдельной записи |
-| `hasDiff` | Был ли import с ненулевым diff в этот день |
-
-UI подсвечивает **все** дни из списка синим фоном в календаре (дни версий). Выбор недоступен для дат раньше минимального `loadDate` и для будущих дат.
-
----
-
 ### `GET /api/ranges`
 
 Список диапазонов с фильтрами, сортировкой и keyset pagination.
@@ -287,8 +247,7 @@ UI подсвечивает **все** дни из списка синим фо�
 | `pageSize` | 50 | 200 | Размер страницы |
 | `cursor` | — | — | Keyset cursor (infinite scroll) |
 | `sort` | `abc:asc` | — | Сортировка |
-| `dataset` | `current` | — | `current`, `full:<uuid>` или `diff:<uuid>` |
-| `asOf` | — | — | Исторический full при `dataset=current` |
+| `dataset` | `current` | — | `current` или `diff:<uuid>` |
 | `filters.*` | — | — | См. выше |
 
 **Response 200:**
@@ -345,7 +304,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 
 **Auth:** NPM
 
-**Query:** `filters.*` (optional), `dataset` (optional), `asOf` (optional)
+**Query:** `filters.*` (optional), `dataset` (optional)
 
 **Response 200:**
 
@@ -374,7 +333,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 
 **Auth:** NPM. **Rate limit:** 10 req / min (in-app) — общий bucket с `POST /api/export/jobs`.
 
-**Query:** `filters.*`, `dataset`, `asOf`
+**Query:** `filters.*`, `dataset`
 
 | Порог | HTTP |
 |-------|------|
@@ -389,7 +348,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 
 **Auth:** NPM. **Rate limit:** тот же export bucket.
 
-**Query:** те же `filters.*`, `dataset`, `asOf`.
+**Query:** те же `filters.*`, `dataset`.
 
 **Response 202:** `{ jobId, status, totalRows }`.  
 **409 `EXPORT_BUSY`:** уже есть pending/running job.

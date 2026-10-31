@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
     if (isDatasetAndAsOfParseError(parsedDataset)) {
       return parsedDataset;
     }
-    const { dataset, asOf } = parsedDataset;
+    const { dataset } = parsedDataset;
 
-    const totalRows = await countRanges(filtersParsed.data, dataset, asOf);
+    const totalRows = await countRanges(filtersParsed.data, dataset);
     if (totalRows > EXPORT_ASYNC_THRESHOLD) {
       return apiError(
         API_ERROR_CODES.EXPORT_USE_ASYNC,
@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
       filtersParsed.data,
       totalRows,
       dataset,
-      asOf,
       request.signal
     );
 

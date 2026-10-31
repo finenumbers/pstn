@@ -166,7 +166,6 @@ export type WriteRangesXlsxOptions = {
   filters: FiltersDTO;
   totalRows: number;
   dataset?: DatasetRef;
-  asOf?: string | null;
   signal?: AbortSignal;
   onProgress?: (rowsWritten: number) => void | Promise<void>;
   /** Destination stream (PassThrough for HTTP, file stream for jobs). */
@@ -177,7 +176,7 @@ export async function writeRangesXlsxToStream(
   options: WriteRangesXlsxOptions
 ): Promise<{ rowsWritten: number; durationMs: number }> {
   const startMs = Date.now();
-  const { filters, dataset, asOf, signal, onProgress, stream } = options;
+  const { filters, dataset, signal, onProgress, stream } = options;
   const isDiff = dataset?.kind === "diff";
   const columns: Partial<ExcelJS.Column>[] = isDiff
     ? EXPORT_DIFF_XLS_COLUMNS
@@ -186,10 +185,8 @@ export async function writeRangesXlsxToStream(
   const keys = columns.map((c) => String(c.key ?? ""));
 
   const context = dataset
-    ? await resolveRangeQueryContext(dataset, asOf)
-    : asOf
-      ? await resolveRangeQueryContext({ kind: "current" }, asOf)
-      : CURRENT_RANGE_CONTEXT;
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
 
   const uvrMap = await loadUvrLookupMap();
 
@@ -261,7 +258,6 @@ export async function writeRangesXlsxToStream(
         EXPORT_BATCH_SIZE,
         cursor,
         dataset,
-        asOf,
         context
       );
       if (batch.length === 0) break;
@@ -387,7 +383,6 @@ export async function createRangesXlsxExport(
   filters: FiltersDTO,
   totalRows: number,
   dataset?: DatasetRef,
-  asOf?: string | null,
   signal?: AbortSignal
 ): Promise<{
   body: ReadableStream<Uint8Array>;
@@ -399,7 +394,6 @@ export async function createRangesXlsxExport(
     filters,
     totalRows,
     dataset,
-    asOf,
     signal,
     stream: passThrough,
   }).catch((error) => {

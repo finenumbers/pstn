@@ -27,25 +27,18 @@ async function safeUnlink(path: string | null | undefined) {
 
 function serializeDataset(dataset?: DatasetRef): string | null {
   if (!dataset || dataset.kind === "current") return "current";
-  if (dataset.kind === "diff") return `diff:${dataset.snapshotId}`;
-  if (dataset.kind === "full") return `full:${dataset.snapshotId}`;
-  return "current";
+  return `diff:${dataset.snapshotId}`;
 }
 
 export async function startExportJob(input: {
   filters: FiltersDTO;
   dataset?: DatasetRef;
-  asOf?: string | null;
 }): Promise<{ jobId: string; status: string; totalRows: number }> {
   await recoverStaleExportJobs();
   ensureExportDir();
 
   const filtersParsed = filtersSchema.parse(input.filters);
-  const totalRows = await countRanges(
-    filtersParsed,
-    input.dataset,
-    input.asOf
-  );
+  const totalRows = await countRanges(filtersParsed, input.dataset);
 
   const result = await db.transaction(async (tx) => {
     await tx.execute(
@@ -74,7 +67,6 @@ export async function startExportJob(input: {
         status: "pending",
         filtersJson: filtersParsed as unknown as Record<string, unknown>,
         dataset: serializeDataset(input.dataset),
-        asOf: input.asOf ?? null,
         totalRows,
         rowsWritten: 0,
       })
@@ -193,7 +185,6 @@ async function runExportJob(jobId: string) {
       filters,
       totalRows: job.totalRows,
       dataset: parsedDataset.data,
-      asOf: job.asOf,
       signal: controller.signal,
       stream,
       onProgress: async (written) => {

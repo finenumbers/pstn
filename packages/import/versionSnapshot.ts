@@ -2,10 +2,6 @@ import { importPool } from "@/packages/db";
 import type { DiffSegment } from "@/packages/import/rangeDatasetDiff";
 import type pg from "pg";
 
-export type VersionSnapshotMode = "baseline" | "full_and_diff";
-
-const FULL_COPY_BATCH_SIZE = 5000;
-
 type ImportPoolClient = pg.PoolClient;
 
 async function insertDiffSegments(
@@ -62,62 +58,14 @@ async function insertDiffSegments(
   }
 }
 
-async function copyProductionToFullSnapshot(
-  client: ImportPoolClient,
-  snapshotId: string
-): Promise<number> {
-  await client.query(
-    `DELETE FROM number_range_full_snapshots WHERE snapshot_id = $1`,
-    [snapshotId]
-  );
-
-  const countResult = await client.query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM number_ranges`
-  );
-  const totalRows = Number(countResult.rows[0]?.count ?? 0);
-  if (totalRows === 0) {
-    return 0;
-  }
-
-  let copied = 0;
-  while (copied < totalRows) {
-    await client.query(
-      `
-      INSERT INTO number_range_full_snapshots (
-        snapshot_id, abc, range_start, range_end, capacity,
-        operator, gar_territory, inn,
-        abc_gap_before, abc_gap_after, source_file
-      )
-      SELECT
-        $1,
-        abc, range_start, range_end, capacity,
-        operator, gar_territory, inn,
-        abc_gap_before, abc_gap_after, source_file
-      FROM number_ranges
-      ORDER BY abc, range_start
-      LIMIT $2 OFFSET $3
-    `,
-      [snapshotId, FULL_COPY_BATCH_SIZE, copied]
-    );
-    copied += FULL_COPY_BATCH_SIZE;
-  }
-
-  return totalRows;
-}
-
-export async function saveVersionSnapshot(params: {
+export async function saveDiffSnapshot(params: {
   jobId: string;
   loadDate: string;
-  mode: VersionSnapshotMode;
-  segments?: DiffSegment[];
-  counts?: { added: number; changed: number; removed: number };
+  segments: DiffSegment[];
+  counts: { added: number; changed: number; removed: number };
 }): Promise<string> {
-  const hasDiff = params.mode === "full_and_diff";
-  const segments = params.segments ?? [];
-  const counts = params.counts ?? { added: 0, changed: 0, removed: 0 };
-
-  if (hasDiff && segments.length === 0) {
-    throw new Error("full_and_diff mode requires non-empty diff segments");
+  if (params.segments.length === 0) {
+    throw new Error("diff snapshot requires non-empty segments");
   }
 
   const client = await importPool().connect();
@@ -129,43 +77,29 @@ export async function saveVersionSnapshot(params: {
       INSERT INTO dataset_snapshots (
         kind, load_date, job_id,
         added_count, changed_count, removed_count,
-        has_full, has_diff, row_count
+        has_diff
       )
-      VALUES ('version', $1::date, $2, $3, $4, $5, true, $6, 0)
+      VALUES ('diff', $1::date, $2, $3, $4, $5, true)
       ON CONFLICT (load_date) DO UPDATE SET
+        kind = 'diff',
         job_id = EXCLUDED.job_id,
         added_count = EXCLUDED.added_count,
         changed_count = EXCLUDED.changed_count,
         removed_count = EXCLUDED.removed_count,
-        has_full = true,
-        has_diff = EXCLUDED.has_diff
+        has_diff = true
       RETURNING id
     `,
       [
         params.loadDate,
         params.jobId,
-        counts.added,
-        counts.changed,
-        counts.removed,
-        hasDiff,
+        params.counts.added,
+        params.counts.changed,
+        params.counts.removed,
       ]
     );
 
     const snapshotId = snapshotResult.rows[0]!.id;
-    const rowCount = await copyProductionToFullSnapshot(client, snapshotId);
-
-    await client.query(
-      `UPDATE dataset_snapshots SET row_count = $2 WHERE id = $1`,
-      [snapshotId, rowCount]
-    );
-
-    if (hasDiff) {
-      await insertDiffSegments(client, snapshotId, segments);
-    } else {
-      await client.query(`DELETE FROM number_range_diffs WHERE snapshot_id = $1`, [
-        snapshotId,
-      ]);
-    }
+    await insertDiffSegments(client, snapshotId, params.segments);
 
     await client.query("COMMIT");
     return snapshotId;

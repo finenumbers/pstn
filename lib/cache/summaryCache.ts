@@ -14,25 +14,16 @@ interface CacheEntry<T> {
 
 const summaryCache = new Map<string, CacheEntry<unknown>>();
 
-function summaryCacheKey(
-  filters: FiltersDTO,
-  dataset?: DatasetRef,
-  asOf?: string | null
-): string {
-  const datasetKey = dataset
-    ? datasetQueryKey(dataset, asOf)
-    : asOf
-      ? `current?asOf=${asOf}`
-      : "current";
+function summaryCacheKey(filters: FiltersDTO, dataset?: DatasetRef): string {
+  const datasetKey = dataset ? datasetQueryKey(dataset) : "current";
   return `${datasetKey}:${JSON.stringify(normalizeFilters(filters))}`;
 }
 
 export function getCachedSummary<T>(
   filters: FiltersDTO,
-  dataset?: DatasetRef,
-  asOf?: string | null
+  dataset?: DatasetRef
 ): T | undefined {
-  const key = summaryCacheKey(filters, dataset, asOf);
+  const key = summaryCacheKey(filters, dataset);
   const entry = summaryCache.get(key) as CacheEntry<T> | undefined;
   if (!entry) return undefined;
   if (Date.now() > entry.expiresAt) {
@@ -45,10 +36,9 @@ export function getCachedSummary<T>(
 export function setCachedSummary<T>(
   filters: FiltersDTO,
   value: T,
-  dataset?: DatasetRef,
-  asOf?: string | null
+  dataset?: DatasetRef
 ): void {
-  const key = summaryCacheKey(filters, dataset, asOf);
+  const key = summaryCacheKey(filters, dataset);
   if (summaryCache.size >= SUMMARY_CACHE_MAX_ENTRIES) {
     const oldestKey = summaryCache.keys().next().value;
     if (oldestKey) summaryCache.delete(oldestKey);

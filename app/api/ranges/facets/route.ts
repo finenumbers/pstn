@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     if (isDatasetAndAsOfParseError(parsedDataset)) {
       return parsedDataset;
     }
-    const { dataset, asOf } = parsedDataset;
+    const { dataset } = parsedDataset;
 
     const search: Record<string, string> = {};
     for (const col of columns) {
@@ -85,7 +85,6 @@ export async function GET(request: NextRequest) {
           search: search[column],
           limit: 200,
           dataset,
-          asOf,
         })
       )
     );
@@ -104,7 +103,7 @@ export async function GET(request: NextRequest) {
         const counts = await Promise.all(
           missingSelected.map(async (selected) => ({
             selected,
-            count: await countFacetValue(column, selected, filters, dataset, asOf),
+            count: await countFacetValue(column, selected, filters, dataset),
           }))
         );
         for (const { selected, count } of counts) {
