@@ -6,7 +6,6 @@ export function hasActiveFilters(filters: FiltersDTO): boolean {
     filters.abc.length > 0 ||
     filters.operator.length > 0 ||
     filters.garTerritory.length > 0 ||
-    filters.region.length > 0 ||
     filters.inn.length > 0 ||
     filters.uvrAntifraud.length > 0 ||
     filters.changedFields.length > 0 ||

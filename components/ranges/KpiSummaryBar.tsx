@@ -176,13 +176,13 @@ export function KpiSummaryBar({
           }
         />
         <KpiCard
-          title="Регионы / Территории ГАР"
+          title="Территории ГАР"
           isLoading={isLoading}
           compare={
             filtered && global
               ? {
-                  filtered: `${formatNumber(filtered.uniqueRegions)} (${formatNumber(filtered.uniqueGarTerritories)})`,
-                  global: `${formatNumber(global.uniqueRegions)} (${formatNumber(global.uniqueGarTerritories)})`,
+                  filtered: formatNumber(filtered.uniqueGarTerritories),
+                  global: formatNumber(global.uniqueGarTerritories),
                 }
               : undefined
           }

@@ -8,8 +8,6 @@ export function sqlForChangedFieldKey(key: DiffChangedFieldKey): SQL {
   switch (key) {
     case "operator":
       return sql`${d.changeType} = 'changed' AND ${d.prevOperator} IS DISTINCT FROM ${d.operator}`;
-    case "region":
-      return sql`${d.changeType} = 'changed' AND ${d.prevRegion} IS DISTINCT FROM ${d.region}`;
     case "garTerritory":
       return sql`${d.changeType} = 'changed' AND ${d.prevGarTerritory} IS DISTINCT FROM ${d.garTerritory}`;
     case "inn":
@@ -21,7 +19,6 @@ export function sqlForChangedFieldKeys(keys: readonly string[]): SQL | undefined
   const valid = keys.filter(
     (key): key is DiffChangedFieldKey =>
       key === "operator" ||
-      key === "region" ||
       key === "garTerritory" ||
       key === "inn"
   );

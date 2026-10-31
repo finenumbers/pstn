@@ -22,7 +22,6 @@ describeWithDb("summaryRanges fast path", () => {
         capacity: 1_000,
         operator: 'АО "МТТ"',
         garTerritory: "г. Санкт-Петербург",
-        region: "ГФЗ Санкт-Петербург",
         inn: "7705017257",
       },
     ]);
@@ -38,13 +37,11 @@ describeWithDb("summaryRanges fast path", () => {
 
     expect(summary.filtered.rangeCount).toBe(summary.global.rangeCount);
     expect(summary.filtered.totalCapacity).toBe(summary.global.totalCapacity);
-    expect(summary.filtered.uniqueRegions).toBe(summary.global.uniqueRegions);
     expect(summary.filtered.uniqueGarTerritories).toBe(
       summary.global.uniqueGarTerritories
     );
     expect(summary.filtered.uniqueOperators).toBe(summary.global.uniqueOperators);
     expect(summary.global.rangeCount).toBe(10);
-    expect(summary.global.uniqueRegions).toBe(2);
     expect(summary.global.uniqueGarTerritories).toBe(2);
     expect(summary.uvrBinding.registryOperators).toBeGreaterThanOrEqual(0);
   });
@@ -56,10 +53,8 @@ describeWithDb("summaryRanges fast path", () => {
     });
 
     expect(summary.filtered.rangeCount).toBe(9);
-    expect(summary.filtered.uniqueRegions).toBe(1);
     expect(summary.filtered.uniqueGarTerritories).toBe(1);
     expect(summary.global.rangeCount).toBe(10);
-    expect(summary.global.uniqueRegions).toBe(2);
     expect(summary.global.uniqueGarTerritories).toBe(2);
   });
 });

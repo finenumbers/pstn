@@ -8,7 +8,6 @@ export type TestRangeRow = {
   capacity: number;
   operator: string;
   garTerritory: string;
-  region: string;
   inn: string;
   sourceFile?: string;
 };
@@ -20,18 +19,16 @@ export async function truncateRangeTables(client?: pg.Pool | pg.PoolClient) {
       number_ranges,
       number_ranges_staging,
       operators_dict,
-      regions_dict,
       gar_territories_dict,
       abc_dict
     RESTART IDENTITY
   `);
   await runner.query(`
-    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_gar_territories, unique_operators)
-    VALUES (1, 0, 0, 0, 0, 0)
+    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_gar_territories, unique_operators)
+    VALUES (1, 0, 0, 0, 0)
     ON CONFLICT (id) DO UPDATE SET
       total_rows = 0,
       total_capacity = 0,
-      unique_regions = 0,
       unique_gar_territories = 0,
       unique_operators = 0,
       last_success_at = NULL,
@@ -49,8 +46,8 @@ export async function insertTestRangeRows(
       `
       INSERT INTO number_ranges (
         abc, range_start, range_end, capacity, operator,
-        gar_territory, region, inn, source_file
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        gar_territory, inn, source_file
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
       [
         row.abc,
@@ -59,7 +56,6 @@ export async function insertTestRangeRows(
         row.capacity,
         row.operator,
         row.garTerritory,
-        row.region,
         row.inn,
         row.sourceFile ?? "integration-test",
       ]
@@ -70,18 +66,16 @@ export async function insertTestRangeRows(
 export async function refreshTestDatasetMeta(client?: pg.Pool | pg.PoolClient) {
   const runner = client ?? pool();
   await runner.query(`
-    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_regions, unique_gar_territories, unique_operators)
+    INSERT INTO dataset_meta (id, total_rows, total_capacity, unique_gar_territories, unique_operators)
     SELECT 1,
       COUNT(*)::int,
       COALESCE(SUM(capacity), 0)::bigint,
-      COUNT(DISTINCT region)::int,
       COUNT(DISTINCT gar_territory)::int,
       COUNT(DISTINCT operator)::int
     FROM number_ranges
     ON CONFLICT (id) DO UPDATE SET
       total_rows = EXCLUDED.total_rows,
       total_capacity = EXCLUDED.total_capacity,
-      unique_regions = EXCLUDED.unique_regions,
       unique_gar_territories = EXCLUDED.unique_gar_territories,
       unique_operators = EXCLUDED.unique_operators
   `);
@@ -97,11 +91,6 @@ export async function refreshTestDictTables(client?: pg.Pool | pg.PoolClient) {
   await runner.query(`
     INSERT INTO operators_dict (name, inn)
     SELECT DISTINCT operator, inn FROM number_ranges
-    ON CONFLICT (name) DO NOTHING
-  `);
-  await runner.query(`
-    INSERT INTO regions_dict (name)
-    SELECT DISTINCT region FROM number_ranges
     ON CONFLICT (name) DO NOTHING
   `);
   await runner.query(`
@@ -121,7 +110,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 5_000,
     operator: 'ПАО "Ростелеком"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7707049388",
   },
   {
@@ -131,7 +119,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 5_000,
     operator: 'ПАО "Ростелеком"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7707049388",
   },
   {
@@ -141,7 +128,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 10_000,
     operator: 'ПАО "Ростелеком"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7707049388",
   },
   {
@@ -151,7 +137,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 90,
     operator: 'АО "МТТ"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7705017257",
   },
   {
@@ -161,7 +146,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 9_000,
     operator: 'АО "МТТ"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7705017257",
   },
   {
@@ -171,7 +155,6 @@ export const ABC_301_GAP_TEST_ROWS: TestRangeRow[] = [
     capacity: 10_000,
     operator: 'АО "МТТ"',
     garTerritory: "г. Улан-Удэ|Республика Бурятия",
-    region: "Республика Бурятия",
     inn: "7705017257",
   },
 ];
@@ -187,7 +170,6 @@ export function buildKeysetFillerTestRows(count: number): TestRangeRow[] {
       capacity: 1_000,
       operator: 'ПАО "Ростелеком"',
       garTerritory: "Город Москва",
-      region: "ГФЗ Москва",
       inn: "7707049388",
     });
   }

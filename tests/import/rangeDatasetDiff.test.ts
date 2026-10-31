@@ -19,7 +19,6 @@ function range(
     rangeEnd: end,
     capacity: end - start + 1,
     operator,
-    region: "Region",
     garTerritory: "Territory",
     inn: "",
     ...overrides,

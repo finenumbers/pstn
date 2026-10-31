@@ -19,7 +19,6 @@ function diffRow(
     rangeEnd: 2111099,
     capacity: 900,
     operator: 'ООО "ИНСИС"',
-    region: "-",
     garTerritory: "г.о. город Екатеринбург|Свердловская область",
     inn: "6662103947",
     uvrAntifraud: null,
@@ -30,18 +29,18 @@ function diffRow(
 }
 
 describe("diffChangedFields", () => {
-  it("detects region-only change (ABC 343 case)", () => {
+  it("detects a GAR-only change and ignores unchanged operator and INN", () => {
     const row = diffRow({
       changeType: "changed",
-      prevRegion: "г. Екатеринбург|Свердловская обл.",
+      garTerritory: "г. Екатеринбург|Свердловская обл.",
       prevGarTerritory: "г.о. город Екатеринбург|Свердловская область",
       prevOperator: 'ООО "ИНСИС"',
       prevInn: "6662103947",
     });
 
-    expect(computeChangedMetadataFieldKeys(row)).toEqual(["region"]);
-    expect(formatChangedFieldsLabel(row)).toBe("Регион");
-    expect(computeChangedFieldKeys(row)).toEqual(["region"]);
+    expect(computeChangedMetadataFieldKeys(row)).toEqual(["garTerritory"]);
+    expect(formatChangedFieldsLabel(row)).toBe("Территория ГАР");
+    expect(computeChangedFieldKeys(row)).toEqual(["garTerritory"]);
   });
 
   it("maps change status labels", () => {
@@ -66,19 +65,24 @@ describe("diffChangedFields", () => {
     );
   });
 
-  it("builds was/sto rows with changed flag on region only", () => {
+  it("builds was/sto rows with changed flag on GAR only", () => {
     const row = diffRow({
       changeType: "changed",
-      prevRegion: "г. Екатеринбург|Свердловская обл.",
+      garTerritory: "г. Екатеринбург|Свердловская обл.",
       prevOperator: 'ООО "ИНСИС"',
       prevInn: "6662103947",
       prevGarTerritory: "г.о. город Екатеринбург|Свердловская область",
     });
 
     const rows = buildWasStoRows(row);
-    expect(rows.find((r) => r.key === "region")).toMatchObject({
-      before: "г. Екатеринбург|Свердловская обл.",
-      after: "-",
+    expect(rows.map((row) => row.key)).toEqual([
+      "operator",
+      "garTerritory",
+      "inn",
+    ]);
+    expect(rows.find((r) => r.key === "garTerritory")).toMatchObject({
+      before: "г.о. город Екатеринбург|Свердловская область",
+      after: "г. Екатеринбург|Свердловская обл.",
       changed: true,
     });
     expect(rows.find((r) => r.key === "operator")?.changed).toBe(false);
@@ -87,11 +91,12 @@ describe("diffChangedFields", () => {
   it("uses type-specific highlight classes in detail rows", () => {
     const changedRow = diffRow({
       changeType: "changed",
-      prevRegion: "old",
+      garTerritory: "new",
+      prevGarTerritory: "old",
     });
     const changedRows = buildWasStoRows(changedRow);
-    const regionRow = changedRows.find((r) => r.key === "region")!;
-    expect(getWasStoRowHighlightClass("changed", regionRow)).toBe(
+    const garRow = changedRows.find((r) => r.key === "garTerritory")!;
+    expect(getWasStoRowHighlightClass("changed", garRow)).toBe(
       "bg-yellow-100/80"
     );
     expect(

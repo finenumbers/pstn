@@ -15,7 +15,6 @@ const FALSE_POSITIVE_ROW: TestRangeRow = {
   capacity: 19_000,
   operator: 'ООО "Манго Телеком"',
   garTerritory: "Новосибирск",
-  region: "Новосибирская область",
   inn: "7702340000",
 };
 
@@ -26,7 +25,6 @@ const STRICT_MATCH_ROW: TestRangeRow = {
   capacity: 30,
   operator: 'ООО "ФРОНТИР НЕТВОРК"',
   garTerritory: "Новосибирск",
-  region: "Новосибирская область",
   inn: "5406978329",
 };
 
@@ -37,7 +35,6 @@ const SEARCH_ROW: TestRangeRow = {
   capacity: 500,
   operator: 'ООО "ФРОНТИР НЕТВОРК"',
   garTerritory: "Москва",
-  region: "ГФЗ Москва",
   inn: "5406978329",
 };
 

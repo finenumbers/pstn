@@ -30,7 +30,6 @@ describeWithDb("facet inn and uvrAntifraud", () => {
         capacity: 1_000,
         operator: 'ПАО "Ростелеком"',
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "7707049388",
       },
       {
@@ -40,7 +39,6 @@ describeWithDb("facet inn and uvrAntifraud", () => {
         capacity: 1_000,
         operator: 'ООО "Скартел"',
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "7701725181",
       },
     ]);

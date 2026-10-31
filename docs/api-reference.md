@@ -115,7 +115,6 @@ Content-Type: application/json
 |-----------|--------|----------|
 | `filters.abc` | `301\|\|\|353` | Coverage AND, max 20 |
 | `filters.operator` | values `|||` | OR, max 50 |
-| `filters.region` | values `|||` | Coverage AND, max 20 |
 | `filters.garTerritory` | values `|||` | Coverage AND, max 20 |
 | `filters.inn` | values `|||` | OR, max 50 |
 | `filters.uvrAntifraud` | values `|||` | OR, max 50 |
@@ -134,7 +133,6 @@ Content-Type: application/json
 | Значение | Смысл |
 |----------|-------|
 | `operator` | `changeType=changed`, оператор отличается |
-| `region` | `changeType=changed`, регион отличается |
 | `garTerritory` | `changeType=changed`, территория ГАР отличается |
 | `inn` | `changeType=changed`, ИНН отличается |
 | `added` | `changeType=added` |
@@ -178,7 +176,7 @@ Facet-колонка `changedFields` поддерживается в `GET /api/r
 
 ### Сортировка
 
-`sort=column:asc` или `sort=column:desc`. Колонки: `abc`, `rangeStart`, `rangeEnd`, `capacity`, `operator`, `region`, `garTerritory`, `inn`.
+`sort=column:asc` или `sort=column:desc`. Колонки: `abc`, `rangeStart`, `rangeEnd`, `capacity`, `operator`, `garTerritory`, `inn`.
 
 ---
 
@@ -321,7 +319,7 @@ Invalid filters → **400** `VALIDATION_ERROR`. Invalid cursor → **400** «Н�
 
 | Param | Описание |
 |-------|----------|
-| `columns` | Список колонок: `abc`, `operator`, `region`, `garTerritory`, `inn`, `uvrAntifraud`, `changedFields` (последняя — только diff) |
+| `columns` | Список колонок: `abc`, `operator`, `garTerritory`, `inn`, `uvrAntifraud`, `changedFields` (последняя — только diff) |
 | `search.<column>` | Поиск внутри фасета |
 | `dataset` | `current` (default) или `diff:<uuid>` |
 | `filters.*` | Контекстные фильтры |
@@ -343,7 +341,7 @@ Invalid filters → **400** `VALIDATION_ERROR`. Invalid cursor → **400** «Н�
 
 ### `GET /api/summary`
 
-KPI-агрегаты: число диапазонов, суммарная ёмкость, уникальные регионы и территории ГАР, операторы.
+KPI-агрегаты: число диапазонов, суммарная ёмкость, уникальные территории ГАР, операторы.
 
 **Auth:** NPM
 
@@ -357,7 +355,6 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
   "global": {
     "rangeCount": 446000,
     "totalCapacity": 1234567890,
-    "uniqueRegions": 85,
     "uniqueGarTerritories": 210,
     "uniqueOperators": 1200
   },
@@ -610,7 +607,6 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 | `capacity` | number | Ёмкость |
 | `operator` | string | Оператор (в diff — **новое** значение) |
 | `garTerritory` | string | Территория ГАР |
-| `region` | string | Регион |
 | `inn` | string | ИНН (в diff — **новое** значение) |
 | `uvrAntifraud` | number \| null | id_src OPR |
 | `abcRangeGapBefore` | boolean | Пропуск ABC сверху |
@@ -618,7 +614,7 @@ KPI-агрегаты: число диапазонов, суммарная ёмк
 | `changeType` | `"added"` \| `"changed"` \| `"removed"` \| null | Только diff |
 | `prevOperator` | string \| null | Старое значение (API/XLSX; в UI — диалог было/стало) |
 | `prevInn` | string \| null | Старое значение ИНН |
-| `prevRegion`, `prevGarTerritory`, `prevCapacity`, … | | Предыдущие метаданные для `changed` |
+| `prevGarTerritory`, `prevCapacity`, … | | Предыдущие метаданные для `changed` |
 
 Поля `prev*` заполняются для сегментов diff; в UI-таблице отображаются через колонку «Изменения», в XLSX — отдельными old/new колонками.
 

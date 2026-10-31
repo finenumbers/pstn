@@ -1,6 +1,6 @@
 import {
   mapDiffOperatorInn,
-  mapDiffRegionGar,
+  mapDiffGar,
   formatDiffDisplayValue,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
@@ -8,7 +8,6 @@ import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema"
 /** Metadata field keys that can differ on a changed diff row. */
 export const DIFF_METADATA_FIELD_KEYS = [
   "operator",
-  "region",
   "garTerritory",
   "inn",
 ] as const;
@@ -22,7 +21,6 @@ export type DiffChangedFieldKey = (typeof DIFF_CHANGED_FIELD_KEYS)[number];
 
 export const DIFF_CHANGED_FIELD_LABELS: Record<DiffChangedFieldKey, string> = {
   operator: "Оператор связи",
-  region: "Регион",
   garTerritory: "Территория ГАР",
   inn: "ИНН",
 };
@@ -63,14 +61,11 @@ export function computeChangedMetadataFieldKeys(
   if (row.changeType !== "changed") return [];
 
   const op = mapDiffOperatorInn(row);
-  const gar = mapDiffRegionGar(row);
+  const gar = mapDiffGar(row);
   const keys: DiffMetadataFieldKey[] = [];
 
   if (metadataValuesDiffer(op.oldOperator, op.newOperator)) {
     keys.push("operator");
-  }
-  if (metadataValuesDiffer(gar.oldRegion, gar.newRegion)) {
-    keys.push("region");
   }
   if (metadataValuesDiffer(gar.oldGarTerritory, gar.newGarTerritory)) {
     keys.push("garTerritory");
@@ -109,7 +104,7 @@ export function formatChangedFieldsLabel(row: NumberRangeRow): string {
 /** Rows for the was/sto detail dialog. */
 export function buildWasStoRows(row: NumberRangeRow): DiffWasStoRow[] {
   const op = mapDiffOperatorInn(row);
-  const gar = mapDiffRegionGar(row);
+  const gar = mapDiffGar(row);
   const changedKeys = new Set(computeChangedMetadataFieldKeys(row));
 
   return DIFF_METADATA_FIELD_KEYS.map((key) => {
@@ -121,14 +116,6 @@ export function buildWasStoRows(row: NumberRangeRow): DiffWasStoRow[] {
           before: op.oldOperator,
           after: op.newOperator,
           changed: changedKeys.has("operator"),
-        };
-      case "region":
-        return {
-          key,
-          label: DIFF_CHANGED_FIELD_LABELS.region,
-          before: gar.oldRegion,
-          after: gar.newRegion,
-          changed: changedKeys.has("region"),
         };
       case "garTerritory":
         return {

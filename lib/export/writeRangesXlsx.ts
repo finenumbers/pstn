@@ -21,7 +21,7 @@ import { EXCEL_SHEET_MAX_DATA_ROWS } from "@/lib/export/exportLimits";
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
-  mapDiffRegionGar,
+  mapDiffGar,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import ExcelJS from "exceljs";
 import { PassThrough } from "node:stream";
@@ -57,7 +57,6 @@ export const EXPORT_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Конец", key: "rangeEnd", width: 12 },
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Оператор связи", key: "operator", width: 36 },
-  { header: "Регион", key: "region", width: 28 },
   { header: "Территория ГАР", key: "garTerritory", width: 36 },
   { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
   { header: "ИНН", key: "inn", width: 15 },
@@ -71,8 +70,6 @@ export const EXPORT_DIFF_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Старый оператор связи", key: "prevOperator", width: 36 },
   { header: "Новый оператор связи", key: "newOperator", width: 36 },
-  { header: "Старый регион", key: "prevRegion", width: 28 },
-  { header: "Новый регион", key: "newRegion", width: 28 },
   { header: "Старая территория ГАР", key: "prevGarTerritory", width: 36 },
   { header: "Новая территория ГАР", key: "newGarTerritory", width: 36 },
   { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
@@ -154,7 +151,6 @@ function toNumberRangeRow(
     capacity: row.capacity,
     operator: row.operator,
     garTerritory: row.garTerritory,
-    region: row.region,
     inn: row.inn,
     uvrAntifraud,
     abcRangeGapBefore: Boolean(row.abcRangeGapBefore),
@@ -162,7 +158,6 @@ function toNumberRangeRow(
     changeType: row.changeType as NumberRangeRow["changeType"],
     prevOperator: row.prevOperator,
     prevInn: row.prevInn,
-    prevRegion: row.prevRegion,
     prevGarTerritory: row.prevGarTerritory,
   };
 }
@@ -293,7 +288,7 @@ export async function writeRangesXlsxToStream(
             : undefined;
 
         const diffDisplay = isDiff ? mapDiffOperatorInn(numberRow) : null;
-        const diffRegionGar = isDiff ? mapDiffRegionGar(numberRow) : null;
+        const diffGar = isDiff ? mapDiffGar(numberRow) : null;
 
         const exportRow = isDiff
           ? {
@@ -308,17 +303,11 @@ export async function writeRangesXlsxToStream(
               newOperator: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.newOperator)
               ),
-              prevRegion: sanitizeSpreadsheetCell(
-                formatDiffDisplayValue(diffRegionGar!.oldRegion)
-              ),
-              newRegion: sanitizeSpreadsheetCell(
-                formatDiffDisplayValue(diffRegionGar!.newRegion)
-              ),
               prevGarTerritory: sanitizeSpreadsheetCell(
-                formatDiffDisplayValue(diffRegionGar!.oldGarTerritory)
+                formatDiffDisplayValue(diffGar!.oldGarTerritory)
               ),
               newGarTerritory: sanitizeSpreadsheetCell(
-                formatDiffDisplayValue(diffRegionGar!.newGarTerritory)
+                formatDiffDisplayValue(diffGar!.newGarTerritory)
               ),
               uvrAntifraud: sanitizeSpreadsheetCell(
                 uvr != null ? String(uvr) : ""
@@ -337,7 +326,6 @@ export async function writeRangesXlsxToStream(
               capacity: row.capacity,
               operator: sanitizeSpreadsheetCell(row.operator),
               garTerritory: sanitizeSpreadsheetCell(row.garTerritory),
-              region: sanitizeSpreadsheetCell(row.region),
               inn: sanitizeSpreadsheetCell(row.inn),
               uvrAntifraud: sanitizeSpreadsheetCell(
                 uvr != null ? String(uvr) : ""

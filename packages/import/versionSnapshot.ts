@@ -24,9 +24,9 @@ async function insertDiffSegments(
     const placeholders: string[] = [];
 
     batch.forEach((segment, index) => {
-      const base = index * 17;
+      const base = index * 15;
       placeholders.push(
-        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}, $${base + 16}, $${base + 17})`
+        `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15})`
       );
       values.push(
         snapshotId,
@@ -36,14 +36,12 @@ async function insertDiffSegments(
         segment.rangeEnd,
         segment.capacity,
         segment.operator,
-        segment.region,
         segment.garTerritory,
         segment.inn,
         segment.prevRangeStart ?? null,
         segment.prevRangeEnd ?? null,
         segment.prevCapacity ?? null,
         segment.prevOperator ?? null,
-        segment.prevRegion ?? null,
         segment.prevGarTerritory ?? null,
         segment.prevInn ?? null
       );
@@ -53,9 +51,9 @@ async function insertDiffSegments(
       `
       INSERT INTO number_range_diffs (
         snapshot_id, change_type, abc, range_start, range_end, capacity,
-        operator, region, gar_territory, inn,
+        operator, gar_territory, inn,
         prev_range_start, prev_range_end, prev_capacity,
-        prev_operator, prev_region, prev_gar_territory, prev_inn
+        prev_operator, prev_gar_territory, prev_inn
       )
       VALUES ${placeholders.join(", ")}
     `,
@@ -87,13 +85,13 @@ async function copyProductionToFullSnapshot(
       `
       INSERT INTO number_range_full_snapshots (
         snapshot_id, abc, range_start, range_end, capacity,
-        operator, region, gar_territory, inn,
+        operator, gar_territory, inn,
         abc_gap_before, abc_gap_after, source_file
       )
       SELECT
         $1,
         abc, range_start, range_end, capacity,
-        operator, region, gar_territory, inn,
+        operator, gar_territory, inn,
         abc_gap_before, abc_gap_after, source_file
       FROM number_ranges
       ORDER BY abc, range_start

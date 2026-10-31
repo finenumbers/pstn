@@ -24,7 +24,6 @@ export const numberRanges = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    region: text("region").notNull(),
     garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     abcGapBefore: boolean("abc_gap_before").notNull().default(false),
@@ -48,7 +47,6 @@ export const numberRangesStaging = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    region: text("region").notNull(),
     garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     abcGapBefore: boolean("abc_gap_before").notNull().default(false),
@@ -80,11 +78,6 @@ export const operatorsRegister = pgTable("operators_register", {
   loadedAt: timestamp("loaded_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
-
-export const regionsDict = pgTable("regions_dict", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
 });
 
 export const garTerritoriesDict = pgTable("gar_territories_dict", {
@@ -152,7 +145,6 @@ export const datasetMeta = pgTable("dataset_meta", {
   totalRows: integer("total_rows"),
   totalCapacity: bigint("total_capacity", { mode: "number" }),
   uniqueOperators: integer("unique_operators"),
-  uniqueRegions: integer("unique_regions"),
   uniqueGarTerritories: integer("unique_gar_territories"),
   sourceHashes: jsonb("source_hashes").$type<Record<string, string>>(),
 });
@@ -183,7 +175,6 @@ export const numberRangeFullSnapshots = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    region: text("region").notNull(),
     garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     abcGapBefore: boolean("abc_gap_before").notNull().default(false),
@@ -209,14 +200,12 @@ export const numberRangeDiffs = pgTable(
     rangeEnd: bigint("range_end", { mode: "number" }).notNull(),
     capacity: integer("capacity").notNull(),
     operator: text("operator").notNull(),
-    region: text("region").notNull(),
     garTerritory: text("gar_territory").notNull(),
     inn: varchar("inn", { length: 12 }).notNull().default(""),
     prevRangeStart: bigint("prev_range_start", { mode: "number" }),
     prevRangeEnd: bigint("prev_range_end", { mode: "number" }),
     prevCapacity: integer("prev_capacity"),
     prevOperator: text("prev_operator"),
-    prevRegion: text("prev_region"),
     prevGarTerritory: text("prev_gar_territory"),
     prevInn: varchar("prev_inn", { length: 12 }),
   },

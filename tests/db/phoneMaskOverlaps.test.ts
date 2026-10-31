@@ -20,7 +20,6 @@ const ROWS: TestRangeRow[] = [
     capacity: 30,
     operator: 'ООО "Match"',
     garTerritory: "Новосибирск",
-    region: "Новосибирская область",
     inn: "5406978329",
   },
   {
@@ -30,7 +29,6 @@ const ROWS: TestRangeRow[] = [
     capacity: 19_000,
     operator: 'ООО "No Match"',
     garTerritory: "Новосибирск",
-    region: "Новосибирская область",
     inn: "7702340000",
   },
 ];

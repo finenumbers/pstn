@@ -22,7 +22,6 @@ export async function insertBatch(
     capacity: r.capacity,
     operator: r.operator,
     garTerritory: r.garTerritory,
-    region: r.region,
     inn: r.inn,
     sourceFile,
   }));
@@ -43,7 +42,7 @@ export async function swapStagingToProduction(): Promise<void> {
     );
     await client.query(`TRUNCATE TABLE ${RANGES_STAGING_TABLE} RESTART IDENTITY`);
     await client.query(`
-      TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY
+      TRUNCATE operators_dict, gar_territories_dict, abc_dict RESTART IDENTITY
     `);
     await client.query(`
       INSERT INTO operators_dict (name, inn)
@@ -55,10 +54,6 @@ export async function swapStagingToProduction(): Promise<void> {
       INSERT INTO gar_territories_dict (name)
       SELECT DISTINCT gar_territory FROM number_ranges
       WHERE gar_territory <> ''
-    `);
-    await client.query(`
-      INSERT INTO regions_dict (name)
-      SELECT DISTINCT region FROM number_ranges
     `);
     await client.query(`
       INSERT INTO abc_dict (code)
@@ -78,7 +73,7 @@ export async function rebuildDictionaries(): Promise<void> {
   try {
     await client.query("BEGIN");
     await client.query(`
-      TRUNCATE operators_dict, regions_dict, gar_territories_dict, abc_dict RESTART IDENTITY
+      TRUNCATE operators_dict, gar_territories_dict, abc_dict RESTART IDENTITY
     `);
     await client.query(`
       INSERT INTO operators_dict (name, inn)
@@ -90,10 +85,6 @@ export async function rebuildDictionaries(): Promise<void> {
       INSERT INTO gar_territories_dict (name)
       SELECT DISTINCT gar_territory FROM number_ranges
       WHERE gar_territory <> ''
-    `);
-    await client.query(`
-      INSERT INTO regions_dict (name)
-      SELECT DISTINCT region FROM number_ranges
     `);
     await client.query(`
       INSERT INTO abc_dict (code)
@@ -111,7 +102,6 @@ export async function rebuildDictionaries(): Promise<void> {
 export async function refreshDatasetGlobalStats(): Promise<{
   totalRows: number;
   totalCapacity: number;
-  uniqueRegions: number;
   uniqueGarTerritories: number;
   uniqueOperators: number;
 }> {
@@ -119,14 +109,12 @@ export async function refreshDatasetGlobalStats(): Promise<{
   const result = await p.query<{
     total_rows: number;
     total_capacity: string;
-    unique_regions: number;
     unique_gar_territories: number;
     unique_operators: number;
   }>(`
     SELECT
       COUNT(*)::int AS total_rows,
       COALESCE(SUM(capacity), 0)::bigint AS total_capacity,
-      COUNT(DISTINCT region)::int AS unique_regions,
       COUNT(DISTINCT gar_territory)::int AS unique_gar_territories,
       COUNT(DISTINCT operator)::int AS unique_operators
     FROM number_ranges
@@ -135,7 +123,6 @@ export async function refreshDatasetGlobalStats(): Promise<{
   const stats = {
     totalRows: row?.total_rows ?? 0,
     totalCapacity: Number(row?.total_capacity ?? 0),
-    uniqueRegions: row?.unique_regions ?? 0,
     uniqueGarTerritories: row?.unique_gar_territories ?? 0,
     uniqueOperators: row?.unique_operators ?? 0,
   };
@@ -146,15 +133,13 @@ export async function refreshDatasetGlobalStats(): Promise<{
     SET
       total_rows = $1,
       total_capacity = $2,
-      unique_regions = $3,
-      unique_gar_territories = $4,
-      unique_operators = $5
+      unique_gar_territories = $3,
+      unique_operators = $4
     WHERE id = 1
   `,
     [
       stats.totalRows,
       stats.totalCapacity,
-      stats.uniqueRegions,
       stats.uniqueGarTerritories,
       stats.uniqueOperators,
     ]

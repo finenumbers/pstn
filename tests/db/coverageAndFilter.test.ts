@@ -23,10 +23,6 @@ const OP_BOTH = 'ПАО "Ростелеком"';
 const OP_353_ONLY = 'АО "УФАНЕТ"';
 const OP_OTHER = 'ООО "Чужой Оператор"';
 
-const REGION_BOTH = "Республика Башкортостан";
-const REGION_353 = "Оренбургская область";
-const REGION_OTHER = "г. Москва";
-
 const COVERAGE_AND_TEST_ROWS: TestRangeRow[] = [
   {
     abc: "301",
@@ -35,7 +31,6 @@ const COVERAGE_AND_TEST_ROWS: TestRangeRow[] = [
     capacity: 1_000,
     operator: OP_BOTH,
     garTerritory: "г. Уфа",
-    region: REGION_BOTH,
     inn: "7707049388",
   },
   {
@@ -45,7 +40,6 @@ const COVERAGE_AND_TEST_ROWS: TestRangeRow[] = [
     capacity: 1_000,
     operator: OP_BOTH,
     garTerritory: "г. Уфа",
-    region: REGION_BOTH,
     inn: "7707049388",
   },
   {
@@ -55,7 +49,6 @@ const COVERAGE_AND_TEST_ROWS: TestRangeRow[] = [
     capacity: 1_000,
     operator: OP_353_ONLY,
     garTerritory: "г. Оренбург",
-    region: REGION_353,
     inn: "0274100767",
   },
   {
@@ -65,7 +58,6 @@ const COVERAGE_AND_TEST_ROWS: TestRangeRow[] = [
     capacity: 1_000,
     operator: OP_OTHER,
     garTerritory: "г. Москва",
-    region: REGION_OTHER,
     inn: "7707083893",
   },
 ];
@@ -237,29 +229,6 @@ describeWithDb("coverage AND and operator OR filters", () => {
       filters: { ...DEFAULT_FILTERS, operator: [OP_353_ONLY] },
     });
     expect(result.options.map((option) => option.value)).toEqual(["353"]);
-  });
-
-  it("region facet with multi-operator OR excludes unrelated regions", async () => {
-    const result = await facetRangesFromDict({
-      column: "region",
-      filters: {
-        ...DEFAULT_FILTERS,
-        operator: [OP_BOTH, OP_353_ONLY],
-      },
-    });
-    const values = result.options.map((option) => option.value);
-    expect(values).toContain(REGION_BOTH);
-    expect(values).toContain(REGION_353);
-    expect(values).not.toContain(REGION_OTHER);
-  });
-
-  it("region facet with ABC Coverage AND lists only covering operators regions", async () => {
-    const result = await facetRangesFromDict({
-      column: "region",
-      filters: { ...DEFAULT_FILTERS, abc: ["301", "353"] },
-    });
-    const values = result.options.map((option) => option.value);
-    expect(values).toEqual([REGION_BOTH]);
   });
 
   it("inn facet with multi-operator OR lists only those inns", async () => {

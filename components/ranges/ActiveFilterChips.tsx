@@ -17,7 +17,6 @@ const FILTER_LABELS: Record<string, string> = {
   abc: "ABC",
   operator: "Оператор связи",
   garTerritory: "Территория ГАР",
-  region: "Регион",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
   changedFields: "Изменения",
@@ -46,7 +45,6 @@ function pushFacetChips(
     | "abc"
     | "operator"
     | "garTerritory"
-    | "region"
     | "inn"
     | "uvrAntifraud"
     | "changedFields"
@@ -74,7 +72,6 @@ export function ActiveFilterChips({
   pushFacetChips(chips, "abc", filters.abc);
   pushFacetChips(chips, "operator", filters.operator);
   pushFacetChips(chips, "garTerritory", filters.garTerritory);
-  pushFacetChips(chips, "region", filters.region);
 
   pushFacetChips(chips, "inn", filters.inn);
   pushFacetChips(chips, "uvrAntifraud", filters.uvrAntifraud);

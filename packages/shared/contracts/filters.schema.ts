@@ -9,7 +9,6 @@ export const DICT_FACET_COLUMNS = [
   "abc",
   "operator",
   "garTerritory",
-  "region",
 ] as const;
 export type DictFacetColumn = (typeof DICT_FACET_COLUMNS)[number];
 
@@ -29,13 +28,12 @@ export const SORTABLE_COLUMNS = [
   "capacity",
   "operator",
   "garTerritory",
-  "region",
   "inn",
 ] as const;
 export type SortableColumn = (typeof SORTABLE_COLUMNS)[number];
 
 export const FILTER_LIMITS = {
-  /** Coverage AND columns (abc, garTerritory, region). */
+  /** Coverage AND columns (abc, garTerritory). */
   maxCoverageArrayLength: 20,
   maxArrayLength: 50,
   maxArrayItemLength: 200,
@@ -55,10 +53,9 @@ export const filtersSchema = z.object({
   abc: coverageArraySchema.default([]),
   operator: orMultiArraySchema.default([]),
   garTerritory: coverageArraySchema.default([]),
-  region: coverageArraySchema.default([]),
   inn: orMultiArraySchema.default([]),
   uvrAntifraud: orMultiArraySchema.default([]),
-  /** Diff view: filter by which metadata fields changed (operator, region, …). */
+  /** Diff view: filter by which metadata fields changed (operator, garTerritory, inn). */
   changedFields: orMultiArraySchema.default([]),
   /** Diff view: filter by resource change status (added, changed, removed). */
   changeStatus: orMultiArraySchema.default([]),
@@ -95,7 +92,6 @@ export interface NumberRangeRow {
   capacity: number;
   operator: string;
   garTerritory: string;
-  region: string;
   inn: string;
   /** УВр Антифрод — id_src из реестра OPR, привязка по ИНН. */
   uvrAntifraud: number | null;
@@ -109,8 +105,6 @@ export interface NumberRangeRow {
   prevOperator?: string | null;
   /** Previous INN (diff changed/removed semantics). */
   prevInn?: string | null;
-  /** Previous region (diff changed/removed semantics). */
-  prevRegion?: string | null;
   /** Previous GAR territory (diff changed/removed semantics). */
   prevGarTerritory?: string | null;
 }
@@ -124,7 +118,6 @@ export interface RangesCursor {
   capacity: number;
   operator: string;
   garTerritory: string;
-  region: string;
   inn: string;
 }
 
@@ -161,14 +154,12 @@ export interface SummaryResponse {
     totalCapacity: number;
     /** True when masked capacity aggregate was skipped (too many matching ranges). */
     totalCapacityPending?: boolean;
-    uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;
   };
   global: {
     rangeCount: number;
     totalCapacity: number;
-    uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;
   };
@@ -192,7 +183,6 @@ export const DEFAULT_FILTERS: FiltersDTO = {
   abc: [],
   operator: [],
   garTerritory: [],
-  region: [],
   inn: [],
   uvrAntifraud: [],
   changedFields: [],
@@ -213,7 +203,6 @@ export function normalizeFilters(filters: FiltersDTO): FiltersDTO {
     abc: [...filters.abc].sort(),
     operator: [...filters.operator].sort(),
     garTerritory: [...filters.garTerritory].sort(),
-    region: [...filters.region].sort(),
     inn: [...filters.inn].sort(),
     uvrAntifraud: [...filters.uvrAntifraud].sort(),
     changedFields: [...filters.changedFields].sort(),
@@ -270,7 +259,6 @@ export function parseFiltersFromSearchParams(
     abc: getArray("abc"),
     operator: getOrMultiArray("operator"),
     garTerritory: getArray("garTerritory"),
-    region: getArray("region"),
     inn: getOrMultiArray("inn"),
     uvrAntifraud: getOrMultiArray("uvrAntifraud"),
     changedFields: getOrMultiArray("changedFields"),
@@ -323,8 +311,6 @@ export function filtersToSearchParams(filters: FiltersDTO): URLSearchParams {
     params.set("filters.operator", filters.operator.join("|||"));
   if (filters.garTerritory.length)
     params.set("filters.garTerritory", filters.garTerritory.join("|||"));
-  if (filters.region.length)
-    params.set("filters.region", filters.region.join("|||"));
   if (filters.inn.length) params.set("filters.inn", filters.inn.join("|||"));
   if (filters.uvrAntifraud.length)
     params.set("filters.uvrAntifraud", filters.uvrAntifraud.join("|||"));

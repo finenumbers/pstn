@@ -115,7 +115,7 @@ npm run audit              # npm audit --audit-level=high
 
 ## Данные
 
-Источник — четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Колонки **«Регион»** и **«Территория ГАР»** хранятся 1:1 из CSV.
+Источник — четыре CSV с [opendata.digital.gov.ru](https://opendata.digital.gov.ru). Колонка **«Территория ГАР»** хранится 1:1 из CSV. Колонка **«Регион»** читается и не сохраняется.
 
 | Режим | Описание |
 |-------|----------|

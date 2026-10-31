@@ -20,18 +20,13 @@ import { innRegisterMatchSql } from "./innRegisterMatch";
 import { phoneNumberOverlapSql } from "./phoneNumberMatchCount";
 import type { RangeFilterTable } from "./rangeFilterTable";
 
-export const COVERAGE_AND_COLUMNS = [
-  "abc",
-  "region",
-  "garTerritory",
-] as const;
+export const COVERAGE_AND_COLUMNS = ["abc", "garTerritory"] as const;
 
 export type CoverageAndColumn = (typeof COVERAGE_AND_COLUMNS)[number];
 
 function getColumnMap(table: RangeFilterTable) {
   return {
     abc: table.abc,
-    region: table.region,
     garTerritory: table.garTerritory,
     operator: table.operator,
     rangeStart: table.rangeStart,

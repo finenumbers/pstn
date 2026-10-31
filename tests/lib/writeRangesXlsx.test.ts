@@ -10,11 +10,12 @@ describe("writeRangesXlsx", () => {
     const headers = EXPORT_XLS_COLUMNS.map((col) => col.header);
     expect(headers).toContain("Начало");
     expect(headers).toContain("Оператор связи");
-    expect(headers).toContain("Регион");
+    expect(headers).toContain("Территория ГАР");
+    expect(headers).not.toContain("Регион");
     expect(headers).toContain("УВр Антифрод");
   });
 
-  it("defines diff export columns with old/new operator, region, GAR and INN", () => {
+  it("defines diff export columns with old/new operator, GAR and INN", () => {
     const headers = EXPORT_DIFF_XLS_COLUMNS.map((col) => col.header);
     expect(headers).toEqual([
       "Тип изменения",
@@ -24,8 +25,6 @@ describe("writeRangesXlsx", () => {
       "Емкость",
       "Старый оператор связи",
       "Новый оператор связи",
-      "Старый регион",
-      "Новый регион",
       "Старая территория ГАР",
       "Новая территория ГАР",
       "УВр Антифрод",

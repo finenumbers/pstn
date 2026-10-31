@@ -98,7 +98,7 @@ describe("buildWhere", () => {
       isDiff: true,
       isFull: false,
     };
-    const filters = { ...DEFAULT_FILTERS, changedFields: ["region"] };
+    const filters = { ...DEFAULT_FILTERS, changedFields: ["operator"] };
     expect(buildWhere(filters)).toBeUndefined();
     const inDiff = buildWhere(filters, diffContext);
     expect(inDiff).toBeDefined();
@@ -138,7 +138,7 @@ describe("buildWhere", () => {
       {
         ...DEFAULT_FILTERS,
         changeStatus: ["changed"],
-        changedFields: ["region"],
+        changedFields: ["operator"],
       },
       diffContext
     );

@@ -7,7 +7,6 @@ export interface ParsedRangeRow {
   rangeEnd: number;
   capacity: number;
   operator: string;
-  region: string;
   garTerritory: string;
   inn: string;
 }
@@ -97,8 +96,7 @@ function mapRecord(record: string[]): ParsedRangeRow | null {
     return null;
   }
 
-  // Indices: 0=ABC, 1=От, 2=До, 3=Емкость, 4=Оператор, 5=Регион, 6=Территория ГАР, 7=ИНН
-  const region = record[5]?.trim() ?? "";
+  // Indices: 0=ABC, 1=От, 2=До, 3=Емкость, 4=Оператор, 5=Регион (ignored), 6=Территория ГАР, 7=ИНН
   const garTerritory = record[6]?.trim() ?? "";
   const innValue = (record[7]?.trim() ?? "").replace(/\D/g, "");
 
@@ -108,7 +106,6 @@ function mapRecord(record: string[]): ParsedRangeRow | null {
     rangeEnd,
     capacity,
     operator,
-    region,
     garTerritory,
     inn: innValue,
   };

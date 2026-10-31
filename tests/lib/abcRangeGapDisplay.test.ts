@@ -15,7 +15,6 @@ function row(
     capacity: 1000,
     operator: "ПАО \"Ростелеком\"",
     garTerritory: "Улан-Удэ",
-    region: "Республика Бурятия",
     inn: "",
     uvrAntifraud: null,
     abcRangeGapBefore: gapBefore,

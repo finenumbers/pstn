@@ -13,7 +13,6 @@ const LOOKUP_ROW: TestRangeRow = {
   capacity: 2_000,
   operator: 'ПАО "Ростелеком"',
   garTerritory: "р-н Никольский",
-  region: "Вологодская область",
   inn: "7707049388",
 };
 
@@ -24,7 +23,6 @@ const OVERLAP_ROW_A: TestRangeRow = {
   capacity: 500_000,
   operator: 'ООО "Overlap A"',
   garTerritory: "Москва",
-  region: "ГФЗ Москва",
   inn: "1111111111",
 };
 
@@ -35,7 +33,6 @@ const OVERLAP_ROW_B: TestRangeRow = {
   capacity: 600_000,
   operator: 'ООО "Overlap B"',
   garTerritory: "Москва",
-  region: "ГФЗ Москва",
   inn: "2222222222",
 };
 
@@ -58,7 +55,7 @@ describeWithDb("lookupByPhone", () => {
     if (result.status === "found") {
       expect(result.row.abc).toBe("817");
       expect(result.row.operator).toBe('ПАО "Ростелеком"');
-      expect(result.row.region).toBe("Вологодская область");
+      expect(result.row.garTerritory).toBe("р-н Никольский");
     }
   });
 

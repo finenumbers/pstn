@@ -78,7 +78,6 @@ const COLUMN_ORDER = [
   "rangeEnd",
   "capacity",
   "operator",
-  "region",
   "garTerritory",
   "uvrAntifraud",
   "inn",
@@ -100,7 +99,6 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
   capacity: "Емкость",
   operator: "Оператор связи",
   garTerritory: "Территория ГАР",
-  region: "Регион",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
 };
@@ -140,7 +138,6 @@ function getCellTitle(
 ): string | undefined {
   switch (columnId) {
     case "operator":
-    case "region":
     case "garTerritory":
     case "inn": {
       const value = row[columnId];
@@ -208,7 +205,6 @@ export function RangesTable({
           formatNumber(row.original.capacity),
       },
       { accessorKey: "operator", header: "Оператор связи" },
-      { accessorKey: "region", header: "Регион" },
       { accessorKey: "garTerritory", header: "Территория ГАР" },
       {
         accessorKey: "uvrAntifraud",
@@ -298,11 +294,7 @@ export function RangesTable({
     ) {
       return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
     }
-    if (
-      columnId === "operator" ||
-      columnId === "garTerritory" ||
-      columnId === "region"
-    ) {
+    if (columnId === "operator" || columnId === "garTerritory") {
       return undefined;
     }
     if (isCompactColumn(columnId)) return compactWidths[columnId];
@@ -332,11 +324,7 @@ export function RangesTable({
         style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
       };
     }
-    if (
-      columnId === "operator" ||
-      columnId === "region" ||
-      columnId === "garTerritory"
-    ) {
+    if (columnId === "operator" || columnId === "garTerritory") {
       return {
         className: TEXT_CELL_CLASS,
         style: undefined,
@@ -356,11 +344,7 @@ export function RangesTable({
   };
 
   const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
-    if (
-      columnId === "operator" ||
-      columnId === "garTerritory" ||
-      columnId === "region"
-    ) {
+    if (columnId === "operator" || columnId === "garTerritory") {
       return undefined;
     }
     if (columnId === "abc") {
@@ -603,19 +587,6 @@ export function RangesTable({
             placeholder="Территория ГАР"
           />
         );
-      case "region":
-        return (
-          <FacetCombobox
-            label="Регион"
-            values={filters.region}
-            search={facetSearch.region ?? ""}
-            options={facets?.facets.region?.options ?? []}
-            onChange={(v) => onFilterChange("region", v)}
-            onSearchChange={(s) => onFacetSearchChange("region", s)}
-            isLoading={facetsLoading}
-            placeholder="Регион"
-          />
-        );
       case "inn":
         return (
           <FacetCombobox
@@ -651,7 +622,6 @@ export function RangesTable({
     colId === "abc" ||
     colId === "operator" ||
     colId === "garTerritory" ||
-    colId === "region" ||
     colId === "inn" ||
     colId === "uvrAntifraud" ||
     colId === "changeStatus" ||

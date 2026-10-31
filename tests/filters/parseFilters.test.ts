@@ -30,18 +30,26 @@ describe("parseFiltersFromSearchParams", () => {
     expect(cleared.has("filters.garTerritory")).toBe(false);
   });
 
+  it("ignores a legacy region filter in the URL", () => {
+    const params = new URLSearchParams();
+    params.set("filters.region", "Москва");
+    const filters = parseFiltersFromSearchParams(params);
+    expect(filters).not.toHaveProperty("region");
+    expect(filters.garTerritory).toEqual([]);
+  });
+
   it("round-trips changedFields filter in URL", () => {
     const params = new URLSearchParams();
-    params.set("filters.changedFields", "region|||inn");
+    params.set("filters.changedFields", "operator|||inn");
     expect(parseFiltersFromSearchParams(params).changedFields).toEqual([
       "inn",
-      "region",
+      "operator",
     ]);
     const serialized = filtersToSearchParams({
       ...DEFAULT_FILTERS,
-      changedFields: ["region", "inn"],
+      changedFields: ["operator", "inn"],
     });
-    expect(serialized.get("filters.changedFields")).toBe("region|||inn");
+    expect(serialized.get("filters.changedFields")).toBe("operator|||inn");
   });
 
   it("round-trips changeStatus filter in URL", () => {
@@ -60,9 +68,9 @@ describe("parseFiltersFromSearchParams", () => {
 
   it("migrates legacy added/removed from changedFields into changeStatus", () => {
     const params = new URLSearchParams();
-    params.set("filters.changedFields", "region|||added");
+    params.set("filters.changedFields", "inn|||added");
     expect(parseFiltersFromSearchParams(params)).toMatchObject({
-      changedFields: ["region"],
+      changedFields: ["inn"],
       changeStatus: ["added"],
     });
   });

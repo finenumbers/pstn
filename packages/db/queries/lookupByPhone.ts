@@ -19,7 +19,6 @@ export type LookupRangeRow = {
   capacity: number;
   operator: string;
   garTerritory: string;
-  region: string;
   inn: string;
   uvrAntifraud: number | null;
   abcRangeGapBefore: boolean;
@@ -46,7 +45,6 @@ export async function lookupByPhone(phone: string): Promise<LookupByPhoneResult>
       capacity: numberRanges.capacity,
       operator: numberRanges.operator,
       garTerritory: numberRanges.garTerritory,
-      region: numberRanges.region,
       inn: numberRanges.inn,
       uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: numberRanges.abcGapBefore,

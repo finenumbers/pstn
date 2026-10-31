@@ -32,7 +32,6 @@ describeWithDb("uvrAntifraud join", () => {
         capacity: 1_000,
         operator: 'ПАО "Ростелеком"',
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "7707049388",
       },
       {
@@ -42,7 +41,6 @@ describeWithDb("uvrAntifraud join", () => {
         capacity: 1_000,
         operator: 'ООО "Скартел"',
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "7701725181",
       },
       {
@@ -52,7 +50,6 @@ describeWithDb("uvrAntifraud join", () => {
         capacity: 1_000,
         operator: "Неизвестный оператор",
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "0000000000",
       },
       {
@@ -62,7 +59,6 @@ describeWithDb("uvrAntifraud join", () => {
         capacity: 1_000,
         operator: "Без ИНН",
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "",
       },
     ]);

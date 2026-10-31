@@ -16,7 +16,6 @@ const GUP_ROW: TestRangeRow = {
   capacity: 1_000,
   operator: GUP_OPERATOR,
   garTerritory: "Байконур",
-  region: "Байконур",
   inn: "9901000027",
 };
 

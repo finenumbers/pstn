@@ -13,7 +13,6 @@ function getColumnMap(table: RangeFilterTable) {
     capacity: table.capacity,
     operator: table.operator,
     garTerritory: table.garTerritory,
-    region: table.region,
     inn: table.inn,
   } as const;
 }

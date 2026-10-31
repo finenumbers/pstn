@@ -20,8 +20,8 @@ describeWithDb("import staging swap", () => {
     await client.query(`
       INSERT INTO number_ranges (
         abc, range_start, range_end, capacity, operator,
-        gar_territory, region, inn, source_file
-      ) VALUES ('301', 1000000, 1000999, 1000, 'Old Operator', 'City', 'Region', '', 'prod')
+        gar_territory, inn, source_file
+      ) VALUES ('301', 1000000, 1000999, 1000, 'Old Operator', 'City', '', 'prod')
     `);
 
     await clearStaging();
@@ -34,7 +34,6 @@ describeWithDb("import staging swap", () => {
           capacity: 1_000,
           operator: "New Operator",
           garTerritory: "City",
-          region: "Region",
           inn: "",
         },
       ],

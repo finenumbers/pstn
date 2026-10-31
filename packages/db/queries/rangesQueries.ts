@@ -44,14 +44,12 @@ export type SummaryRangesResult = {
     rangeCount: number;
     totalCapacity: number;
     totalCapacityPending?: boolean;
-    uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;
   };
   global: {
     rangeCount: number;
     totalCapacity: number;
-    uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;
   };
@@ -70,7 +68,6 @@ function getColumnMap(context: RangeQueryContext) {
     capacity: table.capacity,
     operator: table.operator,
     garTerritory: table.garTerritory,
-    region: table.region,
     inn: table.inn,
   } as const;
 }
@@ -141,7 +138,6 @@ export async function listRanges(params: {
       capacity: table.capacity,
       operator: table.operator,
       garTerritory: table.garTerritory,
-      region: table.region,
       inn: table.inn,
       uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: context.isDiff
@@ -157,7 +153,6 @@ export async function listRanges(params: {
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,
-      prevRegion: context.isDiff ? numberRangeDiffs.prevRegion : sql<null>`null`,
       prevGarTerritory: context.isDiff
         ? numberRangeDiffs.prevGarTerritory
         : sql<null>`null`,
@@ -186,7 +181,6 @@ export async function listRanges(params: {
       changeType: row.changeType as "added" | "changed" | "removed" | null | undefined,
       prevOperator: context.isDiff ? row.prevOperator ?? null : undefined,
       prevInn: context.isDiff ? row.prevInn ?? null : undefined,
-      prevRegion: context.isDiff ? row.prevRegion ?? null : undefined,
       prevGarTerritory: context.isDiff ? row.prevGarTerritory ?? null : undefined,
       abcRangeGapBefore: context.isDiff ? false : Boolean(row.abcRangeGapBefore),
       abcRangeGapAfter: context.isDiff ? false : Boolean(row.abcRangeGapAfter),
@@ -243,7 +237,6 @@ async function loadGlobalSummaryFromTable(
 ): Promise<{
   rangeCount: number;
   totalCapacity: number;
-  uniqueRegions: number;
   uniqueGarTerritories: number;
   uniqueOperators: number;
 }> {
@@ -258,7 +251,6 @@ async function loadGlobalSummaryFromTable(
     .select({
       rangeCount: count(),
       totalCapacity: sum(table.capacity),
-      uniqueRegions: countDistinct(table.region),
       uniqueGarTerritories: countDistinct(table.garTerritory),
       uniqueOperators: countDistinct(table.operator),
     })
@@ -268,7 +260,6 @@ async function loadGlobalSummaryFromTable(
   return {
     rangeCount: Number(global?.rangeCount ?? 0),
     totalCapacity: Number(global?.totalCapacity ?? 0),
-    uniqueRegions: Number(global?.uniqueRegions ?? 0),
     uniqueGarTerritories: Number(global?.uniqueGarTerritories ?? 0),
     uniqueOperators: Number(global?.uniqueOperators ?? 0),
   };
@@ -300,7 +291,6 @@ async function loadFullGlobalFromSnapshot(snapshotId: string) {
   return {
     rangeCount: snapshot.rowCount || tableStats.rangeCount,
     totalCapacity: tableStats.totalCapacity,
-    uniqueRegions: tableStats.uniqueRegions,
     uniqueGarTerritories: tableStats.uniqueGarTerritories,
     uniqueOperators: tableStats.uniqueOperators,
   };
@@ -334,7 +324,6 @@ async function loadDiffGlobalFromSnapshot(snapshotId: string) {
   return {
     rangeCount,
     totalCapacity: tableStats.totalCapacity,
-    uniqueRegions: tableStats.uniqueRegions,
     uniqueGarTerritories: tableStats.uniqueGarTerritories,
     uniqueOperators: tableStats.uniqueOperators,
   };
@@ -345,7 +334,6 @@ function globalSummaryFromMeta(
 ): {
   rangeCount: number;
   totalCapacity: number;
-  uniqueRegions: number;
   uniqueGarTerritories: number;
   uniqueOperators: number;
 } | null {
@@ -353,7 +341,6 @@ function globalSummaryFromMeta(
     metaRow?.totalRows == null ||
     metaRow.totalCapacity == null ||
     metaRow.uniqueOperators == null ||
-    metaRow.uniqueRegions == null ||
     metaRow.uniqueGarTerritories == null
   ) {
     return null;
@@ -362,7 +349,6 @@ function globalSummaryFromMeta(
   return {
     rangeCount: metaRow.totalRows,
     totalCapacity: Number(metaRow.totalCapacity),
-    uniqueRegions: metaRow.uniqueRegions,
     uniqueGarTerritories: metaRow.uniqueGarTerritories,
     uniqueOperators: metaRow.uniqueOperators,
   };
@@ -419,7 +405,6 @@ export async function summaryRanges(
       filtered: {
         rangeCount: global.rangeCount,
         totalCapacity: global.totalCapacity,
-        uniqueRegions: global.uniqueRegions,
         uniqueGarTerritories: global.uniqueGarTerritories,
         uniqueOperators: global.uniqueOperators,
       },
@@ -439,7 +424,6 @@ export async function summaryRanges(
   const filteredResult = await db
     .select({
       rangeCount: count(),
-      uniqueRegions: countDistinct(table.region),
       uniqueGarTerritories: countDistinct(table.garTerritory),
       uniqueOperators: countDistinct(table.operator),
     })
@@ -480,7 +464,6 @@ export async function summaryRanges(
       rangeCount,
       totalCapacity,
       totalCapacityPending,
-      uniqueRegions: Number(filtered?.uniqueRegions ?? 0),
       uniqueGarTerritories: Number(filtered?.uniqueGarTerritories ?? 0),
       uniqueOperators: Number(filtered?.uniqueOperators ?? 0),
     },
@@ -530,7 +513,6 @@ export async function listRangesForExport(
       capacity: table.capacity,
       operator: table.operator,
       garTerritory: table.garTerritory,
-      region: table.region,
       inn: table.inn,
       abcRangeGapBefore: context.isDiff
         ? sql<boolean>`false`
@@ -545,7 +527,6 @@ export async function listRangesForExport(
       changeType: context.isDiff ? numberRangeDiffs.changeType : sql<null>`null`,
       prevOperator: context.isDiff ? numberRangeDiffs.prevOperator : sql<null>`null`,
       prevInn: context.isDiff ? numberRangeDiffs.prevInn : sql<null>`null`,
-      prevRegion: context.isDiff ? numberRangeDiffs.prevRegion : sql<null>`null`,
       prevGarTerritory: context.isDiff
         ? numberRangeDiffs.prevGarTerritory
         : sql<null>`null`,

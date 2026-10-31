@@ -18,7 +18,6 @@ import {
   abcDict,
   garTerritoriesDict,
   operatorsDict,
-  regionsDict,
 } from "../schema";
 import { buildWhere, facetColumnForContext } from "./buildWhere";
 import {
@@ -28,15 +27,13 @@ import {
 type FacetDictValue =
   | typeof abcDict.code
   | typeof operatorsDict.name
-  | typeof garTerritoriesDict.name
-  | typeof regionsDict.name;
+  | typeof garTerritoriesDict.name;
 
 type DictFacetConfig = {
   table:
     | typeof abcDict
     | typeof operatorsDict
-    | typeof garTerritoriesDict
-    | typeof regionsDict;
+    | typeof garTerritoriesDict;
   dictValue: FacetDictValue;
 };
 
@@ -55,10 +52,6 @@ export const DICT_FACET_CONFIG: Record<
   garTerritory: {
     table: garTerritoriesDict,
     dictValue: garTerritoriesDict.name,
-  },
-  region: {
-    table: regionsDict,
-    dictValue: regionsDict.name,
   },
 };
 

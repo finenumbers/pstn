@@ -8,7 +8,7 @@ describe("hasActiveFilters", () => {
   });
 
   it("is true when facet or text filter is set", () => {
-    expect(hasActiveFilters({ ...DEFAULT_FILTERS, region: ["77"] })).toBe(
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, garTerritory: ["77"] })).toBe(
       true
     );
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, inn: ["123"] })).toBe(true);
@@ -16,7 +16,7 @@ describe("hasActiveFilters", () => {
       hasActiveFilters({ ...DEFAULT_FILTERS, uvrAntifraud: ["11012"] })
     ).toBe(true);
     expect(
-      hasActiveFilters({ ...DEFAULT_FILTERS, changedFields: ["region"] })
+      hasActiveFilters({ ...DEFAULT_FILTERS, changedFields: ["operator"] })
     ).toBe(true);
     expect(
       hasActiveFilters({ ...DEFAULT_FILTERS, changeStatus: ["added"] })

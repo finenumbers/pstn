@@ -27,7 +27,6 @@ describeWithDb("refreshUvrAntifraudBinding", () => {
         capacity: 1_000,
         operator: 'ПАО "Ростелеком"',
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "7707049388",
       },
       {
@@ -37,7 +36,6 @@ describeWithDb("refreshUvrAntifraudBinding", () => {
         capacity: 1_000,
         operator: "Неизвестный",
         garTerritory: "г. Москва",
-        region: "ГФЗ Москва",
         inn: "0000000000",
       },
     ]);

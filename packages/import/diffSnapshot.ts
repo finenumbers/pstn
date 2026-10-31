@@ -14,7 +14,7 @@ export async function prepareImportDiffOldTable(): Promise<void> {
     DROP TABLE IF EXISTS ${IMPORT_DIFF_OLD_TABLE};
     CREATE UNLOGGED TABLE ${IMPORT_DIFF_OLD_TABLE} AS
     SELECT
-      abc, range_start, range_end, capacity, operator, region, gar_territory, inn,
+      abc, range_start, range_end, capacity, operator, gar_territory, inn,
       abc_gap_before, abc_gap_after, source_file, created_at
     FROM number_ranges;
     CREATE INDEX import_diff_old_abc_start_idx ON ${IMPORT_DIFF_OLD_TABLE} (abc, range_start);
@@ -32,11 +32,10 @@ export async function loadImportDiffOldRanges(): Promise<RangeRecord[]> {
     range_end: string;
     capacity: number;
     operator: string;
-    region: string;
     gar_territory: string;
     inn: string;
   }>(`
-    SELECT abc, range_start, range_end, capacity, operator, region, gar_territory, inn
+    SELECT abc, range_start, range_end, capacity, operator, gar_territory, inn
     FROM ${IMPORT_DIFF_OLD_TABLE}
   `);
 
@@ -46,7 +45,6 @@ export async function loadImportDiffOldRanges(): Promise<RangeRecord[]> {
     rangeEnd: Number(row.range_end),
     capacity: row.capacity,
     operator: row.operator,
-    region: row.region,
     garTerritory: row.gar_territory,
     inn: row.inn,
   }));
@@ -60,7 +58,6 @@ export async function loadStagingRangesForDiff(): Promise<RangeRecord[]> {
       rangeEnd: numberRangesStaging.rangeEnd,
       capacity: numberRangesStaging.capacity,
       operator: numberRangesStaging.operator,
-      region: numberRangesStaging.region,
       garTerritory: numberRangesStaging.garTerritory,
       inn: numberRangesStaging.inn,
     })
@@ -86,7 +83,6 @@ export async function saveDatasetMetaAfterImport(params: {
   stats: {
     totalRows: number;
     totalCapacity: number;
-    uniqueRegions: number;
     uniqueGarTerritories: number;
     uniqueOperators: number;
   };
@@ -99,7 +95,6 @@ export async function saveDatasetMetaAfterImport(params: {
       lastJobId: params.jobId,
       totalRows: params.stats.totalRows,
       totalCapacity: params.stats.totalCapacity,
-      uniqueRegions: params.stats.uniqueRegions,
       uniqueGarTerritories: params.stats.uniqueGarTerritories,
       uniqueOperators: params.stats.uniqueOperators,
       sourceHashes: params.sourceHashes,
@@ -111,7 +106,6 @@ export async function saveDatasetMetaAfterImport(params: {
         lastJobId: params.jobId,
         totalRows: params.stats.totalRows,
         totalCapacity: params.stats.totalCapacity,
-        uniqueRegions: params.stats.uniqueRegions,
         uniqueGarTerritories: params.stats.uniqueGarTerritories,
         uniqueOperators: params.stats.uniqueOperators,
         sourceHashes: params.sourceHashes,

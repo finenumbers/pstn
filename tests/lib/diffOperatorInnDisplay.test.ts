@@ -1,7 +1,7 @@
 import {
   formatDiffDisplayValue,
   mapDiffOperatorInn,
-  mapDiffRegionGar,
+  mapDiffGar,
 } from "@/lib/diff/diffOperatorInnDisplay";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 import { describe, expect, it } from "vitest";
@@ -16,7 +16,6 @@ function diffRow(
     rangeEnd: 200,
     capacity: 101,
     operator: "New Op",
-    region: "Region",
     garTerritory: "Territory",
     inn: "7700000000",
     uvrAntifraud: null,
@@ -79,22 +78,18 @@ describe("mapDiffOperatorInn", () => {
   });
 });
 
-describe("mapDiffRegionGar", () => {
-  it("maps changed row to prev and current region/gar", () => {
+describe("mapDiffGar", () => {
+  it("maps changed row to prev and current GAR territory", () => {
     expect(
-      mapDiffRegionGar(
+      mapDiffGar(
         diffRow({
           changeType: "changed",
-          region: "-",
           garTerritory: "г.о. город Екатеринбург|Свердловская область",
-          prevRegion: "г. Екатеринбург|Свердловская обл.",
-          prevGarTerritory: "г.о. город Екатеринбург|Свердловская область",
+          prevGarTerritory: "г. Екатеринбург|Свердловская обл.",
         })
       )
     ).toEqual({
-      oldRegion: "г. Екатеринбург|Свердловская обл.",
-      newRegion: "-",
-      oldGarTerritory: "г.о. город Екатеринбург|Свердловская область",
+      oldGarTerritory: "г. Екатеринбург|Свердловская обл.",
       newGarTerritory: "г.о. город Екатеринбург|Свердловская область",
     });
   });

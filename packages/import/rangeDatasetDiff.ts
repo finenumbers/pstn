@@ -4,7 +4,6 @@ export type RangeRecord = {
   rangeEnd: number;
   capacity: number;
   operator: string;
-  region: string;
   garTerritory: string;
   inn: string;
 };
@@ -17,7 +16,6 @@ export type DiffSegment = RangeRecord & {
   prevRangeEnd?: number;
   prevCapacity?: number;
   prevOperator?: string;
-  prevRegion?: string;
   prevGarTerritory?: string;
   prevInn?: string;
 };
@@ -28,7 +26,6 @@ function rangesEqual(a: RangeRecord, b: RangeRecord): boolean {
     a.rangeEnd === b.rangeEnd &&
     a.capacity === b.capacity &&
     a.operator === b.operator &&
-    a.region === b.region &&
     a.garTerritory === b.garTerritory &&
     a.inn === b.inn
   );
@@ -83,7 +80,6 @@ function displayRecordFromNew(
     rangeEnd: segmentEnd,
     capacity: segmentCapacity(segmentStart, segmentEnd),
     operator: newCover.operator,
-    region: newCover.region,
     garTerritory: newCover.garTerritory,
     inn: newCover.inn,
   };
@@ -100,7 +96,6 @@ function displayRecordFromOld(
     rangeEnd: segmentEnd,
     capacity: segmentCapacity(segmentStart, segmentEnd),
     operator: oldCover.operator,
-    region: oldCover.region,
     garTerritory: oldCover.garTerritory,
     inn: oldCover.inn,
   };
@@ -141,11 +136,9 @@ function mergeAdjacentSegments(segments: DiffSegment[]): DiffSegment[] {
       current.changeType === next.changeType &&
       current.rangeEnd + 1 === next.rangeStart &&
       current.operator === next.operator &&
-      current.region === next.region &&
       current.garTerritory === next.garTerritory &&
       current.inn === next.inn &&
       current.prevOperator === next.prevOperator &&
-      current.prevRegion === next.prevRegion &&
       current.prevGarTerritory === next.prevGarTerritory &&
       current.prevInn === next.prevInn &&
       current.prevRangeStart === next.prevRangeStart &&
@@ -222,7 +215,6 @@ export function diffRangesForAbc(
         prevRangeEnd: oldCover.rangeEnd,
         prevCapacity: oldCover.capacity,
         prevOperator: oldCover.operator,
-        prevRegion: oldCover.region,
         prevGarTerritory: oldCover.garTerritory,
         prevInn: oldCover.inn,
       });
@@ -244,7 +236,6 @@ export function diffRangesForAbc(
         prevRangeEnd: oldDisplay.rangeEnd,
         prevCapacity: oldDisplay.capacity,
         prevOperator: oldDisplay.operator,
-        prevRegion: oldDisplay.region,
         prevGarTerritory: oldDisplay.garTerritory,
         prevInn: oldDisplay.inn,
       });
