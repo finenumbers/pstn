@@ -36,6 +36,15 @@ body {
 .ranges-table-container table {
   border-collapse: separate;
   border-spacing: 0;
+  font-size: 10px;
+}
+
+.ranges-table-container th,
+.ranges-table-container td,
+.ranges-table-container button,
+.ranges-table-container a,
+.ranges-table-container span {
+  font-size: 10px;
 }
 
 .ranges-table-container tbody tr.range-gap-before > td {

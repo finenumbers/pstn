@@ -37,6 +37,7 @@ import {
   UVR_ANTIFRAUD_COLUMN_WIDTH_CH,
   columnWidthStyle,
   isCompactColumn,
+  tableColumnWidth,
 } from "@/lib/table/compactColumns";
 import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
 import { getRangeRowHighlightClass } from "@/lib/table/rangeRowHighlight";
@@ -676,7 +677,11 @@ export function RangesTable({
               return (
                 <col
                   key={colId}
-                  style={ch !== undefined ? { width: `${ch}ch` } : undefined}
+                  style={
+                    ch !== undefined
+                      ? { width: tableColumnWidth(ch) }
+                      : undefined
+                  }
                 />
               );
             })}

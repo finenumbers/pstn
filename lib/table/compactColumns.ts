@@ -15,6 +15,14 @@ const COMPACT_COLUMN_IDS = new Set([
   "capacity",
 ]);
 
+/**
+ * CSS length that keeps the pixel width tuned at 14px after the table
+ * font became 10px. `ch` follows the element font, so the count is scaled.
+ */
+export function tableColumnWidth(ch: number): string {
+  return `${(ch * 14) / 10}ch`;
+}
+
 /** Button px-3, border, chevron icon */
 const FILTER_FIELD_PADDING_CH = 5;
 const CHEVRON_CH = 3;
@@ -73,16 +81,18 @@ export function computeCompactColumnWidths(
 }
 
 export function compactColumnStyle(ch: number): CSSProperties {
+  const width = tableColumnWidth(ch);
   return {
-    width: `${ch}ch`,
-    minWidth: `${ch}ch`,
-    maxWidth: `${ch}ch`,
+    width,
+    minWidth: width,
+    maxWidth: width,
   };
 }
 
 export function columnWidthStyle(ch: number): CSSProperties {
+  const width = tableColumnWidth(ch);
   return {
-    width: `${ch}ch`,
-    minWidth: `${ch}ch`,
+    width,
+    minWidth: width,
   };
 }
