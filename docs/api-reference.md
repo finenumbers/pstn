@@ -244,7 +244,7 @@ Healthcheck приложения и PostgreSQL.
 | Param | Default | Max | Описание |
 |-------|---------|-----|----------|
 | `page` | 1 | — | Offset page (если нет cursor) |
-| `pageSize` | 50 | 200 | Размер страницы |
+| `pageSize` | 50 | 500 | Размер страницы |
 | `cursor` | — | — | Keyset cursor (infinite scroll) |
 | `sort` | `abc:asc` | — | Сортировка |
 | `dataset` | `current` | — | `current` или `diff:<uuid>` |

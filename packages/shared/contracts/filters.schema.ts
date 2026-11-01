@@ -74,7 +74,7 @@ export const sortItemSchema = z.object({
 
 export const rangesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(200).default(50),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
   sort: z.string().optional(),
   cursor: z.string().min(1).optional(),
   filters: filtersSchema.optional(),
