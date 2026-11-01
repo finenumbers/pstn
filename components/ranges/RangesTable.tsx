@@ -113,6 +113,7 @@ const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
 };
 
 const BOLD_COLUMNS = new Set<string>(["rangeStart", "rangeEnd"]);
+const RIGHT_ALIGN_COLUMNS = new Set<string>(["capacity", "inn", "uvrAntifraud"]);
 const SORT_COLUMNS = new Set<SortableColumn>(["rangeStart", "rangeEnd", "capacity"]);
 /** py-0.5 + text-xs line + border, before measureElement corrects it. */
 const ESTIMATED_ROW_HEIGHT = 21;
@@ -551,7 +552,11 @@ export function RangesTable({
               {columnOrder.map((columnId) => (
                 <TableHead
                   key={columnId}
-                  className={HEAD_CLASS}
+                  className={cn(
+                    HEAD_CLASS,
+                    RIGHT_ALIGN_COLUMNS.has(columnId) &&
+                      "text-right [&_.col-header]:ml-auto [&_.col-header]:w-max"
+                  )}
                   style={
                     minWidths[columnId] !== undefined
                       ? { minWidth: minWidths[columnId] }
@@ -568,8 +573,19 @@ export function RangesTable({
               Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index} className="border-0">
                   {columnOrder.map((columnId) => (
-                    <TableCell key={columnId} className={CELL_CLASS}>
-                      <Skeleton className="h-4 w-16" />
+                    <TableCell
+                      key={columnId}
+                      className={cn(
+                        CELL_CLASS,
+                        RIGHT_ALIGN_COLUMNS.has(columnId) && "text-right"
+                      )}
+                    >
+                      <Skeleton
+                        className={cn(
+                          "h-4 w-16",
+                          RIGHT_ALIGN_COLUMNS.has(columnId) && "ml-auto"
+                        )}
+                      />
                     </TableCell>
                   ))}
                 </TableRow>
@@ -626,6 +642,7 @@ export function RangesTable({
                           className={cn(
                             CELL_CLASS,
                             BOLD_COLUMNS.has(columnId) && "font-bold",
+                            RIGHT_ALIGN_COLUMNS.has(columnId) && "text-right",
                             gapClass
                           )}
                         >

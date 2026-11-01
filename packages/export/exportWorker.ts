@@ -124,10 +124,15 @@ export async function cancelExportJob(jobId: string): Promise<boolean> {
     .where(eq(exportJobs.id, jobId))
     .limit(1);
   if (!job) return false;
-  if (job.status === "completed" || job.status === "failed") return false;
+  if (
+    job.status === "completed" ||
+    job.status === "failed" ||
+    job.status === "cancelled"
+  ) {
+    return false;
+  }
 
-  await safeUnlink(job.filePath);
-  await db
+  const cancelled = await db
     .update(exportJobs)
     .set({
       status: "cancelled",
@@ -141,7 +146,10 @@ export async function cancelExportJob(jobId: string): Promise<boolean> {
         eq(exportJobs.id, jobId),
         inArray(exportJobs.status, ["pending", "running"])
       )
-    );
+    )
+    .returning({ id: exportJobs.id });
+  if (cancelled.length === 0) return false;
+  await safeUnlink(job.filePath);
   return true;
 }
 
@@ -194,7 +202,12 @@ async function runExportJob(jobId: string) {
         await db
           .update(exportJobs)
           .set({ rowsWritten: written, updatedAt: new Date() })
-          .where(eq(exportJobs.id, jobId));
+          .where(
+            and(
+              eq(exportJobs.id, jobId),
+              eq(exportJobs.status, "running")
+            )
+          );
       },
     });
     await finishPromise.catch(() => undefined);
@@ -204,7 +217,7 @@ async function runExportJob(jobId: string) {
       return;
     }
 
-    await db
+    const completed = await db
       .update(exportJobs)
       .set({
         status: "completed",
@@ -213,7 +226,14 @@ async function runExportJob(jobId: string) {
         updatedAt: new Date(),
         filePath,
       })
-      .where(eq(exportJobs.id, jobId));
+      .where(
+        and(eq(exportJobs.id, jobId), eq(exportJobs.status, "running"))
+      )
+      .returning({ id: exportJobs.id });
+    if (completed.length === 0) {
+      await safeUnlink(filePath);
+      return;
+    }
 
     console.warn(
       JSON.stringify({
@@ -241,7 +261,12 @@ async function runExportJob(jobId: string) {
         updatedAt: new Date(),
         filePath: null,
       })
-      .where(eq(exportJobs.id, jobId));
+      .where(
+        and(
+          eq(exportJobs.id, jobId),
+          inArray(exportJobs.status, ["pending", "running"])
+        )
+      );
     console.error("Export job error:", jobId, error);
   } finally {
     cancelControllers.delete(jobId);

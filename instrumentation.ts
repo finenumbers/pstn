@@ -10,10 +10,10 @@ export async function register() {
       );
     }
 
-    const { recoverStaleExportJobs } = await import(
+    const { failOrphanedExportJobs } = await import(
       "@/packages/export/recoverStaleExportJobs"
     );
-    const exportRecovered = await recoverStaleExportJobs();
+    const exportRecovered = await failOrphanedExportJobs();
     if (exportRecovered > 0) {
       console.warn(
         `Recovered ${exportRecovered} stale export job(s) after server start`

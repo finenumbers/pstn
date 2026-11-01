@@ -375,7 +375,7 @@ curl -X POST "https://pstn.example.com/api/import" \
 
 ### Export медленный / большой объём
 
-Лимита по числу строк **нет**. >25k строк идут через `POST /api/export/jobs` (прогресс в UI). Файлы на volume `pstn_exports` (`/app/data/exports`), TTL 6 часов. Один тяжёлый export job одновременно.
+Лимита по числу строк **нет**. >25k строк идут через `POST /api/export/jobs` (прогресс в UI). Файлы на volume `pstn_exports` (`/app/data/exports`), TTL 6 часов. Один тяжёлый export job одновременно. Юридический адрес в XLSX — текст, без гиперссылки. После рестарта незавершённый экспорт сразу помечается failed.
 
 NPM Proxy Host для PSTN: задайте `proxy_read_timeout 600` / `proxy_send_timeout 600` (для мелкого sync и download).
 

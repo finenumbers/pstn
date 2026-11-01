@@ -17,19 +17,14 @@ async function safeUnlink(path: string | null | undefined) {
   }
 }
 
-export async function recoverStaleExportJobs(): Promise<number> {
-  const staleBefore = new Date(Date.now() - STALE_EXPORT_JOB_MS);
-  const stale = await db
+async function failInFlightExportJobs(olderThan?: Date): Promise<number> {
+  const inFlight = inArray(exportJobs.status, ["pending", "running"]);
+  const jobs = await db
     .select()
     .from(exportJobs)
-    .where(
-      and(
-        inArray(exportJobs.status, ["pending", "running"]),
-        lt(exportJobs.updatedAt, staleBefore)
-      )
-    );
+    .where(olderThan ? and(inFlight, lt(exportJobs.updatedAt, olderThan)) : inFlight);
 
-  for (const job of stale) {
+  for (const job of jobs) {
     await safeUnlink(job.filePath);
     await db
       .update(exportJobs)
@@ -40,9 +35,18 @@ export async function recoverStaleExportJobs(): Promise<number> {
         updatedAt: new Date(),
         filePath: null,
       })
-      .where(eq(exportJobs.id, job.id));
+      .where(
+        and(
+          eq(exportJobs.id, job.id),
+          inArray(exportJobs.status, ["pending", "running"])
+        )
+      );
   }
 
+  return jobs.length;
+}
+
+async function expireExportFiles(): Promise<void> {
   const ttlBefore = new Date(Date.now() - EXPORT_FILE_TTL_MS);
   const expired = await db
     .select()
@@ -70,5 +74,22 @@ export async function recoverStaleExportJobs(): Promise<number> {
     }
   }
 
-  return stale.length;
+}
+
+/** Drop export files past TTL, and fail jobs whose heartbeat stopped. */
+export async function recoverStaleExportJobs(): Promise<number> {
+  const staleBefore = new Date(Date.now() - STALE_EXPORT_JOB_MS);
+  const failed = await failInFlightExportJobs(staleBefore);
+  await expireExportFiles();
+  return failed;
+}
+
+/**
+ * This process is the only export writer. Anything still pending or running
+ * at startup belongs to a previous process and must not block the next export.
+ */
+export async function failOrphanedExportJobs(): Promise<number> {
+  const failed = await failInFlightExportJobs();
+  await expireExportFiles();
+  return failed;
 }

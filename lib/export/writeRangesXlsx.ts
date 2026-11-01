@@ -21,7 +21,6 @@ import {
   type RangeRowHighlightKind,
 } from "@/lib/table/rangeRowHighlight";
 import { sanitizeSpreadsheetCell } from "@/lib/export/sanitizeSpreadsheetCell";
-import { yandexMapsUrl } from "@/lib/dadata/yandexMapsUrl";
 import { EXCEL_SHEET_MAX_DATA_ROWS } from "@/lib/export/exportLimits";
 import {
   formatDiffDisplayValue,
@@ -144,10 +143,26 @@ const CHANGE_TYPE_LABELS: Record<string, string> = {
   removed: "Удалено",
 };
 
-type ExportDbRow = Awaited<ReturnType<typeof listRangesForExport>>[number];
+/** One database row (or a fixture row) before UVR and address lookup. */
+export type RangesExportInputRow = {
+  id: number;
+  abc: string;
+  rangeStart: number;
+  rangeEnd: number;
+  capacity: number;
+  operator: string;
+  garTerritory: string;
+  inn: string;
+  abcRangeGapBefore?: boolean | null;
+  abcRangeGapAfter?: boolean | null;
+  changeType?: string | null;
+  prevOperator?: string | null;
+  prevInn?: string | null;
+  prevGarTerritory?: string | null;
+};
 
 function toNumberRangeRow(
-  row: ExportDbRow,
+  row: RangesExportInputRow,
   uvrAntifraud: number | null,
   legalAddress: string | null
 ): NumberRangeRow {
@@ -171,15 +186,13 @@ function toNumberRangeRow(
   };
 }
 
+/** Address text for XLSX. Links are omitted so a full plan stays inside Excel's limits. */
 export function legalAddressExportValue(
   address: string | null | undefined
-): string | { text: string; hyperlink: string } {
+): string {
   if (!address) return "";
   const sanitized = sanitizeSpreadsheetCell(address);
-  const text = typeof sanitized === "string" ? sanitized : String(sanitized);
-  const href = yandexMapsUrl(address);
-  if (!href || !text) return text;
-  return { text, hyperlink: href };
+  return typeof sanitized === "string" ? sanitized : String(sanitized);
 }
 
 export type WriteRangesXlsxOptions = {
@@ -192,24 +205,28 @@ export type WriteRangesXlsxOptions = {
   stream: Writable;
 };
 
-export async function writeRangesXlsxToStream(
-  options: WriteRangesXlsxOptions
+export type WriteRangesXlsxPagesOptions = {
+  isDiff: boolean;
+  stream: Writable;
+  pages: AsyncIterable<readonly RangesExportInputRow[]>;
+  uvrByInn: Map<string, number>;
+  addressByInn: Map<string, string>;
+  totalRows?: number;
+  signal?: AbortSignal;
+  onProgress?: (rowsWritten: number) => void | Promise<void>;
+};
+
+export async function writeRangesXlsxPages(
+  options: WriteRangesXlsxPagesOptions
 ): Promise<{ rowsWritten: number; durationMs: number }> {
   const startMs = Date.now();
-  const { filters, dataset, signal, onProgress, stream } = options;
-  const isDiff = dataset?.kind === "diff";
+  const { isDiff, stream, pages, uvrByInn, addressByInn, signal, onProgress } =
+    options;
   const columns: Partial<ExcelJS.Column>[] = isDiff
     ? EXPORT_DIFF_XLS_COLUMNS
     : EXPORT_XLS_COLUMNS;
   const columnCount = columns.length;
   const keys = columns.map((c) => String(c.key ?? ""));
-
-  const context = dataset
-    ? await resolveRangeQueryContext(dataset)
-    : CURRENT_RANGE_CONTEXT;
-
-  const uvrMap = await loadUvrLookupMap();
-  const addressMap = await loadLegalAddressMap();
 
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
     stream,
@@ -220,7 +237,6 @@ export async function writeRangesXlsxToStream(
   let sheetIndex = 1;
   let dataRowsOnSheet = 0;
   let rowsWritten = 0;
-  let cursor: ReturnType<typeof rowToRangesCursor> | null = null;
   let prevRow: NumberRangeRow | null = null;
   let maxLens = columns.map((c) => displayLength(c.header));
   let worksheet: ExcelJS.Worksheet | null = null;
@@ -269,19 +285,10 @@ export async function writeRangesXlsxToStream(
   beginSheet();
 
   try {
-    while (true) {
+    for await (const batch of pages) {
       if (signal?.aborted) {
         throw new Error("Export cancelled");
       }
-
-      const batch = await listRangesForExport(
-        filters,
-        EXPORT_BATCH_SIZE,
-        cursor,
-        dataset,
-        context
-      );
-      if (batch.length === 0) break;
 
       for (const row of batch) {
         if (dataRowsOnSheet >= EXCEL_SHEET_MAX_DATA_ROWS) {
@@ -291,9 +298,9 @@ export async function writeRangesXlsxToStream(
           prevRow = null;
         }
 
-        const uvr = lookupUvrAntifraud(uvrMap, row.inn);
-        const legalAddress = lookupLegalAddress(addressMap, row.inn);
-        const legalAddressCell = legalAddressExportValue(legalAddress);
+        const uvr = lookupUvrAntifraud(uvrByInn, row.inn);
+        const legalAddress = lookupLegalAddress(addressByInn, row.inn);
+        const legalAddressText = legalAddressExportValue(legalAddress);
         const numberRow = toNumberRangeRow(row, uvr, legalAddress);
         const { gapBefore, gapAfter } = isDiff
           ? { gapBefore: false, gapAfter: false }
@@ -328,10 +335,7 @@ export async function writeRangesXlsxToStream(
               newGarTerritory: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffGar!.newGarTerritory)
               ),
-              legalAddress:
-                typeof legalAddressCell === "string"
-                  ? legalAddressCell
-                  : legalAddressCell.text,
+              legalAddress: legalAddressText,
               prevInn: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.oldInn)
               ),
@@ -349,10 +353,7 @@ export async function writeRangesXlsxToStream(
               capacity: row.capacity,
               operator: sanitizeSpreadsheetCell(row.operator),
               garTerritory: sanitizeSpreadsheetCell(row.garTerritory),
-              legalAddress:
-                typeof legalAddressCell === "string"
-                  ? legalAddressCell
-                  : legalAddressCell.text,
+              legalAddress: legalAddressText,
               inn: sanitizeSpreadsheetCell(row.inn),
               uvrAntifraud: sanitizeSpreadsheetCell(
                 uvr != null ? String(uvr) : ""
@@ -368,12 +369,6 @@ export async function writeRangesXlsxToStream(
         }
 
         const addedRow = worksheet!.addRow(exportRow);
-        if (typeof legalAddressCell !== "string") {
-          const legalIndex = keys.indexOf("legalAddress");
-          if (legalIndex >= 0) {
-            addedRow.getCell(legalIndex + 1).value = legalAddressCell;
-          }
-        }
         for (let col = 1; col <= columnCount; col++) {
           const cell = addedRow.getCell(col);
           cell.border = borders;
@@ -391,18 +386,6 @@ export async function writeRangesXlsxToStream(
       if (onProgress) {
         await onProgress(rowsWritten);
       }
-
-      if (batch.length < EXPORT_BATCH_SIZE) break;
-      cursor = rowToRangesCursor({
-        ...batch[batch.length - 1],
-        uvrAntifraud: null,
-        legalAddress: null,
-        changeType:
-          (batch[batch.length - 1].changeType as NumberRangeRow["changeType"]) ??
-          null,
-        abcRangeGapBefore: Boolean(batch[batch.length - 1].abcRangeGapBefore),
-        abcRangeGapAfter: Boolean(batch[batch.length - 1].abcRangeGapAfter),
-      });
     }
 
     finishSheet();
@@ -414,7 +397,89 @@ export async function writeRangesXlsxToStream(
     throw error;
   }
 
+  if (
+    options.totalRows != null &&
+    options.totalRows !== rowsWritten
+  ) {
+    console.warn(
+      JSON.stringify({
+        msg: "export_row_count_mismatch",
+        totalRows: options.totalRows,
+        rowsWritten,
+      })
+    );
+  }
+
   return { rowsWritten, durationMs: Date.now() - startMs };
+}
+
+async function* loadExportPages(options: {
+  filters: FiltersDTO;
+  dataset?: DatasetRef;
+  context: Awaited<ReturnType<typeof resolveRangeQueryContext>>;
+  signal?: AbortSignal;
+}): AsyncGenerator<readonly RangesExportInputRow[]> {
+  const { filters, dataset, context, signal } = options;
+  let cursor: ReturnType<typeof rowToRangesCursor> | null = null;
+
+  while (true) {
+    if (signal?.aborted) {
+      throw new Error("Export cancelled");
+    }
+
+    const batch = await listRangesForExport(
+      filters,
+      EXPORT_BATCH_SIZE,
+      cursor,
+      dataset,
+      context
+    );
+    if (batch.length === 0) return;
+
+    yield batch;
+
+    if (batch.length < EXPORT_BATCH_SIZE) return;
+    const last = batch[batch.length - 1]!;
+    cursor = rowToRangesCursor({
+      id: last.id,
+      abc: last.abc,
+      rangeStart: last.rangeStart,
+      rangeEnd: last.rangeEnd,
+      capacity: last.capacity,
+      operator: last.operator,
+      garTerritory: last.garTerritory,
+      inn: last.inn,
+      legalAddress: null,
+      uvrAntifraud: null,
+      changeType: (last.changeType as NumberRangeRow["changeType"]) ?? null,
+      abcRangeGapBefore: Boolean(last.abcRangeGapBefore),
+      abcRangeGapAfter: Boolean(last.abcRangeGapAfter),
+    });
+  }
+}
+
+export async function writeRangesXlsxToStream(
+  options: WriteRangesXlsxOptions
+): Promise<{ rowsWritten: number; durationMs: number }> {
+  const { filters, totalRows, dataset, signal, onProgress, stream } = options;
+  const context = dataset
+    ? await resolveRangeQueryContext(dataset)
+    : CURRENT_RANGE_CONTEXT;
+  const [uvrByInn, addressByInn] = await Promise.all([
+    loadUvrLookupMap(),
+    loadLegalAddressMap(),
+  ]);
+
+  return writeRangesXlsxPages({
+    isDiff: dataset?.kind === "diff",
+    stream,
+    pages: loadExportPages({ filters, dataset, context, signal }),
+    uvrByInn,
+    addressByInn,
+    totalRows,
+    signal,
+    onProgress,
+  });
 }
 
 export async function createRangesXlsxExport(
