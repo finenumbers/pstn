@@ -14,3 +14,19 @@ export function effectiveAbcRangeGapMarkers(
     gapAfter: row.abcRangeGapAfter,
   };
 }
+
+/**
+ * One shadow declaration. Two Tailwind shadow classes overwrite each other,
+ * so a row with both edges must not use two classes.
+ */
+export function numberingGapShadowClass(
+  gapBefore: boolean,
+  gapAfter: boolean
+): string | undefined {
+  if (gapBefore && gapAfter) {
+    return "shadow-[inset_0_2px_0_0_var(--color-destructive),inset_0_-2px_0_0_var(--color-destructive)]";
+  }
+  if (gapBefore) return "shadow-[inset_0_2px_0_0_var(--color-destructive)]";
+  if (gapAfter) return "shadow-[inset_0_-2px_0_0_var(--color-destructive)]";
+  return undefined;
+}

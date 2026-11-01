@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
+import {
+  effectiveAbcRangeGapMarkers,
+  numberingGapShadowClass,
+} from "@/lib/table/abcRangeGapDisplay";
 import type { NumberRangeRow } from "@/packages/shared/contracts/filters.schema";
 
 function row(
@@ -44,6 +47,19 @@ describe("effectiveAbcRangeGapMarkers", () => {
       gapBefore: true,
       gapAfter: false,
     });
+  });
+
+  it("draws both gap edges with one shadow declaration", () => {
+    const both = numberingGapShadowClass(true, true);
+    expect(both).toContain("inset_0_2px_0_0");
+    expect(both).toContain("inset_0_-2px_0_0");
+    expect(numberingGapShadowClass(true, false)).toBe(
+      "shadow-[inset_0_2px_0_0_var(--color-destructive)]"
+    );
+    expect(numberingGapShadowClass(false, true)).toBe(
+      "shadow-[inset_0_-2px_0_0_var(--color-destructive)]"
+    );
+    expect(numberingGapShadowClass(false, false)).toBeUndefined();
   });
 
   it("shows gapAfter when successor is hidden by filter", () => {

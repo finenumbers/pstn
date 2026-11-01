@@ -1,16 +1,18 @@
 "use client";
 
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type Row,
-  type SortingState,
-} from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { FacetCombobox } from "@/components/ranges/FacetCombobox";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { SortingState } from "@tanstack/react-table";
+import { ColumnHeaderFilter } from "@/components/ranges/ColumnHeaderFilter";
 import { DiffChangeDetailDialog } from "@/components/ranges/DiffChangeDetailDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,21 +31,18 @@ import {
   formatChangeStatusLabel,
   formatChangedFieldsLabel,
 } from "@/lib/diff/diffChangedFields";
+import { ibmPlexSans } from "@/lib/fonts/ibmPlexSans";
 import {
-  compactColumnStyle,
-  computeAbcFilterColumnWidth,
-  computeCompactColumnWidths,
-  INN_COLUMN_WIDTH_CH,
-  UVR_ANTIFRAUD_COLUMN_WIDTH_CH,
-  columnWidthStyle,
-  isCompactColumn,
-  tableColumnWidth,
-} from "@/lib/table/compactColumns";
-import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
+  numberingGapShadowClass,
+  effectiveAbcRangeGapMarkers,
+} from "@/lib/table/abcRangeGapDisplay";
+import { longestColumnTexts } from "@/lib/table/columnContentWidth";
 import { getRangeRowHighlightClass } from "@/lib/table/rangeRowHighlight";
-import { isGapCompatibleSort } from "@/lib/sort/normalizeRangesSort";
+import {
+  isGapCompatibleSort,
+  sortFromSingleColumn,
+} from "@/lib/sort/normalizeRangesSort";
 import { cn, formatNumber, formatRangeSegment } from "@/lib/utils";
-import { sortFromSingleColumn } from "@/lib/sort/normalizeRangesSort";
 import {
   type FacetsResponse,
   type FiltersDTO,
@@ -113,69 +112,143 @@ const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
   changedFields: "Изменения",
 };
 
-function renderLegalAddressCell(address: string | null | undefined) {
-  const display = address && address.length > 0 ? address : "—";
-  if (display === "—") return display;
-  const href = yandexMapsUrl(address);
-  if (!href) return display;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-inherit underline decoration-black underline-offset-2"
-    >
-      {display}
-    </a>
-  );
-}
+const BOLD_COLUMNS = new Set<string>(["rangeStart", "rangeEnd"]);
+const SORT_COLUMNS = new Set<SortableColumn>(["rangeStart", "rangeEnd", "capacity"]);
+/** py-0.5 + text-xs line + border, before measureElement corrects it. */
+const ESTIMATED_ROW_HEIGHT = 21;
 
-function renderInnCellValue(inn: string | null | undefined) {
-  const display = inn && inn.length > 0 ? inn : "—";
-  if (display === "—") return display;
-  const href = dadataPartyUrl(inn!);
-  if (!href) return display;
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-inherit underline decoration-black underline-offset-2"
-    >
-      {display}
-    </a>
-  );
-}
+const HEAD_CLASS =
+  "sticky top-0 z-20 h-7 bg-background px-2 text-left align-middle text-xs font-medium whitespace-nowrap text-foreground shadow-[inset_-1px_-1px_0_0_var(--color-border)] last:shadow-[inset_0_-1px_0_0_var(--color-border)]";
 
-/** Fixed single-line body row height (virtualizer estimate). */
-const ROW_HEIGHT_PX = 32;
-const DATA_CELL_PY_CLASS = "py-1";
-const TEXT_CELL_CLASS =
-  "min-w-0 max-w-[28rem] truncate whitespace-nowrap";
+const CELL_CLASS =
+  "border-b border-r px-2 py-0.5 align-middle text-xs whitespace-nowrap last:border-r-0";
 
-function getCellTitle(
-  row: NumberRangeRow,
-  columnId: string
-): string | undefined {
+function facetValues(filters: FiltersDTO, columnId: string): string[] {
   switch (columnId) {
+    case "abc":
+      return filters.abc;
     case "operator":
+      return filters.operator;
     case "garTerritory":
-    case "legalAddress":
-    case "inn": {
-      const value = row[columnId];
-      return value ? String(value) : undefined;
-    }
-    case "changeStatus": {
-      const label = formatChangeStatusLabel(row);
-      return label === "—" ? undefined : label;
-    }
-    case "changedFields": {
-      const label = formatChangedFieldsLabel(row);
-      return label === "—" ? undefined : label;
-    }
+      return filters.garTerritory;
+    case "inn":
+      return filters.inn;
+    case "uvrAntifraud":
+      return filters.uvrAntifraud;
+    case "changeStatus":
+      return filters.changeStatus;
+    case "changedFields":
+      return filters.changedFields;
     default:
-      return undefined;
+      return [];
   }
+}
+
+function isFacetColumn(
+  columnId: string
+): columnId is
+  | "abc"
+  | "operator"
+  | "garTerritory"
+  | "inn"
+  | "uvrAntifraud"
+  | "changeStatus"
+  | "changedFields" {
+  return (
+    columnId === "abc" ||
+    columnId === "operator" ||
+    columnId === "garTerritory" ||
+    columnId === "inn" ||
+    columnId === "uvrAntifraud" ||
+    columnId === "changeStatus" ||
+    columnId === "changedFields"
+  );
+}
+
+function linkClass(row: NumberRangeRow, isDiffView: boolean): string {
+  if (isDiffView && (row.changeType === "added" || row.changeType === "removed")) {
+    return "text-inherit underline-offset-2 hover:underline";
+  }
+  return "text-foreground underline-offset-2 hover:underline";
+}
+
+function renderLinkedText(text: string, href: string | null, className: string): ReactNode {
+  if (!href) return text;
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+      {text}
+    </a>
+  );
+}
+
+function renderLegalAddressCell(row: NumberRangeRow, isDiffView: boolean): ReactNode {
+  const display = row.legalAddress && row.legalAddress.length > 0 ? row.legalAddress : "—";
+  if (display === "—") return display;
+  return renderLinkedText(display, yandexMapsUrl(row.legalAddress), linkClass(row, isDiffView));
+}
+
+function renderInnCell(row: NumberRangeRow, isDiffView: boolean): ReactNode {
+  const display = row.inn && row.inn.length > 0 ? row.inn : "—";
+  if (display === "—") return display;
+  return renderLinkedText(display, dadataPartyUrl(row.inn), linkClass(row, isDiffView));
+}
+
+function ColumnWidthProbe({
+  texts,
+  fontClassName,
+  onMeasure,
+}: {
+  texts: Record<string, string>;
+  fontClassName: string;
+  onMeasure: (widths: Record<string, number>) => void;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const onMeasureRef = useRef(onMeasure);
+  onMeasureRef.current = onMeasure;
+  const signature = JSON.stringify(texts);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled || !hostRef.current) return;
+      const next: Record<string, number> = {};
+      hostRef.current.querySelectorAll<HTMLElement>("[data-col]").forEach((el) => {
+        const id = el.dataset.col;
+        if (!id) return;
+        next[id] = Math.ceil(el.getBoundingClientRect().width) + 1;
+      });
+      onMeasureRef.current(next);
+    };
+    measure();
+    const ready = document.fonts?.ready;
+    if (ready) void ready.then(measure);
+    return () => {
+      cancelled = true;
+    };
+  }, [signature, fontClassName]);
+
+  return (
+    <div
+      ref={hostRef}
+      aria-hidden
+      className={cn(fontClassName, "pointer-events-none fixed top-0 left-0 -z-10 opacity-0")}
+    >
+      {Object.entries(texts).map(([id, text]) => (
+        <span
+          key={id}
+          data-col={id}
+          className={cn(
+            "inline-block px-2 text-xs whitespace-nowrap",
+            BOLD_COLUMNS.has(id) && "font-bold"
+          )}
+        >
+          {text || " "}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function RangesTable({
@@ -203,275 +276,92 @@ export function RangesTable({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [detailRow, setDetailRow] = useState<NumberRangeRow | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [openColumn, setOpenColumn] = useState<string | null>(null);
+  const [minWidths, setMinWidths] = useState<Record<string, number>>({});
+  const openColumnRef = useRef<string | null>(null);
+  const onFacetSearchChangeRef = useRef(onFacetSearchChange);
+  openColumnRef.current = openColumn;
+  onFacetSearchChangeRef.current = onFacetSearchChange;
+
   const columnOrder = isDiffView ? DIFF_COLUMN_ORDER : COLUMN_ORDER;
+  const headers: Record<string, string> = isDiffView
+    ? DIFF_COLUMN_LABELS
+    : COLUMN_LABELS;
 
-  const standardColumns = useMemo(
-    () => [
-      { accessorKey: "abc", header: "ABC" },
-      {
-        accessorKey: "rangeStart",
-        header: "Начало",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatRangeSegment(row.original.rangeStart),
-      },
-      {
-        accessorKey: "rangeEnd",
-        header: "Конец",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatRangeSegment(row.original.rangeEnd),
-      },
-      {
-        accessorKey: "capacity",
-        header: "Емкость",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          formatNumber(row.original.capacity),
-      },
-      { accessorKey: "operator", header: "Оператор связи" },
-      { accessorKey: "garTerritory", header: "Территория ГАР" },
-      {
-        accessorKey: "legalAddress",
-        header: "Юридический адрес",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          renderLegalAddressCell(row.original.legalAddress),
-      },
-      {
-        accessorKey: "inn",
-        header: "ИНН",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
-          renderInnCellValue(row.original.inn),
-      },
-      {
-        accessorKey: "uvrAntifraud",
-        header: "УВр Антифрод",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const value = row.original.uvrAntifraud;
-          return value != null ? String(value) : "—";
-        },
-      },
-    ],
-    []
+  const longestTexts = useMemo(
+    () => longestColumnTexts(columnOrder, headers, data),
+    [columnOrder, headers, data]
   );
 
-  const openDetail = (row: NumberRangeRow) => {
-    setDetailRow(row);
-    setDetailOpen(true);
-  };
+  const onMeasure = useCallback((next: Record<string, number>) => {
+    setMinWidths((prev) => {
+      const keys = Object.keys(next);
+      if (
+        keys.length === Object.keys(prev).length &&
+        keys.every((key) => prev[key] === next[key])
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  }, []);
 
-  const columns = useMemo(() => {
-    if (!isDiffView) return standardColumns;
-    return [
-      ...standardColumns,
-      {
-        id: "changeStatus",
-        accessorKey: "changeStatus",
-        header: DIFF_COLUMN_LABELS.changeStatus,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const label = formatChangeStatusLabel(row.original);
-          if (label === "—") return label;
-          return (
-            <button
-              type="button"
-              className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
-              onClick={() => openDetail(row.original)}
-            >
-              {label}
-            </button>
-          );
-        },
-      },
-      {
-        id: "changedFields",
-        accessorKey: "changedFields",
-        header: DIFF_COLUMN_LABELS.changedFields,
-        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const label = formatChangedFieldsLabel(row.original);
-          if (label === "—") return label;
-          return (
-            <button
-              type="button"
-              className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
-              onClick={() => openDetail(row.original)}
-            >
-              {label}
-            </button>
-          );
-        },
-      },
-    ];
-  }, [isDiffView, standardColumns]);
+  useEffect(() => {
+    const current = openColumnRef.current;
+    openColumnRef.current = null;
+    setOpenColumn(null);
+    if (current) onFacetSearchChangeRef.current(current, "");
+  }, [listKey]);
 
-  const compactWidths = useMemo(
-    () => computeCompactColumnWidths(data),
-    [data]
-  );
+  const closeColumn = useCallback((column: string) => {
+    onFacetSearchChangeRef.current(column, "");
+    setOpenColumn((current) => (current === column ? null : current));
+  }, []);
 
-  const abcColumnWidthCh = useMemo(
-    () => computeAbcFilterColumnWidth(filters.abc.length, "ABC"),
-    [filters.abc.length]
-  );
+  const toggleColumn = useCallback((column: string) => {
+    const current = openColumnRef.current;
+    if (current === column) {
+      onFacetSearchChangeRef.current(column, "");
+      openColumnRef.current = null;
+      setOpenColumn(null);
+      return;
+    }
+    if (current) onFacetSearchChangeRef.current(current, "");
+    openColumnRef.current = column;
+    setOpenColumn(column);
+  }, []);
 
-  const getColumnWidthCh = (columnId: string): number | undefined => {
-    if (columnId === "abc") return abcColumnWidthCh;
-    if (columnId === "inn") {
-      return INN_COLUMN_WIDTH_CH;
-    }
-    if (
-      columnId === "uvrAntifraud" ||
-      columnId === "changeStatus" ||
-      columnId === "changedFields"
-    ) {
-      return UVR_ANTIFRAUD_COLUMN_WIDTH_CH;
-    }
-    if (columnId === "operator" || columnId === "garTerritory") {
-      return undefined;
-    }
-    if (isCompactColumn(columnId)) return compactWidths[columnId];
-    return undefined;
-  };
-
-  const getCompactCellProps = (columnId: string) => {
-    if (columnId === "abc") {
-      return {
-        className: "truncate whitespace-nowrap tabular-nums",
-        style: compactColumnStyle(abcColumnWidthCh),
-      };
-    }
-    if (columnId === "inn") {
-      return {
-        className: "truncate whitespace-nowrap tabular-nums",
-        style: compactColumnStyle(INN_COLUMN_WIDTH_CH),
-      };
-    }
-    if (
-      columnId === "uvrAntifraud" ||
-      columnId === "changeStatus" ||
-      columnId === "changedFields"
-    ) {
-      return {
-        className: "truncate whitespace-nowrap tabular-nums",
-        style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
-      };
-    }
-    if (columnId === "operator" || columnId === "garTerritory" || columnId === "legalAddress") {
-      return {
-        className: TEXT_CELL_CLASS,
-        style: undefined,
-      };
-    }
-    if (!isCompactColumn(columnId)) {
-      return {
-        className: "truncate whitespace-nowrap",
-        style: undefined,
-      };
-    }
-    const ch = compactWidths[columnId];
-    return {
-      className: "truncate whitespace-nowrap tabular-nums",
-      style: compactColumnStyle(ch),
-    };
-  };
-
-  const getHeaderStyle = (columnId: string): CSSProperties | undefined => {
-    if (columnId === "operator" || columnId === "garTerritory") {
-      return undefined;
-    }
-    if (columnId === "abc") {
-      return columnWidthStyle(abcColumnWidthCh);
-    }
-    if (columnId === "inn") {
-      return compactColumnStyle(INN_COLUMN_WIDTH_CH);
-    }
-    if (
-      columnId === "uvrAntifraud" ||
-      columnId === "changeStatus" ||
-      columnId === "changedFields"
-    ) {
-      return compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH);
-    }
-    if (isCompactColumn(columnId)) {
-      return compactColumnStyle(compactWidths[columnId]);
-    }
-    return undefined;
-  };
-
-  const table = useReactTable({
-    data,
-    columns,
-    state: { sorting },
-    onSortingChange: (updater) => {
-      const next =
-        typeof updater === "function" ? updater(sorting) : updater;
-      onSortingChange(next);
+  const clearColumn = useCallback(
+    (column: string) => {
+      if (!isFacetColumn(column)) return;
+      onFilterChange(column, []);
+      onFacetSearchChange(column, "");
     },
-    manualSorting: true,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
-  const tableRows = table.getRowModel().rows;
-
-  const rowVirtualizer = useVirtualizer({
-    count: tableRows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT_PX,
-    overscan: 12,
-  });
-
-  const virtualRows = rowVirtualizer.getVirtualItems();
-  const paddingTop =
-    virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom =
-    virtualRows.length > 0
-      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
-      : 0;
+    [onFilterChange, onFacetSearchChange]
+  );
 
   const showGapMarkers =
     !isDiffView &&
     isGapCompatibleSort(
-      sorting.map((s) => ({
-        id: s.id as SortableColumn,
-        desc: s.desc ?? false,
+      sorting.map((item) => ({
+        id: item.id as SortableColumn,
+        desc: item.desc ?? false,
       }))
     );
 
-  const renderDataRow = (
-    row: Row<NumberRangeRow>,
-    rowIndex: number,
-    prev?: NumberRangeRow
-  ) => {
-    const { gapBefore, gapAfter } = isDiffView
-      ? { gapBefore: false, gapAfter: false }
-      : effectiveAbcRangeGapMarkers(row.original, prev);
+  const rowVirtualizer = useVirtualizer({
+    count: isLoading || errorMessage || data.length === 0 ? 0 : data.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    overscan: 12,
+  });
 
-    return (
-      <TableRow
-        key={`${row.original.id}-${rowIndex}`}
-        className={cn(
-          getRangeRowHighlightClass(row.original, { isDiff: isDiffView }),
-          gapBefore && showGapMarkers && "range-gap-before",
-          gapAfter && showGapMarkers && "range-gap-after"
-        )}
-      >
-        {columnOrder.map((colId) => {
-          const cell = row
-            .getVisibleCells()
-            .find((visibleCell) => visibleCell.column.id === colId);
-          if (!cell) return null;
-          const compact = getCompactCellProps(colId);
-          const title = getCellTitle(row.original, colId);
-          return (
-            <TableCell
-              key={cell.id}
-              className={cn(DATA_CELL_PY_CLASS, compact.className)}
-              style={compact.style}
-              title={title}
-            >
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </TableCell>
-          );
-        })}
-      </TableRow>
-    );
-  };
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+  const paddingBottom =
+    virtualRows.length > 0
+      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+      : 0;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -484,13 +374,13 @@ export function RangesTable({
     if (!root || !onLoadMore || !hasMore || isFetchingNextPage) return;
     const items = rowVirtualizer.getVirtualItems();
     const last = items[items.length - 1];
-    if (last && last.index >= tableRows.length - 8) {
+    if (last && last.index >= data.length - 8) {
       onLoadMore();
     }
   }, [
     virtualRows.length,
     lastVirtualIndex,
-    tableRows.length,
+    data.length,
     onLoadMore,
     hasMore,
     isFetchingNextPage,
@@ -498,7 +388,7 @@ export function RangesTable({
   ]);
 
   const toggleSort = (columnId: SortableColumn) => {
-    const existing = sorting.find((x) => x.id === columnId);
+    const existing = sorting.find((item) => item.id === columnId);
     const isPrimary = sorting[0]?.id === columnId;
 
     if (!existing || !isPrimary) {
@@ -512,233 +402,199 @@ export function RangesTable({
     onSortingChange(sortFromSingleColumn(columnId, false));
   };
 
-  const SortIcon = ({ columnId }: { columnId: SortableColumn }) => {
-    const s = sorting.find((x) => x.id === columnId);
-    if (!s) return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
-    return s.desc ? (
-      <ArrowDown className="h-3.5 w-3.5" />
-    ) : (
-      <ArrowUp className="h-3.5 w-3.5" />
+  const renderSortHeader = (columnId: SortableColumn) => {
+    const active = sorting.find((item) => item.id === columnId);
+    const isPrimary = sorting[0]?.id === columnId;
+    const icon =
+      !active || !isPrimary ? (
+        <ArrowUpDown className="h-3 w-3 opacity-40" />
+      ) : active.desc ? (
+        <ArrowDown className="h-3 w-3" />
+      ) : (
+        <ArrowUp className="h-3 w-3" />
+      );
+    return (
+      <button type="button" className="col-filter-trigger" onClick={() => toggleSort(columnId)}>
+        <span className="col-header-label">{COLUMN_LABELS[columnId]}</span>
+        {icon}
+      </button>
     );
   };
 
-  const SortHeader = ({ columnId }: { columnId: SortableColumn }) => (
-    <button
-      type="button"
-      className="flex items-center gap-1 text-xs font-bold hover:text-foreground"
-      onClick={() => toggleSort(columnId)}
-    >
-      {COLUMN_LABELS[columnId]}
-      <SortIcon columnId={columnId} />
-    </button>
-  );
+  const renderFilterHeader = (columnId: DiffTableColumnId) => {
+    if (!isFacetColumn(columnId)) return null;
+    const facet = facets?.facets[columnId];
+    const formatOption =
+      columnId === "changeStatus"
+        ? (value: string) =>
+            DIFF_CHANGE_STATUS_LABELS[value as keyof typeof DIFF_CHANGE_STATUS_LABELS] ??
+            value
+        : columnId === "changedFields"
+          ? (value: string) =>
+              DIFF_CHANGED_FIELD_LABELS[value as keyof typeof DIFF_CHANGED_FIELD_LABELS] ??
+              value
+          : undefined;
+    return (
+      <ColumnHeaderFilter
+        column={columnId}
+        header={headers[columnId]}
+        open={openColumn === columnId}
+        selected={facetValues(filters, columnId)}
+        options={facet?.options ?? []}
+        totalDistinct={facet?.totalDistinct ?? 0}
+        search={facetSearch[columnId] ?? ""}
+        loading={facetsLoading}
+        error={facetsError}
+        formatOption={formatOption}
+        fontClassName={ibmPlexSans.className}
+        onToggle={() => toggleColumn(columnId)}
+        onClose={() => closeColumn(columnId)}
+        onChange={(values) => onFilterChange(columnId, values)}
+        onSearchChange={(search) => onFacetSearchChange(columnId, search)}
+        onClear={() => clearColumn(columnId)}
+      />
+    );
+  };
 
-  const renderHeaderCell = (colId: TableColumnId | DiffTableColumnId) => {
-    switch (colId) {
+  const renderHeaderCell = (columnId: DiffTableColumnId) => {
+    if (SORT_COLUMNS.has(columnId as SortableColumn) && columnId !== "abc") {
+      return renderSortHeader(columnId as SortableColumn);
+    }
+    if (columnId === "legalAddress") {
+      return <span className="col-header-label">{COLUMN_LABELS.legalAddress}</span>;
+    }
+    return renderFilterHeader(columnId);
+  };
+
+  const renderCell = (row: NumberRangeRow, columnId: DiffTableColumnId): ReactNode => {
+    switch (columnId) {
       case "abc":
-        return (
-          <FacetCombobox
-            label="ABC"
-            values={filters.abc}
-            search={facetSearch.abc ?? ""}
-            options={facets?.facets.abc?.options ?? []}
-            onChange={(v) => onFilterChange("abc", v)}
-            onSearchChange={(s) => onFacetSearchChange("abc", s)}
-            isLoading={facetsLoading}
-            placeholder="ABC"
-            compact
-          />
-        );
+        return row.abc;
       case "rangeStart":
+        return formatRangeSegment(row.rangeStart);
       case "rangeEnd":
+        return formatRangeSegment(row.rangeEnd);
       case "capacity":
-        return <SortHeader columnId={colId} />;
-      case "changeStatus":
-        return (
-          <FacetCombobox
-            label={DIFF_COLUMN_LABELS.changeStatus}
-            values={filters.changeStatus}
-            search={facetSearch.changeStatus ?? ""}
-            options={facets?.facets.changeStatus?.options ?? []}
-            onChange={(v) => onFilterChange("changeStatus", v)}
-            onSearchChange={(s) => onFacetSearchChange("changeStatus", s)}
-            isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.changeStatus}
-            formatOption={(value) =>
-              DIFF_CHANGE_STATUS_LABELS[
-                value as keyof typeof DIFF_CHANGE_STATUS_LABELS
-              ] ?? value
-            }
-          />
-        );
-      case "changedFields":
-        return (
-          <FacetCombobox
-            label={DIFF_COLUMN_LABELS.changedFields}
-            values={filters.changedFields}
-            search={facetSearch.changedFields ?? ""}
-            options={facets?.facets.changedFields?.options ?? []}
-            onChange={(v) => onFilterChange("changedFields", v)}
-            onSearchChange={(s) => onFacetSearchChange("changedFields", s)}
-            isLoading={facetsLoading}
-            placeholder={DIFF_COLUMN_LABELS.changedFields}
-            formatOption={(value) =>
-              DIFF_CHANGED_FIELD_LABELS[
-                value as keyof typeof DIFF_CHANGED_FIELD_LABELS
-              ] ?? value
-            }
-          />
-        );
+        return formatNumber(row.capacity);
       case "operator":
-        return (
-          <FacetCombobox
-            label="Оператор связи"
-            values={filters.operator}
-            search={facetSearch.operator ?? ""}
-            options={facets?.facets.operator?.options ?? []}
-            onChange={(v) => onFilterChange("operator", v)}
-            onSearchChange={(s) => onFacetSearchChange("operator", s)}
-            isLoading={facetsLoading}
-            placeholder="Оператор связи"
-          />
-        );
+        return row.operator;
       case "garTerritory":
-        return (
-          <FacetCombobox
-            label="Территория ГАР"
-            values={filters.garTerritory}
-            search={facetSearch.garTerritory ?? ""}
-            options={facets?.facets.garTerritory?.options ?? []}
-            onChange={(v) => onFilterChange("garTerritory", v)}
-            onSearchChange={(s) => onFacetSearchChange("garTerritory", s)}
-            isLoading={facetsLoading}
-            placeholder="Территория ГАР"
-          />
-        );
+        return row.garTerritory;
       case "legalAddress":
-        return (
-          <span className="px-2 text-xs font-bold">Юридический адрес</span>
-        );
+        return renderLegalAddressCell(row, isDiffView);
       case "inn":
-        return (
-          <FacetCombobox
-            label="ИНН"
-            values={filters.inn}
-            search={facetSearch.inn ?? ""}
-            options={facets?.facets.inn?.options ?? []}
-            onChange={(v) => onFilterChange("inn", v)}
-            onSearchChange={(s) => onFacetSearchChange("inn", s)}
-            isLoading={facetsLoading}
-            placeholder="ИНН"
-          />
-        );
+        return renderInnCell(row, isDiffView);
       case "uvrAntifraud":
+        return row.uvrAntifraud != null ? String(row.uvrAntifraud) : "—";
+      case "changeStatus": {
+        const label = formatChangeStatusLabel(row);
+        if (label === "—") return label;
         return (
-          <FacetCombobox
-            label="УВр Антифрод"
-            values={filters.uvrAntifraud}
-            search={facetSearch.uvrAntifraud ?? ""}
-            options={facets?.facets.uvrAntifraud?.options ?? []}
-            onChange={(v) => onFilterChange("uvrAntifraud", v)}
-            onSearchChange={(s) => onFacetSearchChange("uvrAntifraud", s)}
-            isLoading={facetsLoading}
-            placeholder="УВр Антифрод"
-          />
+          <button
+            type="button"
+            className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
+            onClick={() => {
+              setDetailRow(row);
+              setDetailOpen(true);
+            }}
+          >
+            {label}
+          </button>
         );
+      }
+      case "changedFields": {
+        const label = formatChangedFieldsLabel(row);
+        if (label === "—") return label;
+        return (
+          <button
+            type="button"
+            className="text-left underline decoration-current underline-offset-2 hover:opacity-80"
+            onClick={() => {
+              setDetailRow(row);
+              setDetailOpen(true);
+            }}
+          >
+            {label}
+          </button>
+        );
+      }
       default:
         return null;
     }
   };
 
-  const hasFilterColumn = (colId: TableColumnId | DiffTableColumnId) =>
-    colId === "abc" ||
-    colId === "operator" ||
-    colId === "garTerritory" ||
-    colId === "inn" ||
-    colId === "uvrAntifraud" ||
-    colId === "changeStatus" ||
-    colId === "changedFields";
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {facetsError && (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+      {facetsError ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Фильтры: {facetsError}
         </div>
-      )}
+      ) : null}
+      <ColumnWidthProbe
+        texts={longestTexts}
+        fontClassName={ibmPlexSans.className}
+        onMeasure={onMeasure}
+      />
       <div
         ref={scrollRef}
-        className="ranges-table-container min-h-0 flex-1 overflow-auto rounded-md border"
+        className={cn(
+          ibmPlexSans.className,
+          "min-h-0 min-w-0 flex-1 overflow-auto"
+        )}
       >
-        <Table className="table-fixed w-full border-separate border-spacing-0">
-          <colgroup>
-            {columnOrder.map((colId) => {
-              const ch = getColumnWidthCh(colId);
-              return (
-                <col
-                  key={colId}
+        <Table
+          containerClassName="w-max max-w-none"
+          className="w-max border-separate border-spacing-0 text-xs"
+        >
+          <TableHeader className="[&_tr]:!border-b-0">
+            <TableRow className="border-0 hover:bg-background">
+              {columnOrder.map((columnId) => (
+                <TableHead
+                  key={columnId}
+                  className={HEAD_CLASS}
                   style={
-                    ch !== undefined
-                      ? { width: tableColumnWidth(ch) }
+                    minWidths[columnId] !== undefined
+                      ? { minWidth: minWidths[columnId] }
                       : undefined
                   }
-                />
-              );
-            })}
-          </colgroup>
-          <TableHeader className="sticky top-0 z-30 bg-background">
-            <TableRow className="border-b hover:bg-transparent">
-              {columnOrder.map((colId) => {
-                const compact = getCompactCellProps(colId);
-                return (
-                  <TableHead
-                    key={colId}
-                    className={cn(
-                      "sticky top-0 z-30 h-10 px-1 py-0 align-middle",
-                      "border-b bg-background shadow-[0_1px_0_0_var(--color-border)]",
-                      hasFilterColumn(colId) && "bg-muted",
-                      compact.className
-                    )}
-                    style={getHeaderStyle(colId) ?? compact.style}
-                  >
-                    {renderHeaderCell(colId)}
-                  </TableHead>
-                );
-              })}
+                >
+                  {renderHeaderCell(columnId)}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody className={isFetching ? "opacity-60" : ""}>
             {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {columnOrder.map((colId) => (
-                    <TableCell key={colId} className={DATA_CELL_PY_CLASS}>
-                      <Skeleton className="h-4 w-full" />
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={index} className="border-0">
+                  {columnOrder.map((columnId) => (
+                    <TableCell key={columnId} className={CELL_CLASS}>
+                      <Skeleton className="h-4 w-16" />
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : errorMessage ? (
-              <TableRow>
+              <TableRow className="border-0">
                 <TableCell
                   colSpan={columnOrder.length}
-                  className="h-24 text-center text-red-700"
+                  className="h-24 border-b text-center text-red-700"
                 >
                   Ошибка загрузки таблицы: {errorMessage}
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
-              <TableRow>
+              <TableRow className="border-0">
                 <TableCell
                   colSpan={columnOrder.length}
-                  className="h-24 text-center text-muted-foreground"
+                  className="h-24 border-b text-center text-muted-foreground"
                 >
                   Нет данных. Нажмите «Загрузить данные» для загрузки.
                 </TableCell>
               </TableRow>
             ) : (
               <>
-                {paddingTop > 0 && (
+                {paddingTop > 0 ? (
                   <TableRow aria-hidden className="border-0 hover:bg-transparent">
                     <TableCell
                       colSpan={columnOrder.length}
@@ -746,16 +602,40 @@ export function RangesTable({
                       style={{ height: paddingTop }}
                     />
                   </TableRow>
-                )}
+                ) : null}
                 {virtualRows.map((virtualRow) => {
-                  const row = tableRows[virtualRow.index];
-                  return renderDataRow(
-                    row,
-                    virtualRow.index,
-                    tableRows[virtualRow.index - 1]?.original
+                  const row = data[virtualRow.index];
+                  const prev = data[virtualRow.index - 1];
+                  const { gapBefore, gapAfter } = showGapMarkers
+                    ? effectiveAbcRangeGapMarkers(row, prev)
+                    : { gapBefore: false, gapAfter: false };
+                  const gapClass = numberingGapShadowClass(gapBefore, gapAfter);
+                  return (
+                    <TableRow
+                      key={`${row.id}-${virtualRow.index}`}
+                      data-index={virtualRow.index}
+                      ref={rowVirtualizer.measureElement}
+                      className={cn(
+                        "border-0",
+                        getRangeRowHighlightClass(row, { isDiff: isDiffView })
+                      )}
+                    >
+                      {columnOrder.map((columnId) => (
+                        <TableCell
+                          key={`${row.id}-${columnId}`}
+                          className={cn(
+                            CELL_CLASS,
+                            BOLD_COLUMNS.has(columnId) && "font-bold",
+                            gapClass
+                          )}
+                        >
+                          {renderCell(row, columnId)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
                   );
                 })}
-                {paddingBottom > 0 && (
+                {paddingBottom > 0 ? (
                   <TableRow aria-hidden className="border-0 hover:bg-transparent">
                     <TableCell
                       colSpan={columnOrder.length}
@@ -763,7 +643,7 @@ export function RangesTable({
                       style={{ height: paddingBottom }}
                     />
                   </TableRow>
-                )}
+                ) : null}
               </>
             )}
           </TableBody>
@@ -777,7 +657,7 @@ export function RangesTable({
             : `Загружено ${formatNumber(data.length)} из ${formatNumber(totalRows)}`}
           {isFetchingNextPage ? " · загрузка…" : ""}
         </span>
-        {hasMore && !isFetchingNextPage && onLoadMore && (
+        {hasMore && !isFetchingNextPage && onLoadMore ? (
           <button
             type="button"
             className="text-sm text-muted-foreground underline-offset-2 hover:underline"
@@ -785,10 +665,10 @@ export function RangesTable({
           >
             Загрузить ещё
           </button>
-        )}
+        ) : null}
       </div>
 
-      {loadMoreError && (
+      {loadMoreError ? (
         <div
           className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
           role="alert"
@@ -807,25 +687,25 @@ export function RangesTable({
             </>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {!isDiffView && (
+      {!isDiffView ? (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
           Подсветка строк: ярко-жёлтый — Фронтир Нетворк; синий — ABC 80x;
           светло-зелёный — ABC 9xx. Красные линии — разрывы нумерации ABC.
         </div>
-      )}
+      ) : null}
 
-      {isDiffView && (
+      {isDiffView ? (
         <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
           Режим просмотра расхождений: зелёный — добавлено, жёлтый — изменено,
           красный — удалено. Колонка «Статус» — тип события; «Изменения» —
           какие поля отличаются. Нажмите на «Статус» или «Изменения», чтобы
           открыть детализацию «предыдущая / новая версия».
         </div>
-      )}
+      ) : null}
 
-      {isDiffView && (
+      {isDiffView ? (
         <DiffChangeDetailDialog
           row={detailRow}
           open={detailOpen}
@@ -834,7 +714,7 @@ export function RangesTable({
             if (!open) setDetailRow(null);
           }}
         />
-      )}
+      ) : null}
     </div>
   );
 }
