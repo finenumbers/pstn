@@ -23,6 +23,14 @@ export interface ImportStepProgress {
   status: ImportStepStatus;
 }
 
+export interface PartyEnrichmentProgress {
+  total: number;
+  done: number;
+  withAddress: number;
+  empty: number;
+  stopReason: string | null;
+}
+
 export interface ImportProgress {
   phase: string;
   phaseLabel: string;
@@ -32,6 +40,7 @@ export interface ImportProgress {
   rowsLoaded: number;
   files: ImportFileProgress[];
   steps: ImportStepProgress[];
+  partyEnrichment: PartyEnrichmentProgress;
 }
 
 export interface ImportStatusResponse {

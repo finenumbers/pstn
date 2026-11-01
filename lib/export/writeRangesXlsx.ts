@@ -9,6 +9,10 @@ import {
   loadUvrLookupMap,
   lookupUvrAntifraud,
 } from "@/packages/db/queries/uvrLookupMap";
+import {
+  loadLegalAddressMap,
+  lookupLegalAddress,
+} from "@/packages/db/queries/legalAddressMap";
 import { rowToRangesCursor } from "@/lib/api/rangesCursor";
 import { effectiveAbcRangeGapMarkers } from "@/lib/table/abcRangeGapDisplay";
 import {
@@ -17,6 +21,7 @@ import {
   type RangeRowHighlightKind,
 } from "@/lib/table/rangeRowHighlight";
 import { sanitizeSpreadsheetCell } from "@/lib/export/sanitizeSpreadsheetCell";
+import { yandexMapsUrl } from "@/lib/dadata/yandexMapsUrl";
 import { EXCEL_SHEET_MAX_DATA_ROWS } from "@/lib/export/exportLimits";
 import {
   formatDiffDisplayValue,
@@ -58,8 +63,9 @@ export const EXPORT_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Емкость", key: "capacity", width: 10 },
   { header: "Оператор связи", key: "operator", width: 36 },
   { header: "Территория ГАР", key: "garTerritory", width: 36 },
-  { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
+  { header: "Юридический адрес", key: "legalAddress", width: 48 },
   { header: "ИНН", key: "inn", width: 15 },
+  { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
 ];
 
 export const EXPORT_DIFF_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
@@ -72,9 +78,10 @@ export const EXPORT_DIFF_XLS_COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: "Новый оператор связи", key: "newOperator", width: 36 },
   { header: "Старая территория ГАР", key: "prevGarTerritory", width: 36 },
   { header: "Новая территория ГАР", key: "newGarTerritory", width: 36 },
-  { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
+  { header: "Юридический адрес", key: "legalAddress", width: 48 },
   { header: "Старый ИНН", key: "prevInn", width: 15 },
   { header: "Новый ИНН", key: "newInn", width: 15 },
+  { header: "УВр Антифрод", key: "uvrAntifraud", width: 18 },
 ];
 
 export function rowCellBorders(
@@ -141,7 +148,8 @@ type ExportDbRow = Awaited<ReturnType<typeof listRangesForExport>>[number];
 
 function toNumberRangeRow(
   row: ExportDbRow,
-  uvrAntifraud: number | null
+  uvrAntifraud: number | null,
+  legalAddress: string | null
 ): NumberRangeRow {
   return {
     id: row.id,
@@ -151,6 +159,7 @@ function toNumberRangeRow(
     capacity: row.capacity,
     operator: row.operator,
     garTerritory: row.garTerritory,
+    legalAddress,
     inn: row.inn,
     uvrAntifraud,
     abcRangeGapBefore: Boolean(row.abcRangeGapBefore),
@@ -160,6 +169,17 @@ function toNumberRangeRow(
     prevInn: row.prevInn,
     prevGarTerritory: row.prevGarTerritory,
   };
+}
+
+export function legalAddressExportValue(
+  address: string | null | undefined
+): string | { text: string; hyperlink: string } {
+  if (!address) return "";
+  const sanitized = sanitizeSpreadsheetCell(address);
+  const text = typeof sanitized === "string" ? sanitized : String(sanitized);
+  const href = yandexMapsUrl(address);
+  if (!href || !text) return text;
+  return { text, hyperlink: href };
 }
 
 export type WriteRangesXlsxOptions = {
@@ -189,6 +209,7 @@ export async function writeRangesXlsxToStream(
     : CURRENT_RANGE_CONTEXT;
 
   const uvrMap = await loadUvrLookupMap();
+  const addressMap = await loadLegalAddressMap();
 
   const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
     stream,
@@ -271,7 +292,9 @@ export async function writeRangesXlsxToStream(
         }
 
         const uvr = lookupUvrAntifraud(uvrMap, row.inn);
-        const numberRow = toNumberRangeRow(row, uvr);
+        const legalAddress = lookupLegalAddress(addressMap, row.inn);
+        const legalAddressCell = legalAddressExportValue(legalAddress);
+        const numberRow = toNumberRangeRow(row, uvr, legalAddress);
         const { gapBefore, gapAfter } = isDiff
           ? { gapBefore: false, gapAfter: false }
           : effectiveAbcRangeGapMarkers(numberRow, prevRow);
@@ -305,14 +328,18 @@ export async function writeRangesXlsxToStream(
               newGarTerritory: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffGar!.newGarTerritory)
               ),
-              uvrAntifraud: sanitizeSpreadsheetCell(
-                uvr != null ? String(uvr) : ""
-              ),
+              legalAddress:
+                typeof legalAddressCell === "string"
+                  ? legalAddressCell
+                  : legalAddressCell.text,
               prevInn: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.oldInn)
               ),
               newInn: sanitizeSpreadsheetCell(
                 formatDiffDisplayValue(diffDisplay!.newInn)
+              ),
+              uvrAntifraud: sanitizeSpreadsheetCell(
+                uvr != null ? String(uvr) : ""
               ),
             }
           : {
@@ -322,6 +349,10 @@ export async function writeRangesXlsxToStream(
               capacity: row.capacity,
               operator: sanitizeSpreadsheetCell(row.operator),
               garTerritory: sanitizeSpreadsheetCell(row.garTerritory),
+              legalAddress:
+                typeof legalAddressCell === "string"
+                  ? legalAddressCell
+                  : legalAddressCell.text,
               inn: sanitizeSpreadsheetCell(row.inn),
               uvrAntifraud: sanitizeSpreadsheetCell(
                 uvr != null ? String(uvr) : ""
@@ -337,6 +368,12 @@ export async function writeRangesXlsxToStream(
         }
 
         const addedRow = worksheet!.addRow(exportRow);
+        if (typeof legalAddressCell !== "string") {
+          const legalIndex = keys.indexOf("legalAddress");
+          if (legalIndex >= 0) {
+            addedRow.getCell(legalIndex + 1).value = legalAddressCell;
+          }
+        }
         for (let col = 1; col <= columnCount; col++) {
           const cell = addedRow.getCell(col);
           cell.border = borders;
@@ -359,6 +396,7 @@ export async function writeRangesXlsxToStream(
       cursor = rowToRangesCursor({
         ...batch[batch.length - 1],
         uvrAntifraud: null,
+        legalAddress: null,
         changeType:
           (batch[batch.length - 1].changeType as NumberRangeRow["changeType"]) ??
           null,

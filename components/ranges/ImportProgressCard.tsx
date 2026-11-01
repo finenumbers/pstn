@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatNumber } from "@/lib/utils";
 import { mapImportErrorMessage } from "@/lib/import/mapImportErrorMessage";
+import { ENRICH_STOP_LABELS } from "@/lib/import/importProgressView";
 import type {
   ImportFileProgress,
   ImportStatusResponse,
+  PartyEnrichmentProgress,
 } from "@/packages/shared/contracts/filters.schema";
 
 interface ImportProgressCardProps {
@@ -121,6 +123,12 @@ export function ImportProgressCard({
           </ul>
         )}
 
+        <PartyEnrichmentBlock
+          phase={progress.phase}
+          enrichment={progress.partyEnrichment}
+          visibleWhenIdle={isSuccess}
+        />
+
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           {!isSkipped && (
             <p className="tabular-nums text-muted-foreground">
@@ -218,3 +226,50 @@ const FILE_STATUS_ICON: Record<ImportFileProgress["status"], LucideIcon> = {
   failed: XCircle,
   pending: Circle,
 };
+
+function PartyEnrichmentBlock({
+  phase,
+  enrichment,
+  visibleWhenIdle,
+}: {
+  phase: string;
+  enrichment: PartyEnrichmentProgress;
+  visibleWhenIdle: boolean;
+}) {
+  if (!enrichment) return null;
+  const active = phase === "enriching_legal_addresses";
+  const hasCounts = enrichment.total > 0;
+  const stopLabel = enrichment.stopReason
+    ? (ENRICH_STOP_LABELS[enrichment.stopReason] ?? enrichment.stopReason)
+    : null;
+  if (!active && !visibleWhenIdle) return null;
+  if (!active && !hasCounts && !stopLabel) return null;
+  if (enrichment.stopReason === "missing_key") {
+    return (
+      <div className="rounded-md border bg-background/80 px-3 py-2 text-sm">
+        {ENRICH_STOP_LABELS.missing_key}
+      </div>
+    );
+  }
+  if (!hasCounts && !stopLabel) return null;
+
+  return (
+    <div className="space-y-1 rounded-md border bg-background/80 px-3 py-2 text-sm">
+      <p className="font-medium">Юридические адреса по уникальным ИНН</p>
+      {hasCounts ? (
+        <p className="tabular-nums text-muted-foreground">
+          Запрошено{" "}
+          <span className="font-medium text-foreground">
+            {formatNumber(enrichment.done)}
+          </span>{" "}
+          из {formatNumber(enrichment.total)}
+          {" · "}
+          адрес найден {formatNumber(enrichment.withAddress)}
+          {" · "}
+          без адреса {formatNumber(enrichment.empty)}
+        </p>
+      ) : null}
+      {stopLabel ? <p>{stopLabel}</p> : null}
+    </div>
+  );
+}

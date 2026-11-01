@@ -54,8 +54,9 @@ git push -u origin main
 
 1. **SHA256** четырёх CSV сравнивается с `dataset_meta.source_hashes`.
 2. Если файлы **не изменились** — job получает статус `skipped`, production не трогается.
-3. Если **изменились** — полный pipeline: staging → validate → diff → swap → snapshot (если есть сегменты) → OPR/UVR.
-4. При наличии расхождений создаётся snapshot **«Расхождения DD.MM.YYYY»** (таблицы `dataset_snapshots`, `number_range_diffs`).
+3. Если **изменились** — полный pipeline: staging → validate → diff → swap → snapshot (если есть сегменты) → OPR/UVR → юридические адреса по уникальным ИНН.
+4. Если файлы **не изменились** и в `party_addresses` нет части ИНН текущего плана или последнего snapshot, запрашиваются только эти ИНН. Полный перезапрос при skip не выполняется.
+5. При наличии расхождений создаётся snapshot **«Расхождения DD.MM.YYYY»** (таблицы `dataset_snapshots`, `number_range_diffs`).
 
 ### Scheduler container
 

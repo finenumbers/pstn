@@ -1,8 +1,8 @@
 import { DEFAULT_FILTERS } from "@/packages/shared/contracts/filters.schema";
 import { parsePhoneNumberMask } from "@/lib/phoneNumberMask";
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "../index";
-import { numberRanges, operatorsRegister } from "../schema";
+import { numberRanges, operatorsRegister, partyAddresses } from "../schema";
 import { buildWhere } from "./buildWhere";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 
@@ -19,6 +19,7 @@ export type LookupRangeRow = {
   capacity: number;
   operator: string;
   garTerritory: string;
+  legalAddress: string | null;
   inn: string;
   uvrAntifraud: number | null;
   abcRangeGapBefore: boolean;
@@ -45,6 +46,7 @@ export async function lookupByPhone(phone: string): Promise<LookupByPhoneResult>
       capacity: numberRanges.capacity,
       operator: numberRanges.operator,
       garTerritory: numberRanges.garTerritory,
+      legalAddress: partyAddresses.legalAddress,
       inn: numberRanges.inn,
       uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: numberRanges.abcGapBefore,
@@ -52,6 +54,7 @@ export async function lookupByPhone(phone: string): Promise<LookupByPhoneResult>
     })
     .from(numberRanges)
     .leftJoin(operatorsRegister, innRegisterMatchSql())
+    .leftJoin(partyAddresses, eq(partyAddresses.inn, numberRanges.inn))
     .where(where)
     .orderBy(asc(numberRanges.id))
     .limit(2);

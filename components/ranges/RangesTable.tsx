@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { dadataPartyUrl } from "@/lib/dadata/partyUrl";
+import { yandexMapsUrl } from "@/lib/dadata/yandexMapsUrl";
 import {
   DIFF_CHANGE_STATUS_LABELS,
   DIFF_CHANGED_FIELD_LABELS,
@@ -79,8 +80,9 @@ const COLUMN_ORDER = [
   "capacity",
   "operator",
   "garTerritory",
-  "uvrAntifraud",
+  "legalAddress",
   "inn",
+  "uvrAntifraud",
 ] as const;
 
 const DIFF_COLUMN_ORDER = [
@@ -99,6 +101,7 @@ const COLUMN_LABELS: Record<TableColumnId, string> = {
   capacity: "Емкость",
   operator: "Оператор связи",
   garTerritory: "Территория ГАР",
+  legalAddress: "Юридический адрес",
   inn: "ИНН",
   uvrAntifraud: "УВр Антифрод",
 };
@@ -108,6 +111,23 @@ const DIFF_COLUMN_LABELS: Record<DiffTableColumnId, string> = {
   changeStatus: "Статус",
   changedFields: "Изменения",
 };
+
+function renderLegalAddressCell(address: string | null | undefined) {
+  const display = address && address.length > 0 ? address : "—";
+  if (display === "—") return display;
+  const href = yandexMapsUrl(address);
+  if (!href) return display;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-inherit underline decoration-black underline-offset-2"
+    >
+      {display}
+    </a>
+  );
+}
 
 function renderInnCellValue(inn: string | null | undefined) {
   const display = inn && inn.length > 0 ? inn : "—";
@@ -139,6 +159,7 @@ function getCellTitle(
   switch (columnId) {
     case "operator":
     case "garTerritory":
+    case "legalAddress":
     case "inn": {
       const value = row[columnId];
       return value ? String(value) : undefined;
@@ -207,18 +228,24 @@ export function RangesTable({
       { accessorKey: "operator", header: "Оператор связи" },
       { accessorKey: "garTerritory", header: "Территория ГАР" },
       {
-        accessorKey: "uvrAntifraud",
-        header: "УВр Антифрод",
-        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
-          const value = row.original.uvrAntifraud;
-          return value != null ? String(value) : "—";
-        },
+        accessorKey: "legalAddress",
+        header: "Юридический адрес",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) =>
+          renderLegalAddressCell(row.original.legalAddress),
       },
       {
         accessorKey: "inn",
         header: "ИНН",
         cell: ({ row }: { row: { original: NumberRangeRow } }) =>
           renderInnCellValue(row.original.inn),
+      },
+      {
+        accessorKey: "uvrAntifraud",
+        header: "УВр Антифрод",
+        cell: ({ row }: { row: { original: NumberRangeRow } }) => {
+          const value = row.original.uvrAntifraud;
+          return value != null ? String(value) : "—";
+        },
       },
     ],
     []
@@ -324,7 +351,7 @@ export function RangesTable({
         style: compactColumnStyle(UVR_ANTIFRAUD_COLUMN_WIDTH_CH),
       };
     }
-    if (columnId === "operator" || columnId === "garTerritory") {
+    if (columnId === "operator" || columnId === "garTerritory" || columnId === "legalAddress") {
       return {
         className: TEXT_CELL_CLASS,
         style: undefined,
@@ -586,6 +613,10 @@ export function RangesTable({
             isLoading={facetsLoading}
             placeholder="Территория ГАР"
           />
+        );
+      case "legalAddress":
+        return (
+          <span className="px-2 text-xs font-bold">Юридический адрес</span>
         );
       case "inn":
         return (

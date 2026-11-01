@@ -21,6 +21,7 @@ import {
   numberRangeDiffs,
   numberRanges,
   operatorsRegister,
+  partyAddresses,
 } from "../schema";
 import { innRegisterMatchSql } from "./innRegisterMatch";
 import { buildWhere } from "./buildWhere";
@@ -134,6 +135,7 @@ export async function listRanges(params: {
       capacity: table.capacity,
       operator: table.operator,
       garTerritory: table.garTerritory,
+      legalAddress: partyAddresses.legalAddress,
       inn: table.inn,
       uvrAntifraud: operatorsRegister.idSrc,
       abcRangeGapBefore: context.isDiff
@@ -151,6 +153,7 @@ export async function listRanges(params: {
     })
     .from(table)
     .leftJoin(operatorsRegister, innRegisterMatchSql(table.inn))
+    .leftJoin(partyAddresses, eq(partyAddresses.inn, table.inn))
     .where(where)
     .orderBy(...orderBy, ...tailOrder)
     .limit(params.pageSize)

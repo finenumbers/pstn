@@ -9,6 +9,7 @@ import type {
   ImportProgress,
   ImportStepProgress,
   ImportStepStatus,
+  PartyEnrichmentProgress,
 } from "@/packages/shared/contracts/import.schema";
 
 export type { ImportProgress as ImportProgressDisplay } from "@/packages/shared/contracts/import.schema";
@@ -24,6 +25,7 @@ const POST_LOAD_PHASES = [
   { id: "swapping", label: "Обновление таблицы и справочников" },
   { id: "saving_version_snapshot", label: "Сохранение расхождений" },
   { id: "binding_uvr_antifraud", label: "Привязка УВр Антифрод" },
+  { id: "enriching_legal_addresses", label: "Юридические адреса" },
   { id: "completed", label: "Готово" },
 ] as const;
 
@@ -40,6 +42,7 @@ const PHASE_LABELS: Record<string, string> = {
   saving_diff_snapshot: "Сохранение расхождений…",
   swapping: "Обновление таблицы и справочников…",
   binding_uvr_antifraud: "Привязка УВр Антифрод по ИНН…",
+  enriching_legal_addresses: "Юридические адреса по уникальным ИНН…",
   completed: "Загрузка завершена",
   failed: "Загрузка не завершена",
 };
@@ -117,6 +120,14 @@ export function buildImportFileProgress(
       }
     }
 
+    if (phase === "enriching_legal_addresses") {
+      return {
+        key: file.key,
+        status: "done" as const,
+        rows: rows > 0 ? rows : null,
+      };
+    }
+
     return { key: file.key, status: "pending" as const, rows: null };
   });
 }
@@ -127,7 +138,9 @@ export function computeImportPercent(
   filesTotal: number,
   jobStatus: ImportJobStatus,
   rowsLoaded = 0,
-  expectedRows = EXPECTED_IMPORT_ROWS
+  expectedRows = EXPECTED_IMPORT_ROWS,
+  enrichDone = 0,
+  enrichTotal = 0
 ): number {
   if (jobStatus === "skipped") return 100;
   if (jobStatus === "completed") return 100;
@@ -160,6 +173,12 @@ export function computeImportPercent(
     binding_uvr_antifraud: 97,
     completed: 100,
   };
+
+  if (phase === "enriching_legal_addresses") {
+    if (enrichTotal <= 0) return 99;
+    const ratio = Math.min(1, Math.max(0, enrichDone / enrichTotal));
+    return Math.min(99, 97 + Math.floor(ratio * 2));
+  }
 
   return postPercent[phase] ?? 5;
 }
@@ -269,6 +288,21 @@ export function resolvePhaseLabel(
   return PHASE_LABELS[phase] ?? "Загрузка данных…";
 }
 
+export const ENRICH_STOP_LABELS: Record<string, string> = {
+  missing_key: "Адреса не запрашивались: нет DADATA_API_KEY",
+  unauthorized: "Остановлено: неверный API-ключ DaData",
+  daily_limit: "Остановлено: DaData вернула 403 (лимит или ключ)",
+  timeout: "Остановлено: лимит времени 20 минут",
+};
+
+const EMPTY_ENRICHMENT: PartyEnrichmentProgress = {
+  total: 0,
+  done: 0,
+  withAddress: 0,
+  empty: 0,
+  stopReason: null,
+};
+
 export function buildImportProgressDisplay(input: {
   status: ImportJobStatus;
   phase: string;
@@ -276,8 +310,10 @@ export function buildImportProgressDisplay(input: {
   filesProcessed: number;
   filesTotal: number;
   rowsLoaded: number;
+  partyEnrichment?: PartyEnrichmentProgress;
 }): ImportProgress {
   const phase = input.phase || (input.status === "pending" ? "pending" : "");
+  const partyEnrichment = input.partyEnrichment ?? EMPTY_ENRICHMENT;
   const files = buildImportFileProgress(
     phase,
     input.fileRows,
@@ -291,7 +327,10 @@ export function buildImportProgressDisplay(input: {
     input.filesProcessed,
     input.filesTotal,
     input.status,
-    input.rowsLoaded
+    input.rowsLoaded,
+    EXPECTED_IMPORT_ROWS,
+    partyEnrichment.done,
+    partyEnrichment.total
   );
 
   return {
@@ -303,5 +342,6 @@ export function buildImportProgressDisplay(input: {
     rowsLoaded: input.rowsLoaded,
     files,
     steps: buildImportSteps(phase, input.status),
+    partyEnrichment,
   };
 }

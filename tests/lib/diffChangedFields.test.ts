@@ -21,6 +21,7 @@ function diffRow(
     operator: 'ООО "ИНСИС"',
     garTerritory: "г.о. город Екатеринбург|Свердловская область",
     inn: "6662103947",
+    legalAddress: null,
     uvrAntifraud: null,
     abcRangeGapBefore: false,
     abcRangeGapAfter: false,

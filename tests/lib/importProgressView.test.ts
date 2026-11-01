@@ -64,6 +64,9 @@ describe("importProgressView", () => {
     expect(resolvePhaseLabel("binding_uvr_antifraud", "running")).toBe(
       "Привязка УВр Антифрод по ИНН…"
     );
+    expect(resolvePhaseLabel("enriching_legal_addresses", "running")).toBe(
+      "Юридические адреса по уникальным ИНН…"
+    );
     expect(resolvePhaseLabel("completed", "completed")).toBe(
       "Загрузка завершена"
     );
@@ -94,6 +97,7 @@ describe("importProgressView", () => {
       "swapping",
       "saving_version_snapshot",
       "binding_uvr_antifraud",
+      "enriching_legal_addresses",
       "completed",
     ]);
     expect(
@@ -112,6 +116,30 @@ describe("importProgressView", () => {
     expect(computeImportPercent("binding_uvr_antifraud", 4, 4, "running")).toBe(
       97
     );
+    expect(
+      computeImportPercent(
+        "enriching_legal_addresses",
+        4,
+        4,
+        "running",
+        0,
+        446_000,
+        0,
+        0
+      )
+    ).toBe(99);
+    expect(
+      computeImportPercent(
+        "enriching_legal_addresses",
+        4,
+        4,
+        "running",
+        0,
+        446_000,
+        50,
+        100
+      )
+    ).toBe(98);
     expect(computeImportPercent("completed", 4, 4, "completed")).toBe(100);
   });
 

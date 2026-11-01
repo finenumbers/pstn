@@ -15,6 +15,7 @@ function sampleRow(id = 4): NumberRangeRow {
     operator: "АО \"МТТ\"",
     garTerritory: "Улан-Удэ",
     inn: "1234567890",
+    legalAddress: null,
     uvrAntifraud: null,
     abcRangeGapBefore: false,
     abcRangeGapAfter: true,

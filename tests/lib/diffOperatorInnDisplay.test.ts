@@ -18,6 +18,7 @@ function diffRow(
     operator: "New Op",
     garTerritory: "Territory",
     inn: "7700000000",
+    legalAddress: null,
     uvrAntifraud: null,
     abcRangeGapBefore: false,
     abcRangeGapAfter: false,

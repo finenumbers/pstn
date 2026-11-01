@@ -37,6 +37,7 @@ flowchart TB
 | UI `/ranges` | NPM Access List | Нет in-app auth |
 | Internal API (`/api/ranges`, `/api/summary`, `/api/export`, `/api/import`, `/api/datasets`, `/api/v1/lookup/examples`) | NPM | Полный доступ к данным при обходе периметра |
 | External lookup (`/api/v1/lookup`, `/api/v1/lookup/search`, `/api/v1/lookup/by-inn`) | Bearer / `X-Api-Key` | Timing-safe compare |
+| `DADATA_API_KEY` | Только сервер, не `NEXT_PUBLIC_` | В лог не пишутся ключ и тело ответа DaData |
 | PostgreSQL | Docker internal network | Не публикуется в prod compose |
 | Import API | NPM; `IMPORT_SECRET` опционален | Без secret импорт доступен на уровне приложения — защита периметром NPM |
 | Secrets on disk | Volume `pstn_secrets`, chmod 600 | Ключ не в логах entrypoint |

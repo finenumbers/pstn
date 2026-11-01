@@ -89,6 +89,15 @@ export const abcDict = pgTable("abc_dict", {
   code: varchar("code", { length: 3 }).primaryKey(),
 });
 
+export const partyAddresses = pgTable("party_addresses", {
+  inn: varchar("inn", { length: 12 }).primaryKey(),
+  legalAddress: text("legal_address"),
+  status: varchar("status", { length: 16 }).notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const importJobs = pgTable("import_jobs", {
   id: uuid("id").primaryKey().defaultRandom(),
   status: varchar("status", { length: 20 }).notNull(),
@@ -105,6 +114,11 @@ export const importJobs = pgTable("import_jobs", {
     .$type<Record<string, number>>()
     .notNull()
     .default({}),
+  enrichTotal: integer("enrich_total").notNull().default(0),
+  enrichDone: integer("enrich_done").notNull().default(0),
+  enrichWithAddress: integer("enrich_with_address").notNull().default(0),
+  enrichEmpty: integer("enrich_empty").notNull().default(0),
+  enrichStopReason: text("enrich_stop_reason"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

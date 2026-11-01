@@ -16,6 +16,7 @@ function row(
     operator: "ПАО \"Ростелеком\"",
     garTerritory: "Улан-Удэ",
     inn: "",
+    legalAddress: null,
     uvrAntifraud: null,
     abcRangeGapBefore: gapBefore,
     abcRangeGapAfter: gapAfter,

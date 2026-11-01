@@ -44,6 +44,7 @@ services:
       DB_IMPORT_POOL_MAX: ${DB_IMPORT_POOL_MAX:-4}
       EXTERNAL_API_BASE_URL: ${EXTERNAL_API_BASE_URL:-}
       IMPORT_SECRET: ${IMPORT_SECRET:-}
+      DADATA_API_KEY: ${DADATA_API_KEY:-}
     volumes:
       - pstn_secrets:/app/.secrets
       - pstn_exports:/app/data/exports

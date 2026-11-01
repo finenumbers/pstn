@@ -8,6 +8,10 @@ import {
   refreshUvrAntifraudBinding,
 } from "@/packages/db/queries/refreshUvrAntifraudBinding";
 import { ensureOprRegisterLoaded } from "@/packages/import/importOprRegister";
+import {
+  enrichLegalAddresses,
+  latestDiffSnapshotId,
+} from "@/packages/import/enrichLegalAddresses";
 import { clearSummaryCache } from "@/lib/cache/summaryCache";
 import { buildImportProgressDisplay } from "@/lib/import/importProgressView";
 import {
@@ -254,6 +258,19 @@ async function runImportJob(jobId: string): Promise<void> {
 
     const storedHashes = await getStoredSourceHashes();
     if (storedHashes && sourceHashesEqual(sourceHashes, storedHashes)) {
+      try {
+        const snapshotId = await latestDiffSnapshotId();
+        await enrichLegalAddresses({
+          jobId,
+          mode: "missing",
+          snapshotId,
+        });
+      } catch (error) {
+        console.error(
+          "Legal address backfill failed:",
+          error instanceof Error ? error.message : "unknown"
+        );
+      }
       await db
         .update(importJobs)
         .set({
@@ -376,6 +393,7 @@ async function runImportJob(jobId: string): Promise<void> {
     await touchImportJobHeartbeat(jobId);
 
     const loadDate = mskLoadDateKey(new Date());
+    let snapshotId: string | null = null;
 
     if (diffSegments.length > 0) {
       await db
@@ -384,7 +402,7 @@ async function runImportJob(jobId: string): Promise<void> {
         .where(eq(importJobs.id, jobId));
 
       await assertImportJobStillRunning(jobId);
-      await saveDiffSnapshot({
+      snapshotId = await saveDiffSnapshot({
         jobId,
         loadDate,
         segments: diffSegments,
@@ -415,13 +433,27 @@ async function runImportJob(jobId: string): Promise<void> {
     });
 
     await dropImportDiffOldTable();
+
+    try {
+      await enrichLegalAddresses({
+        jobId,
+        mode: "full",
+        snapshotId,
+      });
+    } catch (error) {
+      console.error(
+        "Legal address enrichment failed:",
+        error instanceof Error ? error.message : "unknown"
+      );
+    }
+
     clearSummaryCache();
 
     await db
       .update(importJobs)
       .set({
         status: "completed",
-        finishedAt,
+        finishedAt: new Date(),
         rowsLoaded: stats.totalRows,
         filesProcessed: SOURCE_FILES.length,
         progressPhase: "completed",
@@ -495,6 +527,13 @@ export async function getImportStatus(jobId?: string) {
       filesProcessed,
       filesTotal,
       rowsLoaded,
+      partyEnrichment: {
+        total: job.enrichTotal ?? 0,
+        done: job.enrichDone ?? 0,
+        withAddress: job.enrichWithAddress ?? 0,
+        empty: job.enrichEmpty ?? 0,
+        stopReason: job.enrichStopReason ?? null,
+      },
     }),
     loadedAt,
     errorMessage: job.errorMessage ?? undefined,

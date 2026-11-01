@@ -181,6 +181,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 | `EXTERNAL_API_BASE_URL` | `https://pstn.example.com` | рекомендуется |
 | `EXTERNAL_API_KEY` | фиксированный ключ | нет (auto) |
 | `IMPORT_SECRET` | секрет import API | **да для scheduler** |
+| `DADATA_API_KEY` | токен Suggestions API (юридический адрес) | нет |
 
 ### Автоимпорт (scheduler)
 
@@ -328,6 +329,7 @@ location /api/import {
 | `EXTERNAL_API_KEY` | нет | auto | Ключ external lookup API |
 | `EXTERNAL_API_BASE_URL` | рекомендуется | — | Публичный URL для curl-примеров в UI |
 | `IMPORT_SECRET` | **да для scheduler** | — | Заголовок `X-Import-Secret` для import API и cron |
+| `DADATA_API_KEY` | нет | пусто | Токен DaData Suggestions. Только контейнер `app`. Пустой ключ не останавливает загрузку CSV |
 | `CRON_TZ` | в scheduler | `Europe/Moscow` | Часовой пояс cron |
 | `OPR_CSV_PATH` | нет | bundled | Путь к CSV реестра OPR (см. ниже) |
 | `NODE_ENV` | в образе | `production` | Режим Next.js |
@@ -339,7 +341,7 @@ location /api/import {
 | `RATE_LIMIT_FACETS` | нет | `60/60000` | In-app rate limit GET `/api/ranges/facets` |
 | `RATE_LIMIT_LOOKUP` | нет | `5000/60000` | In-app rate limit `/api/v1/lookup*` |
 
-> **Portainer:** в compose проброшены `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`, `IMPORT_SECRET` (для app и scheduler). Переменная `EXTERNAL_API_KEY` из [`portainer.env.example`](../portainer.env.example) **не попадает в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
+> **Portainer:** в compose проброшены `POSTGRES_*`, `APP_PORT`, `LOG_LEVEL`, `DB_POOL_*`, `EXTERNAL_API_BASE_URL`, `IMPORT_SECRET` (для app и scheduler), `DADATA_API_KEY` (только app). После добавления ключа stack нужно задеплоить заново. Контейнеру `app` нужен исходящий HTTPS на `suggestions.dadata.ru:443`. Переменная `EXTERNAL_API_KEY` из [`portainer.env.example`](../portainer.env.example) **не попадает в контейнер** без правки compose — ключ API генерируется в volume, OPR загружается из bundled файла.
 
 ### Пул соединений PostgreSQL
 

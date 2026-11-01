@@ -92,6 +92,8 @@ export interface NumberRangeRow {
   capacity: number;
   operator: string;
   garTerritory: string;
+  /** Юридический адрес головной организации из DaData. Пусто, если ИНН не найден. */
+  legalAddress: string | null;
   inn: string;
   /** УВр Антифрод — id_src из реестра OPR, привязка по ИНН. */
   uvrAntifraud: number | null;
@@ -175,6 +177,7 @@ export type {
   ImportJobStatus,
   ImportProgress,
   ImportStatusResponse,
+  PartyEnrichmentProgress,
   ImportStepProgress,
   ImportStepStatus,
 } from "./import.schema";

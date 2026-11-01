@@ -84,7 +84,8 @@ flowchart TD
   swap --> snap[saving_version_snapshot]
   snap --> uvr[binding_uvr_antifraud]
   uvr --> meta[update dataset_meta]
-  meta --> done[status completed]
+  meta --> addr[enriching_legal_addresses]
+  addr --> done[status completed]
 ```
 
 ### Фазы и что видит пользователь
@@ -102,6 +103,7 @@ flowchart TD
 | `swapping` | Атомарная подмена production | `number_ranges` | «Обновление таблицы…» |
 | `saving_version_snapshot` | Строки расхождений этого MSK-дня. Полная копия плана не сохраняется. Фаза пропускается, если diff пустой или это первый импорт | `dataset_snapshots`, `number_range_diffs` | «Сохранение расхождений…» |
 | `binding_uvr_antifraud` | OPR + привязка УВр | `operators_register` | «Привязка УВр Антифрод…» |
+| `enriching_legal_addresses` | DaData `findById/party` по уникальным ИНН, upsert в `party_addresses`. Полный перезапрос после записи датасета или расхождений. На `skipped` добираются только ИНН без строки | `party_addresses` | «Юридические адреса по уникальным ИНН…» счётчик N из M |
 | `completed` | Meta + hashes обновлены | `dataset_meta` | «Загрузка завершена» (зелёная) |
 | `failed` | Ошибка до или после swap* | staging truncated | «Загрузка не завершена» (красная) |
 
@@ -326,7 +328,7 @@ curl -s "http://127.0.0.1:5555/api/import/status?jobId=<uuid>"
 
 Легенда — под таблицей. В diff mode отключены красные ABC-gap маркеры и специальная подсветка Frontir/9xx.
 
-**Колонки таблицы в diff mode (UI):** ABC, Начало, Конец, Ёмкость, Оператор связи, Территория ГАР, УВр Антифрод, ИНН, **Изменения**. Отдельных колонок «Старый/Новый оператор» и «Старый/Новый ИНН» в UI **нет** — old/new доступны в диалоге «было / стало» по клику на «Изменения».
+**Колонки таблицы в diff mode (UI):** ABC, Начало, Конец, Ёмкость, Оператор связи, Территория ГАР, Юридический адрес, ИНН, УВр Антифрод, **Изменения**. Отдельных колонок «Старый/Новый оператор» и «Старый/Новый ИНН» в UI **нет** — old/new доступны в диалоге «было / стало» по клику на «Изменения». Юридический адрес в сравнение diff не входит.
 
 Фильтр **`filters.changedFields`** (колонка «Изменения»): OR по полям `operator`, `garTerritory`, `inn`, `added`, `removed`. Фильтры по оператору и ИНН — по **новым** значениям в snapshot.
 
